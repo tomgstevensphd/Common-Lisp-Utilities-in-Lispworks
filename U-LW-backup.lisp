@@ -2,10 +2,10 @@
 ;;
 ;;FUNCTIONS TO BACK UP MY LW PROJECT FILES SIMPLY
 ;;
-(when (unbound '*current-lw-editing-files)
+(when (not (boundp '*current-lw-editing-files))
   (defparameter *current-lw-editing-files NIL))
 
-(when (or (unbound '*current-lw-budirs) (null *current-lw-budirs))
+(when (or (not (boundp '*current-lw-budirs)) (null *current-lw-budirs))
   (defparameter *current-lw-budirs '("c:/3-TS/LISP PROJECTS TS/" )))
 
 ;;LWBU

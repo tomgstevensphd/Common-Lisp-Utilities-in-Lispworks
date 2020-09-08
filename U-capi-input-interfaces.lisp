@@ -1,6 +1,9 @@
 ;;*********************** U-capi-input-interfaces.lisp **************
 ;;
 ;;CAPI INTERFACES FOR VARIOUS TYPES OF STANDARD INPUTS
+
+(unless (boundp 'my-confirm)
+  (compile-file "C:/3-TS/LISP PROJECTS TS/MyUtilities/U-capi.lisp" :load T))
 ;;
 ;; CAN BE USED WITHOUT MAKING SPECIAL NEW DEF FOR EACH USE
 
@@ -96,6 +99,7 @@ CAPI:PROMPT-WITH-MESSAGE
 (defparameter *text-input-OR-button-interface-best-width  600)
 (defparameter *text-input-OR-button-interface-best-height  500)
 (defparameter *text-input-OR-button-interface-textdata NIL)
+(defparameter   *simple-input-instr-boldp NIL)
 
 ;; TO TERMINATE CURRENT LOOP-
 (defparameter *terminate-current-loop-p NIL "called in (terminate-interface-callback")
@@ -108,7 +112,20 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 ;;ddd
 (capi:define-interface text-input-OR-button-interface ()
-  ((sv-interface-subtype
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+   (sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )(sv-interface-subtype
     :initarg :sv-interface-subtype
     :accessor sv-interface-subtype
     :initform NIL
@@ -160,6 +177,12 @@ CAPI:PROMPT-WITH-MESSAGE
     :accessor sv-close-interface-p
     :initform NIL
     :documentation  "If  T, callback closes interface-process at end.")
+   ;;sv-na-none-button-output 2019
+   (sv-na-none-button-output
+    :initarg :sv-na-none-button-output
+    :accessor sv-na-none-button-output
+    :initform *na-none-button-output ;; =? "NA-NONE"
+    :documentation  "NA-NONE-BUTTON-OUTPUT")
 
 #|   (sv-main-interface-process
     :initarg :sv-main-interface-process
@@ -200,8 +223,33 @@ CAPI:PROMPT-WITH-MESSAGE
 
   ;;((the-pane :accessor text-input-pane-test-pane))
   (:panes
-   (title-pane
-    capi:rich-text-pane    :accepts-focus-p NIL
+      (title-pane
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
     :make-instance-extra-apply-args :title-pane-args
     :visible-border T
     :internal-border 15 
@@ -209,16 +257,44 @@ CAPI:PROMPT-WITH-MESSAGE
     ;;end title-pane
     )
    (instr-pane
-    capi:rich-text-pane    :accepts-focus-p NIL
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
     :make-instance-extra-apply-args :instr-pane-args
     :visible-border T
     :internal-border 15
+    :visible-min-height 40
     :accepts-focus-p NIL
     )
    (quest-pane
-    capi:rich-text-pane    :accepts-focus-p NIL
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
     :make-instance-extra-apply-args :quest-pane-args
     :visible-border T
+    :visible-min-height 40
     :internal-border 15
     :accepts-focus-p NIL
     )
@@ -279,7 +355,18 @@ CAPI:PROMPT-WITH-MESSAGE
     :callback-type :item-interface
     :make-instance-extra-apply-args :go-button-args
     )
-
+   (na-none-button
+    capi:push-button
+    :background :green
+    :text  " NOT APPLICABLE or NONE: GO to next >> "
+    :font  *go-frame-button-font 
+    :default-p NIL
+    :callback-type :item-interface
+           ;;NO   :callback 'terminate-interface-callback 
+   :make-instance-extra-apply-args :na-none-button-button-args
+   :callback 'NA-NONE-BUTTON-CALLBACK  ;;HERE66
+  ;;   :make-instance-extra-apply-args :na-none-button-args
+    )
    ;;end panes
    )   
   (:layouts
@@ -296,6 +383,7 @@ CAPI:PROMPT-WITH-MESSAGE
    :layout 'column-layout
    :background :red
    :internal-border 15
+    :visible-min-height 400
    )
   ;;END text-input-OR-button-interface
   )
@@ -311,6 +399,10 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           (title-font-size 14)(title-font-color :red)
                                                           (title-align :center)  title-pane-args    
                                                           (instr-text "Type INPUT below:") 
+                                                          (multi-instr-text (format nil 
+  "   ONLY TYPE ONE ANSWER-ITEM IN EACH INPUT WINDOW,
+                Then select 'GO TO NEXT' button
+       WHEN FINISHED, Select 'LAST LIST ITEM, goto next question' button."))
                                                           (instr-pane-ht 40) (instr-align :left)
                                                           (instr-font-size 12) (instr-font-color :black)
                                                           (instr-bkgr :light-blue)   instr-pane-args
@@ -328,6 +420,7 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           check-button-items
                                                           check-button-pane-args
                                                           go-button-args
+                                                          INCL-NA-NONE-BUTTON-P ;;new 2019
                                                           layout-args   
                                                           (win-title "User Text Input Window")
                                                           (win-border 10)
@@ -336,6 +429,7 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           confirm-input-p 
                                                           (callback 'text-input-OR-button-interface-callback)
                                                           (callback-type :item-interface)
+                                                          use-selection-callback-p
                                                           (close-this-process-p T)
                                                           close-interface-p 
                                                           make-func-process
@@ -347,13 +441,25 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           terminate-button-p
                                                           (terminate-text
                                                            " LAST LIST ITEM-goto next question  ")
+                                                          (terminate-callback 'terminate-interface-callback  )
+                                                          na-none-button-p
+                                                          (na-none-button-text 
+                                                   " NOT APPLICABLE or NONE: GO to next >> ")
+                                                          ;;here77
+                                                          (na-none-callback
+                                                           'terminate-interface-callback)  
+                                                          na-button-args
+                                                          (term-button-ht 20)
                                                           )
       ;;NOTE:  4 WAYS TO CLOSE CALLING PROCESS: 1. change it's slot value, 2. Directly close its process; 3. Directly close it's interface; 4. Poke it and let it close itself (can do with change slot-value of 'chose-this-process-p
   "In U-capi-input-interfaces,  A general purpose text input popup window.  SETS *TEXT-INPUT-OR-BUTTON-INTERFACE-TEXTDATA to the input. NOTE: If want to continue in a process, set the global var to NIL each time used, and proceed in calling process when global var is no longer nil? data not used "
-     ;;(break  "a")
+  ;;FOR MULTI-TEXT INPUTS, CHANGE INSTRS
+  (when terminate-button-p
+    (setf instr-text multi-instr-text ))
+
      (let
          ((inst)
-          (all-title-pane-args `(:visible-max-height ,title-pane-ht :visible-min-height ,title-pane-ht  :background ,title-bkgr :text ,title   
+          (all-title-pane-args `(:visible-max-height ,title-pane-ht :visible-min-height ,title-pane-ht  :background ,title-bkgr :text ,title   ;;was ,title   
                                  :character-format (:face "times new roman"  :size  ,title-font-size
                                                     :color ,title-font-color  :bold T :italic  NIL :underline nil) 
                                  :paragraph-format  (:alignment ,title-align)))
@@ -366,6 +472,7 @@ CAPI:PROMPT-WITH-MESSAGE
           (all-quest-pane-args)
           (all-args) 
           (this-process (mp:get-current-process))
+          (na-none-button-button-args)
           (terminate-button)
           )
        ;;QUEST-PANE-ARGS
@@ -390,10 +497,16 @@ CAPI:PROMPT-WITH-MESSAGE
               *2-button-input-interface-data  nil)
 
        ;;for text-input and check-boxs
-       (unless radio-button-items
+       (unless (and radio-button-items  use-selection-callback-p)
          (setf go-button-args (list :go-button-args  
                                     (append  go-button-args `(:callback ,callback)))))
+       ;;added 2019-12
+       (when na-none-button-p
+         (setf na-none-button-button-args (list :na-none-button-button-args
+                  (append `(:callback ,na-none-callback :text na-none-button-text)
+                          na-none-button-args)))) 
        ;;(break  "1")
+
        ;;COMBINE ARGS 
        (when title-pane-args
          (setf all-title-pane-args  (append all-title-pane-args title-pane-args)))
@@ -412,17 +525,25 @@ CAPI:PROMPT-WITH-MESSAGE
          (setf all-args (append all-args (list :input-pane-args input-pane-args))))
     
        (when radio-button-items
-         (setf  interface-subtype :radio-button
-                radio-button-pane-args (append radio-button-pane-args 
-                                               (list :items radio-button-items  :selection-callback callback ))))
+         (cond
+          (use-selection-callback-p
+           (setf  interface-subtype :radio-button
+                  radio-button-pane-args (append radio-button-pane-args 
+                                                 (list :items radio-button-items :selection-callback callback ))))
+          ;;IF NEXT BUTTON--USE ITS CALLBACK instead of :selection-callback??
+          (T (setf  interface-subtype :radio-button
+                    radio-button-pane-args (append radio-button-pane-args 
+                                                   (list :items radio-button-items))))))   
+                 
        ;;(break  "2")
        (when radio-button-pane-args
          (setf all-args (append all-args (list :radio-button-pane-args  radio-button-pane-args))))
+       ;;(break "all radio args")
                                                
        (when check-button-items
          (setf   interface-subtype :check-button
                  check-button-pane-args (append check-button-pane-args 
-                                                (list :items check-button-items))))           
+                                                (list :items check-button-items))))      
        (when check-button-pane-args
          (setf all-args (append all-args 
                                 (list :check-button-pane-args  check-button-pane-args))))
@@ -437,7 +558,6 @@ CAPI:PROMPT-WITH-MESSAGE
                                   #'(setf capi:layout-description)
                                           (list answer-button-panel)                                            
                                           answer-column-layout)|#
-
        ;;(break  "3")
        ;;add window args
        (cond
@@ -455,7 +575,7 @@ CAPI:PROMPT-WITH-MESSAGE
        ;;Must use with-slots AFTER making instance
        (with-slots (column-layout title-pane  instr-pane text-input-pane 
                                   quest-pane radio-button-pane check-button-pane  
-                                  go-fr-button) inst
+                                  go-fr-button na-none-button) inst
 
          ;;SET SLOT VALUES
          (unless interface-subtype
@@ -477,12 +597,11 @@ CAPI:PROMPT-WITH-MESSAGE
            (setf  (slot-value inst 'sv-poke-make-func-process-p) T))    
          (when poke-interface-process-p
            (setf (slot-value inst 'sv-poke-interface-process-p) T))
-         (when interface-subtype
-           (slot-value inst 'sv-interface-subtype) interface-subtype)
-
+#|  done above       (when interface-subtype
+           (setf (slot-value inst 'sv-interface-subtype) interface-subtype))|#
          ;;(BREAK "sv-confirm-input-p")
          ;;SET PANE ATTRIBUTES
-         (cond
+         (cond  ;;here66
           (radio-button-items
            (setf (capi:layout-description column-layout) 
                  (list title-pane  instr-pane  radio-button-pane )))
@@ -490,37 +609,66 @@ CAPI:PROMPT-WITH-MESSAGE
            (setf (capi:layout-description column-layout) 
                  (list title-pane  instr-pane  check-button-pane go-fr-button )))
           (terminate-button-p
-           (setf terminate-button (make-instance 'capi:push-button :text terminate-text
+           (setf terminate-button (make-instance 'capi:push-button
+                                                 :text terminate-text
+                                                 :font  *go-frame-button-font 
+                                                 :visible-min-height term-button-ht
                                                  :callback 'terminate-interface-callback 
                                                  :callback-type :item-interface ))
            ;; USE?? (capi:element-interface-for-callback terminate-button)
            (cond
             (quest-text  
-             (setf (capi:layout-description column-layout)
-                   (list title-pane  instr-pane quest-pane
-                         text-input-pane go-fr-button terminate-button))
+             (cond
+              (incl-na-none-button-p
+               (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane quest-pane
+                           text-input-pane go-fr-button terminate-button na-none-button )))
+              (t (setf (capi:layout-description column-layout)
+                       (list title-pane  instr-pane quest-pane
+                             text-input-pane go-fr-button terminate-button  ))))
              )
             (t 
-             (setf (capi:layout-description column-layout)
-                   (list title-pane  instr-pane text-input-pane go-fr-button 
-                         terminate-button))))
+             (cond
+              (incl-na-none-button-p
+               (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane text-input-pane go-fr-button
+                           terminate-button na-none-button)))
+              (t (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane text-input-pane go-fr-button
+                           terminate-button ))))))
            ;;end terminate button
            )
           (t 
            ;; USE?? (capi:element-interface-for-callback terminate-button)
            (cond
             (quest-text  
-             (setf (capi:layout-description column-layout)
-                   (list title-pane  instr-pane quest-pane
-                         text-input-pane go-fr-button ))
+             (cond 
+              (incl-na-none-button-p
+               (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane quest-pane
+                           text-input-pane go-fr-button na-none-button )))
+              (t (setf (capi:layout-description column-layout)
+                       (list title-pane  instr-pane quest-pane
+                             text-input-pane go-fr-button))))
              )
             (t 
-             (setf (capi:layout-description column-layout)
-                   (list title-pane  instr-pane text-input-pane go-fr-button ))))
+             (cond 
+              (incl-na-none-button-p
+               (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane text-input-pane go-fr-button na-none-button )))
+              (t
+               (setf (capi:layout-description column-layout)
+                     (list title-pane  instr-pane text-input-pane go-fr-button ))))))
            ;;end t, cond
            ))
 
          (when input-pane-text
+           (capi:apply-in-pane-process  inst
+                                        #'(setf capi:text-input-pane-text) 
+                                        input-pane-text text-input-pane))
+
+         ;;INCLUDE NA-NONE BUTTON?
+         (when INCL-NA-NONE-BUTTON-P
            (capi:apply-in-pane-process  inst
                                         #'(setf capi:text-input-pane-text) 
                                         input-pane-text text-input-pane))
@@ -550,7 +698,10 @@ CAPI:PROMPT-WITH-MESSAGE
 ;; (make-text-input-OR-button-interface-instance :confirm-input-p T)
 ;;  (make-text-input-OR-button-interface-instance :terminate-button-p T)
 
-;; (make-text-input-OR-button-interface-instance :title "NEW TITLE" :title-bkgr :green :title-pane-ht 40 :title-font-size 18 :title-font-color :yellow :title-align :right :instr-text "New instr text" :instr-font-color :red :instr-bkgr :white)
+;; (Make-text-input-OR-button-interface-instance :incl-na-none-button-p T)
+;;  (make-text-input-OR-button-interface-instance :terminate-button-p T  :incl-na-none-button-p T)
+
+;; (make-text-input-OR-button-interface-instance :win-title "NEW TITLE" :title"Title Pane Text"  :title-bkgr :green :title-pane-ht 40 :title-font-size 18 :title-font-color :red  :title-align :right :instr-text "New instr text" :instr-font-color :red :instr-bkgr :white)
 ;; above works
 
 ;; (Make-text-input-OR-button-interface-instance :interface-subtype :radio-button :radio-button-items '("item 1" "item 2 " "item 3"))
@@ -577,7 +728,7 @@ CAPI:PROMPT-WITH-MESSAGE
       (confirm-input-p)
        (yes? T)
        )
-    ;;(Break "callback 1")
+    ;;(Break "callback 1-INFINITE LOOP")
     ;;reset
      (setf *text-input-OR-button-interface-textdata NIL)
     (with-slots (text-input-pane instr-pane radio-button-pane check-button-pane) interface
@@ -599,7 +750,7 @@ CAPI:PROMPT-WITH-MESSAGE
         (setf *text-input-OR-button-interface-textdata
               (capi:choice-selected-items check-button-pane)))
        (t nil))
-
+       ;;(break"when")
       ;;CONFIRM THE INPUT?
       ;;(BREAK "sv-confirm-input-p")
       (when (slot-value interface 'sv-confirm-input-p)  
@@ -607,7 +758,7 @@ CAPI:PROMPT-WITH-MESSAGE
               yes? (my-confirm (format nil "YOUR TEXT INPUT=  ~A" *text-input-OR-button-interface-textdata) :QUESTION-STRING "IS YOUR TEXT INPUT CORRECT?"))
         ;;end when
         )
-
+      ;;(break "slot-values")
       ;;TAKE ACTIONS SPECIFIED IN INTERFACE SLOTS
         (when (or (null confirm-input-p)
                   (and confirm-input-p yes?))
@@ -625,9 +776,11 @@ CAPI:PROMPT-WITH-MESSAGE
             (setf *text-input-OR-button-interface-textdata
                   (capi:choice-selected-items check-button-pane)))
            (t nil))
-              ;;(break "before poke")
+          ;;(break "before poke")
         ;;POKE TO GO TO NEXT QUESTION?
         ;;(format t "In callback, cur-proc= ~A~% make-func-process= ~A" (mp:get-current-process) make-func-process)
+        ;;pause, sometimes pokes before *text-input-OR-button-interface-textdata ready??
+        (sleep 1)
           (when (and poke-make-func-process-p make-func-process)
           ;; (break "poke here")
             (mp:process-poke make-func-process))
@@ -640,8 +793,8 @@ CAPI:PROMPT-WITH-MESSAGE
           (capi:destroy interface)
          ;;end when (or (null confirm-input-p) yes?)
           )
-        ;;;(break "end text-input-OR-button-interface-callback")
-        *text-input-OR-button-interface-textdata
+        ;;(break "end text-input-OR-button-interface-callback")
+        *TEXT-INPUT-OR-BUTTON-INTERFACE-TEXTDATA
         ;;end with-slots,let, text-input-OR-button-interface-callback
         )))
 ;;TEST
@@ -657,8 +810,75 @@ CAPI:PROMPT-WITH-MESSAGE
 ;; THIS CALLED THE MAKE-INTERFACE FUNCTION AND WAS SUCCESSFULLY PAUSED AND POKED by the callbacks from the other function.
 ;; SO THIS SUCCESSFULLY MODELS A MANAGER FUNCTION THAT YOU WANT TO CONTROL TIMING OF INTERFACES
   
+
+
+
+;;NA-NONE-BUTTON-CALLBACK
+;; DOESN'T WORK==>USE TEXT-INPUT-OR-BUTTON-INTERFACE-CALLBACK INSTEAD [leave up to calling function what to do with blank answer]
+;;2019
+;;ddd
+(defun na-none-button-callback (item interface)
+  (let
+      ((confirm-call-process (mp:get-current-process))
+       (special-process (when (slot-exists-p   interface 'sv-special-process)
+                          (slot-value interface 'sv-special-process)))
+       (poke-special-process-p (when (slot-exists-p   interface 'sv-poke-special-process-p)
+                                 (slot-value interface  'sv-poke-special-process-p)))
+       (make-func-process (when (slot-exists-p   interface 'sv-make-func-process)
+                          (slot-value interface 'sv-make-func-process)))
+       (poke-make-func-process-p
+        (when (slot-exists-p   interface 'sv-poke-make-func-process-p)
+                                   (slot-value interface  'sv-poke-make-func-process-p)))
+       (na-none-button-output (when (slot-exists-p   interface 'sv-na-none-button-output)
+                          (slot-value interface 'sv-na-none-button-output)))
+       )
+      ;;SET THE RESULT GLOBAL VARIABLE
+      ;;FOR NA-NONE OUTPUT
+      (setf *text-input-OR-button-interface-textdata na-none-button-output)          
+              ;;(break "before poke")
+      ;;TERMINATE CURRENT FRAME
+      (setf *terminate-current-loop-p T)
+
+        ;;POKE TO GO TO NEXT QUESTION?
+        ;;(format t "In callback, cur-proc= ~A~% make-func-process= ~A" (mp:get-current-process) make-func-process)
+          (when (and poke-make-func-process-p make-func-process)
+          ;;(break "poke here")
+            (mp:process-poke make-func-process))
+          (when (and poke-special-process-p special-process)
+            (mp:process-poke special-process))
+          (when (slot-value interface 'sv-poke-interface-process-p)
+            (mp:process-poke interface))
+
+     ;;(text-input-OR-button-interface-callback item interface)
+          ;;(break "after poke, close now")
+          (capi:destroy interface)
+        ;;(break "end text-input-OR-button-interface-callback")
+        *text-input-OR-button-interface-textdata
+        ;;end with-slots,let, na-none-button-callback
+        ))
+;;TEST
+;;  (make-text-input-OR-button-interface-instance :terminate-button-p T  :incl-na-none-button-p T) = NIL
+;; works: *text-input-OR-button-interface-textdata  =  "NA-NONE"
+;;interface= #<TEXT-INPUT-OR-BUTTON-INTERFACE " Cognitive Systems Questionnaire (CSQ) " 293CBAD3>
+
+;;FROM BUTTON
+;; special process= #<MP:PROCESS Name "CAPI Execution Listener 7" Priority 0 State "Paused">
+;; make-func-process= #<MP:PROCESS Name "CAPI Execution Listener 7" Priority 0 State "Paused">
+;; pokes both T
+;; FROM MAIN FUNC
+;; MAKE-FUNC-PROC= #<MP:PROCESS Name "CAPI Execution Listener 7" Priority 0 State "Paused">
+;; SPECIAL-PROC = #<MP:PROCESS Name "CAPI Execution Listener 7" Priority 0 State "Paused">
+;; POKE-SPEC=T, POKE-MAIN= NIL
+;; THIS-FUNC-PROC= #<MP:PROCESS Name "CAPI Execution Listener 7" Priority 0 State "Paused">
+
+
+;;MY-CALL-INPUT-TEXT
+;;
+;;ddd
 (defun my-call-input-text (text &key (title "INPUT WINDOW") 
-                                (win-title "INPUT WINDOW") close-interface-p)
+                                (win-title "INPUT WINDOW") close-interface-p
+                                (poke-special-process-p T))
+   "U-capi-input-interfaces.  Sets *TEXT-INPUT-OR-BUTTON-INTERFACE-TEXTDATA to input. "
   (let*
       ((cur-process (mp:get-current-process))  ;;SHOWS IF NIL
        (instance  (make-text-input-OR-button-interface-instance
@@ -693,7 +913,7 @@ CAPI:PROMPT-WITH-MESSAGE
     ))
 
 
-;;  (make-text-input-OR-button-interface-instance :title "INPUT WINDOW"     :title-bkgr :pink  :title-pane-ht 20        :title-font-size 16    :title-font-color :red    :title-align :center  :title-pane-args  NIL  :instr-text "Type INPUT below:"   :instr-pane-ht 60     :instr-align :right           :instr-font-size 14      :instr-font-color :maroon    :instr-bkgr :cyan     :instr-pane-args  NIL :input-pane-text  "Input pane text"  :input-pane-args nil    :layout-args '(:background :green)    :window-args '(:visible-min-width 500 :title "Window New Title"))
+;;  (make-text-input-OR-button-interface-instance :title "INPUT WINDOW"     :title-bkgr :pink  :title-pane-ht 20        :title-font-size 16    :title-font-color :red    :title-align :center  :title-pane-args  NIL  :instr-text "Type INPUT below:"   :instr-pane-ht 60     :instr-align :right           :instr-font-size 14      :instr-font-color :maroon    :instr-bkgr :cyan     :instr-pane-args  NIL :input-pane-text  "Input pane text"  :input-pane-args nil    :layout-args '(:background :green)) ;;ERROR:   :window-args '(:visible-min-width 500 :title "Window New Title"))
 
 ;;  FOR RADIO AND CHECK BUTTONS
 ;;  (make-text-input-OR-button-interface-instance :confirm-input-p T) 
@@ -865,7 +1085,20 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 ;;ddd
 (capi:define-interface info-popup-interface ()
-  ((sv-interface-subtype
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+   (sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )(sv-interface-subtype
     :initarg :sv-interface-subtype
     :accessor sv-interface-subtype
     :initform NIL
@@ -1033,6 +1266,7 @@ CAPI:PROMPT-WITH-MESSAGE
        (all-title-pane-args `(:visible-max-height ,title-pane-ht :visible-min-height ,title-pane-ht  :background ,title-bkgr :text ,title   :character-format (:face "times new roman"  :size  ,title-font-size  :color ,title-font-color  :bold T :italic  NIL :underline nil)  :paragraph-format  (:alignment ,title-align)))
        (all-info-pane-args `(:visible-max-height ,info-pane-ht :visible-min-height ,info-pane-ht  :background ,info-bkgr :text ,info-text :character-format (:face "times new roman"  :size  ,info-font-size  :color ,info-font-color  :bold T :italic nil :underline nil)  :paragraph-format  (:alignment ,info-align)))
        (all-args) 
+       (button-args)
        (this-process (mp:get-current-process))
        )
 
@@ -1080,8 +1314,10 @@ CAPI:PROMPT-WITH-MESSAGE
     ;;end let, make-info-popup-interface-instance
     ))
 ;;TEST
-;;  (make-info-popup-interface-instance :info-text "This is new info")
+;;  
+
 ;;   :info-pane-args '(:internal-border 25))  ;;doesn't add any border to rich text pane
+
 
 
 
@@ -1090,7 +1326,21 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 ;;ddd
 (capi:define-interface 2-BUTTON-POPUP-INTERFACE ()
-  ((sv-interface-subtype
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+(sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )
+   (sv-interface-subtype
     :initarg :sv-interface-subtype
     :accessor sv-interface-subtype
     :initform NIL
@@ -1275,6 +1525,7 @@ CAPI:PROMPT-WITH-MESSAGE
        (make-func-process (slot-value interface 'sv-make-func-process))  
        (yes? T)
        (answer )
+       (choice-list-pane)
        ) 
     ;;answer
     (when (equal item go-fr-button)
@@ -1332,10 +1583,12 @@ CAPI:PROMPT-WITH-MESSAGE
 (defun reject-answer-callback (data interface)
   "In CSQ-SHAQ-Frame-quest-functions, provides signal for main work function to select previous frame"
   (let
-      ((poke-special-process)
+      ((poke-special-process-p)
+       (special-process)
        )    
     (with-slots (sv-poke-special-process-p sv-special-process) interface
-      (setf poke-special-process-p (slot-value interface 'sv-poke-special-process-p)))
+      (setf poke-special-process-p (slot-value interface 'sv-poke-special-process-p)
+            special-process (slot-value interface 'special-process-p))
      ;;(break "calling-process in REJECT")
      (setf *2-button-input-interface-data 'NO
            (slot-value interface 'close-make-func-process-p) NIL)
@@ -1347,7 +1600,7 @@ CAPI:PROMPT-WITH-MESSAGE
   ;;(setf *test-rich-text-pane-paragraph-format (capi::default-paragraph-format info-pane))
   (capi:destroy interface)
   ;;end reject-answer-callback
-  ))
+  )))
 
 
 ;;MAKE-2-BUTTON-POPUP-INTERFACE-INSTANCE
@@ -1472,7 +1725,21 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 ;;ddd
 (capi:define-interface choice-list-interface ()
-  ((sv-choice-data
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+   (sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )
+   (sv-choice-data
     :initarg :sv-choice-data
     :accessor sv-choice-data
     :initform NIL
@@ -1548,7 +1815,7 @@ CAPI:PROMPT-WITH-MESSAGE
     :type  :boolean
     :initform NIL
     :documentation  "sv-poke-special-process-p ")
-(sv-close-special-process-p
+   (sv-close-special-process-p
     :initarg :sv-close-special-process-p
     :accessor sv-close-special-process-p
     :type  :boolean
@@ -1583,7 +1850,7 @@ CAPI:PROMPT-WITH-MESSAGE
     )
    (choice-list-pane
     capi:list-panel   
-    :selection 0
+    ;; :selection 0
     :callback-type :item-interface
     :make-instance-extra-apply-args :choice-list-args
     )
@@ -1626,16 +1893,18 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;MAKE-CHOICE-LIST-INTERFACE-INSTANCE
 ;;
 ;;ddd
-(defun make-choice-list-interface-instance (&key (title "INFORMATION" )                   
-                                                (title-bkgr ::yellow)(title-pane-ht 30) 
+(defun make-choice-list-interface-instance (&key (title "INFORMATION" )     
+                                                (sel-items '(1)) ;;this isn't working right
+                                                (title-bkgr :yellow)(title-pane-ht 30) 
                                                 (title-font-size 14)(title-font-color :red)
                                                 (title-align :center)  title-pane-args    
-                                                (info-text "Info goes here") 
+                                                (info-text "Info goes here")                                          
                                                 (info-pane-ht 60) (info-align :left)
                                                 (info-font-size 12) (info-font-color :black)
                                                 (info-bkgr :light-blue)   info-pane-args
                                                 (choice-items  (list  "NO" "YES"))
                                                 (choice-type :single-selection)
+                                                ;;doesn't work sel-items
                                                 choice-list-args
                                                 layout-args   
                                                 (window-args '(:title "INFORMATION WINDOW"
@@ -1643,21 +1912,21 @@ CAPI:PROMPT-WITH-MESSAGE
                                                   :internal-border 10
                                                   :background #(:RGB 0.3882353 0.94509805 0.6392157 1.0)))
                                                 (go-fr-button-p T)
+                                                (close-interface-p T)
                                                 (border-args (list :width 10 :foreground :red))
                                                 confirm-input-p
                                                 (callback 'choice-list-interface-callback)
+                                                menu-bar-items
                                                 go-button-args
                                                 interface-subtype
                                                 poke-special-process-p
                                                 special-process
-           close-make-func-process-p  
-           make-func-process 
-                                                          (close-this-process-p T)
-                                                          close-interface-p 
-                                                          (poke-make-func-process-p T)
+                                                 close-make-func-process-p 
+                                                make-func-process 
+                                                          (close-this-process-p T)                                                                                             (poke-make-func-process-p T)
                                                           poke-interface-process-p 
                                                 )                                 
-  "In U-capi-input-interfaces,  A general purpose text input popup window.  Sets *TEXT-INPUT-OR-BUTTON-INTERFACE-TEXTDATA to the input. NOTE: If want to continue in a process, set the global var to NIL each time used, and proceed in calling process when global var is no longer nil? data not used "
+  "In U-capi-input-interfaces,  A general purpose text input popup window.  Sets *CHOICE-LIST-INTERFACE-DATA to the input. NOTE: If want to continue in a process, set the global var to NIL each time used, and proceed in calling process when global var is no longer nil? data not used. To NOT CLOSE ON GO-TO, set close-make-func-process-p = NIL. SEL-ITEMS Eg '( 1 3 6) begins w/0 . MENU-BAR-ITEMS eg (list menu1 menu2); the menus are menu-instances created OUTSIDE this function."
   (let
       ((inst)
        (all-title-pane-args `(:visible-max-height ,title-pane-ht :visible-min-height ,title-pane-ht  :background ,title-bkgr :text ,title   :character-format (:face "times new roman"  :size  ,title-font-size  :color ,title-font-color  :bold T :italic  NIL :underline nil)  :paragraph-format  (:alignment ,title-align)))
@@ -1682,10 +1951,20 @@ CAPI:PROMPT-WITH-MESSAGE
       (setf choice-list-args (append choice-list-args `(:selection-callback ,callback))))) 
       ;;      layout-args '(:description '( title-pane  info-pane  choice-list-pane )))))
 
-    (setf choice-list-args (append choice-list-args `(:items ,choice-items))
-           all-args (append all-args (list :choice-list-args choice-list-args)))
+    (setf choice-list-args (append choice-list-args (list :items choice-items)))
+             ;;was  `(:items ,choice-items))) didn't work for menu-components
+
+    (when  sel-items 
+      (cond
+       ((equal choice-type :single)
+        (setf choice-list-args (append choice-list-args  `(:selected-item ,sel-items))))
+       ((equal choice-type :multiple)
+        (setf choice-list-args (append choice-list-args  `(:selected-items ,sel-items))))))       
 
     ;;COMBINE ARGS
+    (when choice-list-args
+      (setf all-args (append all-args (list :choice-list-args choice-list-args))))
+
     (when go-button-args
       (setf all-args (append all-args (list :go-button-args go-button-args))))    
 
@@ -1701,9 +1980,11 @@ CAPI:PROMPT-WITH-MESSAGE
       (setf all-args (append all-args  (list :layout-args layout-args))))
     (when window-args
       (setf all-args (append all-args  window-args)))   
-
-    ;;(BREAK "all-args")    
-
+    ;;MENUS
+   (when menu-bar-items
+      (setf all-args (append all-args  (list :menu-bar-items menu-bar-items))))
+    ;;(BREAK "all-args")   
+    ;;MAKE THE CAPI INSTANCE
     (setf  inst (apply  'make-instance  'choice-list-interface  all-args))
     
     (with-slots (column-layout title-pane  info-pane  choice-list-pane  go-fr-button ) inst
@@ -1718,8 +1999,8 @@ CAPI:PROMPT-WITH-MESSAGE
     (when confirm-input-p
       (setf (slot-value inst 'sv-confirm-input-p) T))
     (when (and poke-special-process-p special-process)
-      (setf (slot-value inst 'sv-poke-special-process-p) poke-special-process
-            (slot-value inst 'sv-special-process) special-proces))
+      (setf (slot-value inst 'sv-poke-special-process-p) poke-special-process-p
+            (slot-value inst 'sv-special-process) special-process))
         (when close-interface-p
       (setf (slot-value inst 'sv-close-interface-p) T))
     (when close-make-func-process-p
@@ -1727,14 +2008,28 @@ CAPI:PROMPT-WITH-MESSAGE
             (slot-value inst 'sv-make-func-process) make-func-process))
     (when poke-interface-process-p
       (setf (slot-value inst 'sv-poke-interface-process-p) T))
-    (setf  (slot-value inst 'sv-make-func-process) this-process
-           (slot-value inst 'sv-poke-make-func-process-p) T)
+    (when poke-make-func-process-p
+      (setf  (slot-value inst 'sv-make-func-process) this-process
+             (slot-value inst 'sv-poke-make-func-process-p) T))
     (when interface-subtype
       (slot-value inst 'sv-interface-subtype) interface-subtype)
+    ;;menu items
+#|    (when menu-bar-items
+      (setf (slot-value inst 'menu-bar-items) menu-bar-items))|#
       ;;end with-slots
       ) 
-
+    ;;(break "before display")
+    ;;DISPLAY, RETURN
     (capi:display inst)
+
+    ;;SET INITIAL SELECTED ITEM(S): LIST 0F SEL ITEMS (EG. 0 1 3 6)
+#|  not working  (with-slots (choice-list-pane) inst
+      (when sel-items
+        (capi:apply-in-pane-process choice-list-pane
+                       #'(setf capi:choice-selected-items) sel-items choice-list-pane))
+      (setf *test-sels (capi:choice-selected-items choice-list-pane))
+      ;;end second with-slots
+      )|#
     inst
     #|   (with-slots (title-pane) inst
        (capi:apply-in-pane-process title-pane 
@@ -1743,8 +2038,10 @@ CAPI:PROMPT-WITH-MESSAGE
     ;;end let, make-choice-list-interface-instance
     ))
 ;;TEST
-;; (make-choice-list-interface-instance :choice-items '(1 2 3 4 5 6))
+;; (make-choice-list-interface-instance :choice-items '(1 2 3 4 5 6) :close-interface-p T)
 ;; works *choice-list-interface-data = 4
+;; doesn't work --so elim sel-items 
+;; (make-choice-list-interface-instance :choice-items '(aa bb cc dd ee ff) :close-interface-p T :sel-items '( 1 2 5) :choice-type :multiple-selection)
 
 ;; TO GO WHEN CLICK ON CHOICE ITEM USE:
 ;; (make-choice-list-interface-instance :choice-items '(1 2 3 4 5 6) :go-fr-button-p NIL)
@@ -1779,6 +2076,8 @@ CAPI:PROMPT-WITH-MESSAGE
        (yes? T)
        (answer) 
        (selection-type (slot-value interface 'sv-interface-subtype))
+       (close-interface-p (slot-value interface 'sv-close-interface-p))
+       (confirm-answer-p (slot-value interface 'sv-confirm-input-p))
        )     
     ;;reset
     (setf *choice-list-interface-data NIL)
@@ -1789,9 +2088,10 @@ CAPI:PROMPT-WITH-MESSAGE
      (t (setf answer (capi:choice-selected-items choice-list-pane))))
 
     ;;CONFIRM THE INPUT?
-    (when (slot-value interface 'sv-confirm-input-p)  
+    (when confirm-answer-p  
       (setf yes? 
-            (my-confirm (format nil "ANSWER=  ~A" answer) :QUESTION-STRING "IS YOUR TEXT INPUT CORRECT?"))
+            (my-confirm (format nil "ANSWER=  ~A" answer)
+               :QUESTION-STRING "IS YOUR TEXT INPUT CORRECT?"))
       ;;end when
       )
     ;;RE-COPY ANSWER
@@ -1801,7 +2101,7 @@ CAPI:PROMPT-WITH-MESSAGE
      (t (setf answer (capi:choice-selected-items choice-list-pane))))
 
     (setf *CHOICE-LIST-INTERFACE-DATA answer)
-
+    ;;(break "sv-poke-make-func-process-p")
     (when (slot-value interface 'sv-poke-make-func-process-p)
       (mp:process-poke (slot-value interface 'sv-make-func-process)))
       
@@ -1810,15 +2110,20 @@ CAPI:PROMPT-WITH-MESSAGE
     (when (slot-value interface 'sv-poke-interface-process-p)
       (mp:process-poke interface))
 
-    (when yes?  
-      (when (slot-value interface 'sv-close-interface-p)
+    ;;CLOSE THIS INTERFACE?
+    (cond
+     (yes?  
+      (when close-interface-p
         ;;(break "close now")
         (capi:destroy interface)))
+     ((and close-interface-p  (null confirm-answer-p)  )
+      (capi:destroy interface)))
 
     (when close-make-func-process-p
       (mp:process-terminate make-func-process))
 
-      *text-input-OR-button-interface-textdata
+    *CHOICE-LIST-INTERFACE-DATA
+     ;;no  *text-input-OR-button-interface-textdata
       ;;end let, with, choice-list-interface-callback
       )))
 ;;TEST
@@ -1832,7 +2137,20 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 ;;ddd
 (capi:define-interface choice-radio-button-interface ()
-  ((sv-choice-data
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+   (sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )(sv-choice-data
     :initarg :sv-choice-data
     :accessor sv-choice-data
     :initform NIL
@@ -2090,8 +2408,7 @@ CAPI:PROMPT-WITH-MESSAGE
 
     ;;(BREAK "all-args")    
 
-    (setf  inst (apply  'make-instance  'choice-radio-button-interface  all-args))
-              
+    (setf  inst (apply  'make-instance  'choice-radio-button-interface  all-args))            
 
     (with-slots (column-layout title-pane  info-pane  radio-button-pane  go-fr-button ) inst
       (cond
@@ -2109,9 +2426,9 @@ CAPI:PROMPT-WITH-MESSAGE
     (when confirm-input-p
       (setf (slot-value inst 'sv-confirm-input-p) T
             go-fr-button-p T))
-    (when (and poke-special-process special-process)
+    (when (and poke-special-process-p special-process)
       (setf (slot-value inst 'sv-poke-special-process-p) T
-            (slot-value inst 'sv-special-process) speciall-process))
+            (slot-value inst 'sv-special-process) special-process))
     (when close-interface-p
       (setf (slot-value inst 'sv-close-interface-p) T))
     (when close-make-func-process-p
@@ -2125,7 +2442,6 @@ CAPI:PROMPT-WITH-MESSAGE
       (slot-value inst 'sv-interface-subtype) interface-subtype)
       ;;end with-slots
       ) 
-
     (capi:display inst)
     inst
     ;;end let, make-radio-button-choice-instance
@@ -2161,11 +2477,11 @@ CAPI:PROMPT-WITH-MESSAGE
 ;;
 
 
-;;MAKE-MULTI-INPUT-FRAMES
+;;MAKE-MULTI-INPUT-FRAMES [Actually one input and multi-answers]
 ;;2018-08
 ;;ddd 
-(defun make-multi-input-frames (q-params &key (default-func 'input-or-buttons)
-                                    (default-title "INPUT WINDOW" ) (max-inputs 40)
+(defun make-multi-input-frames (q-params &key func (default-func 'input-or-buttons)
+                                    title (default-title "INPUT WINDOW" ) (max-inputs 40)
                                                           (title-bkgr ::yellow)(title-pane-ht 30) 
                                                           (title-font-size 14)(title-font-color :red)
                                                           (title-align :center)  title-pane-args    
@@ -2188,6 +2504,7 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           check-button-items
                                                           check-button-pane-args|#
                                                           go-button-args
+                                                          INCL-NA-NONE-BUTTON-P
                                                           layout-args  
                                                           (win-title "TYPE ONLY ONE INPUT BELOW:")
                                                           (win-border 10)
@@ -2205,7 +2522,7 @@ CAPI:PROMPT-WITH-MESSAGE
                                                           poke-interface-process-p 
                                                           (pause-time 100)
                                                           )
-  "   RETURNS output-list INPUT: q-params= (question title func q-instr ... ) q-instrs can vary with func. Types of functions: input-or-buttons, rest args= title/nil question);  q-instr= question if use default-func and default-title. FUNCS are either input-or-buttons, ....add to list...  POPS UP A QUESTION AND RETURNS  all-outputs and *temp-all-multi-input-outputs???? "
+  "U-capi-input-interfaces. INPUT: When Q-PARAMS= (Q-TEXTLIST TITLE1 FUNC1 Q-INSTRLIST REST1)      From ONE INPUT creates multi-SAME-popups for MULTI-ANSWERS.    RETURNS output-list INPUT: q-params= (question title func q-instr ... ) q-instrs can vary with func. Types of functions: input-or-buttons, rest args= title/nil question);  q-instr= question if use default-func and default-title. FUNCS are either input-or-buttons, ....add to list...  POPS UP A QUESTION AND RETURNS  all-outputs and *temp-all-multi-input-outputs???? "
   ;;RESET THIS
   (setf *terminate-current-loop-p NIL
         *temp-all-multi-input-outputs NIL)
@@ -2214,10 +2531,14 @@ CAPI:PROMPT-WITH-MESSAGE
        (answers)
        (all-outputs)
        (this-func-process (mp:get-current-process))
-       (title)
        )
+    (unless func
+      (setf func default-func))
+    (unless title
+      (setf title default-title))
     (unless make-func-process
       (setf make-func-process this-func-process))
+    
 
     ;;FIND FUNC, TEXTS, REST
     (cond
@@ -2229,15 +2550,15 @@ CAPI:PROMPT-WITH-MESSAGE
           (setf func func1))
         (when q-textlist
           (setf quest-text (car (process-text-list q-textlist))))
-      (when q-instrlist
-         (setf instr-text (car (process-text-list q-instrlist))))
-      (when title1
-        (setf title title1))
-      (when rest1
-        (setf rest rest1))
-     ;;(break "q-params")
-      ;;end mvb, listp
-      ))                                       
+        (when q-instrlist
+          (setf instr-text (car (process-text-list q-instrlist))))
+        (when title1
+          (setf title title1))
+        (when rest1
+          (setf rest rest1))
+        ;;(break "q-params")
+        ;;end mvb, listp
+        ))                                       
      (t
       (setf func default-func)))  
 
@@ -2245,9 +2566,6 @@ CAPI:PROMPT-WITH-MESSAGE
     (loop
      for n from 1 to max-inputs
      do
-     (let*
-         ((x)
-          )
        (cond
         ((equal func 'input-or-buttons)
          ;;(break "make-func-process before call")
@@ -2271,13 +2589,16 @@ CAPI:PROMPT-WITH-MESSAGE
                                                        :close-make-func-process-p NIL                                   
                                                        :make-func-process make-func-process
                                                        :poke-make-func-process-p T
+                                                       :INCL-NA-NONE-BUTTON-P 
+                                                       INCL-NA-NONE-BUTTON-P
                                                        :callback callback
                                                        :callback-type callback-type
                                                        :special-process special-process
                                                        :poke-special-process-p poke-special-process-p
                                                        :poke-interface-process-p poke-interface-process-p)
          ;;(break "after mvs")
-         (format t "cur-proc= ~A" (mp:get-current-process))
+         ;;comment off next 12-31-2019
+         ;;(format t "cur-proc= ~A" (mp:get-current-process))
          (mp:current-process-pause pause-time)
          ;;(format t "After pause, cur-proc= ~A" (mp:get-current-process))
          (setf all-outputs 
@@ -2292,14 +2613,16 @@ CAPI:PROMPT-WITH-MESSAGE
        ;;TERMINATE LOOP? called with terminate-interface-callback
        (when *terminate-current-loop-p
          (return))
-       ;;end let loop
-       ))
+       ;;end loop
+       )
     (values all-outputs rest)
     ;;end let, make-multi-input-frames
     ))
 ;;TEST
 ;;  (make-multi-input-frames "TEST QUESTION-INSTRS" )
 ;; works = ("aa" "bb" "cc" "dd" "last item")
+;; ;;  (make-multi-input-frames "TEST QUESTION-INSTRS" :incl-na-none-button-p T)
+;; (make-multi-input-frames '( ("Q-TEXT" "2") "TITLE" nil ("Q-INSTR" 3) "REST") :incl-na-none-button-p T)
 
 
 ;;TERMINATE-INTERFACE-CALLBACK
@@ -2309,4 +2632,412 @@ CAPI:PROMPT-WITH-MESSAGE
   "U-capi-input-interfaces. Terminates calling process"
   (setf *terminate-current-loop-p T)
   (text-input-OR-button-interface-callback item interface)
+  )
+
+
+
+;;MAKE-SIMPLE-MENU-INSTANCE
+;;2019
+;;ddd
+(defun make-simple-menu-instance (title items callback  ;;was first menu-sym
+                                    &key (callback-type :item-interface) 
+                                    (interaction :single-selection)
+                                     other-init-args )
+  "U-capi-input-interfaces,  RETURNS: menu-instance
+    INPUT: callback types/list  '( :data :element :interface :collection :item) use :data-interface for multi? For COMPONENT-MENUs, or submenus. 
+   1. Make component-menu instance and 2. add to ITEMS-LIST= (list \"item1\" comp-menu)"
+  (let
+      ((make-inst-args  `(:title ,title ;;"Foo"
+                     :items ,items ;; '("One" "Two" "Three" "Four")
+                     :callback ',callback  ;;'test-callback
+                     :callback-type ,callback-type)) 
+      )
+    (when other-init-args
+      (setf make-inst-args (append make-inst-args other-init-args)))
+    ;;MAKE MENU INSTANCE
+    ;;no--just return the menu instance? (set menu-sym 
+    (apply 'make-instance 'capi:menu make-inst-args)
+    ;;end let, make-simple-menu-instance
+    ))
+;;TEST
+;;Following works for ordinary menu:
+;;STEP 1:MENU  (setf test-menuXX (MAKE-SIMPLE-MENU-INSTANCE   "test-menuXX" '("Item 1" "Item 2")  'test-callback))
+;; works= #<CAPI:MENU "test-menuXX" [2 items] 23BB3C07>
+;;STEP 2: INTERFACE INST (setq test-interfaceX1  (make-instance 'capi:interface :title "test-interfaceX1"   :menu-bar-items (list test-menuXX)   :best-height 100 :best-width 200))
+;;STEP 3: DISPLAY INST  (capi:display test-interfaceX1)
+;; works, shows menu as above in interface
+;; COMPONENT-MENU TEST
+;; STEP 1: MAKE COMPONENT-MENU INSTANCE
+;;  (setf comp-menuX (make-instance 'capi:menu-component :title "Menu Component" :items (list "COMPitem1" "COMPitem2") :interaction :multiple-selection :selection 1 :callback 'test-callback))
+;;STEP 2:MENU  (setf test-menuCOMPX (MAKE-SIMPLE-MENU-INSTANCE   "test-menuCOMPX" (list "Item 1" comp-menuX "Item 2") 'test-callback   :interaction :multiple-selection))
+;; works= 
+;;STEP 2: INTERFACE INST  (setq test-interfaceX2  (make-instance 'capi:interface :title "test-interfaceX2"   :menu-bar-items (list test-menuCOMPX)   :best-height 100 :best-width 200)) 
+;;STEP 3: DISPLAY INST  (capi:display test-interfaceX2)
+;; This works, displays menu with component menu in middle.
+
+
+
+
+;;MAKE-FILE-MENU1
+;;2019
+;;ddd
+(defun make-file-menu1 ( &key (main-menu-title "File")
+                              (main-menu-text (format nil "Current FROM Folder= ~A"
+                                                      *saved-dir-X))
+                              main-menu-callback
+                              (sel-dir-title "Select Copy FROM Folder")
+                              (sel-dir-text "Folder")      
+                              (sel-dir-default-folder *saved-dir-X) ;; "C:\\dropbox-ADD\\")
+                              (sel-dir-items  (list "Choose Directory" sel-dir-default-folder))
+                              (sel-dir-callback 'select-dir1-callback)
+                              (save-settings-title "SAVE ALL SETTINGS")
+                              (save-settings-items (list "Save to c:\\temp\\"))
+                              (save-settings-callback 'save-generic-settings-callback)                                                         )
+  "In U-capi-input-interfaces "
+  (let*
+      ((sel-dir-menu
+        (make-instance 'capi:menu
+                            :title sel-dir-title ;;"File"
+                            :items sel-dir-items
+                           :selection-callback sel-dir-callback
+                           :callback-type :data-interface))
+         (save-settings-menu
+          (make-instance 'capi:menu
+                         :title save-settings-title
+                         :items save-settings-items
+                :callback save-settings-callback
+          :callback-type :interface 
+          ))
+         (main-menu
+          (make-instance 'capi:menu
+                         :title main-menu-title
+                         :items (list sel-dir-menu save-settings-menu)
+                         :callback main-menu-callback
+                         ))
+       ;;end let vars clause
+       )
+    main-menu
+       ;;end let, make-file-menu1
+       ))
+
+
+
+(defparameter *saved-dir-X "c:\\temp\\" "Used to store value from select-dir1-callback")
+
+;;SELECT-DIR1-CALLBACK
+;;2019
+;;ddd
+(defun select-dir1-callback (data interface)
+  "U-capi-input-interfaces, sets *saved-dir-X to selected dir path"
+  (cond
+   ((string-equal data (namestring *saved-dir-X))
+    NIL)
+   (t 
+    (setf *saved-dir-X
+          (capi:prompt-for-directory "Select COPY FROM Directory/Folder."
+                                     ;;:if-does-not-exist if-does-not-exist
+                                     :pathname *saved-dir-X))))
+  )
+;;TEMP
+;; (select-dir1-callback interface)
+
+
+;;SAVE-GENERIC-SETTINGS-CALLBACK
+;;2019
+;;ddd
+(defparameter *settings-filename "C:\\temp\\settings-X.lisp" "Default file for saving generic settings from save-settings-callback")
+;;
+(defun save-generic-settings-callback (interface)
+  "U-capi-input-interfaces.lisp"
+  ;;make *settings-db-X-list* saving (often reinitializing) all settings
+  (setf *settings-db-X-list*
+        `(
+          ( *visible-border-p nil)
+          "PUT SETTINGS VARIABLES HERE"
+          (*saved-dir-X ,*saved-dir-X)
+         ;; ( *settings-db-X-width ,*settings-db-X-width)
+          ))
+  (save-db *settings-db-X-list* *settings-filename)
+   (show-text (format nil "Settings saved to: ~A~%" *settings-filename) 30 nil)
+        )
+
+
+
+;; SIMPLE-TEXT-INPUT-FRAME
+;;2020
+;;ddd
+(capi:define-interface simple-text-input-frame ()
+  ((sv-var1
+    :initarg :sv-var1
+    :accessor sv-var1
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 1 to store misc info from calling function, etc"
+    )
+#|   (sv-var2
+    :initarg :sv-var2
+    :accessor sv-var2
+    :initform NIL
+    :type  NIL
+    :documentation  "Variable 2 to store misc info from calling function, etc"
+    )(sv-interface-subtype
+    :initarg :sv-interface-subtype
+    :accessor sv-interface-subtype
+    :initform NIL
+    :type  :symbol
+    :documentation  "Subtype of interface :text-input :radio-button :check-button :info")
+   (sv-selection-type
+    :initarg :sv-selection-type
+    :accessor sv-selection-type
+    :initform NIL
+    :type  :symbol
+    :documentation  ":single-selection, :multiple-selection, or :extended-selection"    )|#
+   (sv-text-input
+    :initarg :sv-text-input
+    :accessor sv-text-input
+    :initform NIL
+    :type  :string
+    :documentation  "Data from text input")
+   (sv-confirm-input-p
+    :initarg :sv-confirm-input-p
+    :accessor sv-confirm-input-p
+    :initform NIL
+    :type  :boolean
+    :documentation  "Data from confirm-input-p")
+   (sv-input-confirmed-p
+    :initarg :sv-input-confirmed-p
+    :accessor sv-input-confirmed-p
+    :initform NIL
+    :type  :boolean
+    :documentation  "input-confirmed-p")
+      ;;NOTE:  4 WAYS TO CLOSE CALLING PROCESS: 1. change it's slot value, 2. Directly close its process; 3. Directly close it's interface; 4. Poke it and let it close itself (can do with change slot-value of 'chose-this-process-p
+#|   (sv-make-func-process
+    :initarg :sv-make-func-process
+    :accessor sv-make-func-process
+    :initform NIL
+    :documentation  "MP process from calling function/object.")
+   (sv-poke-make-func-process-p
+    :initarg :sv-poke-make-func-process-p
+    :accessor sv-poke-make-func-process-p
+    :type  :boolean
+    :initform NIL
+    :documentation  "poke-make-func-process-p ")
+   (sv-close-make-func-process-p
+    :initarg :sv-close-make-func-process-p
+    :accessor sv-close-make-func-process-p
+    :initform NIL
+    :documentation  "If  T, callback closes calling-process at end.")
+   (sv-close-interface-p
+    :initarg :sv-close-interface-p
+    :accessor sv-close-interface-p
+    :initform NIL
+    :documentation  "If  T, callback closes interface-process at end.")
+   ;;sv-na-none-button-output 2019
+   (sv-na-none-button-output
+    :initarg :sv-na-none-button-output
+    :accessor sv-na-none-button-output
+    :initform *na-none-button-output ;; =? "NA-NONE"
+    :documentation  "NA-NONE-BUTTON-OUTPUT")|#
+
+#|   (sv-main-interface-process
+    :initarg :sv-main-interface-process
+    :accessor sv-main-interface-process
+    :initform NIL
+    :documentation  "Main-interface-process = THIS PROCESS")|#
+#|   (sv-poke-interface-process-p
+    :initarg :sv-poke-interface-process-p
+    :accessor sv-poke-interface-process-p
+    :type  :boolean
+    :initform NIL
+    :documentation  "sv-poke-interface-process-p ")
+   (sv-destroy-main-interface-p
+    :initarg :sv-destroy-main-interface-p
+    :accessor sv-destroy-main-interface-p
+    :type  :boolean
+    :initform NIL
+    :documentation  "If  T, callback closes destroy-main-interface-p at end.")|#
+   (sv-special-process
+    :initarg sv-special-process
+    :accessor sv-special-process
+    :initform NIL
+    :documentation  "sv-special-process ")
+   (sv-poke-special-process-p
+    :initarg :sv-poke-special-process-p
+    :accessor sv-poke-special-process-p
+    :type  :boolean
+    :initform NIL
+    :documentation  "sv-poke-special-process-p ")
+#|   (sv-close-special-process-p
+    :initarg :sv-close-special-process-p
+    :accessor sv-close-special-process-p
+    :type  :boolean
+    :initform NIL
+    :documentation  "sv-close-special-process-p ")|#
+   )
+
+  ;;((the-pane :accessor text-input-pane-test-pane))
+  (:panes
+   (title-pane
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :make-instance-extra-apply-args :title-pane-args
+    :visible-border T
+    :internal-border 15 
+    :accepts-focus-p NIL
+    ;;end title-pane
+    )
+   (instr-pane
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold *simple-input-instr-boldp :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
+    :make-instance-extra-apply-args :instr-pane-args
+    :visible-border T
+    :internal-border 15
+    :visible-min-height 40
+    :accepts-focus-p NIL
+    )
+   (quest-pane
+    capi:rich-text-pane
+    :character-format  (list ;; :face *instr-pane-font-face 
+                             :size  *instr-pane-font-size  
+                             :color *instr-pane-font-color
+                             :bold nil :italic nil :underline nil )
+    :paragraph-format '(:alignment :center  ;; :left :right
+                         :start-indent 20
+                       :offset-indent 20
+                        ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                        :tab-stops  '(5 10 15 20)
+                        :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman.
+                        )
+    :accepts-focus-p NIL
+    :make-instance-extra-apply-args :quest-pane-args
+    :visible-border T
+    :visible-min-height 40
+    :internal-border 15
+    :accepts-focus-p NIL
+    )
+   (text-input-pane
+    capi:text-input-pane
+    :make-instance-extra-apply-args :input-pane-args
+    :max-characters *text-input-max-chars*
+    :background :white
+    :visible-border T
+    :internal-border 15
+    :take-focus T
+    ) 
+  ;;must include in layout programatically
+   (radio-button-pane
+    capi:radio-button-panel
+    ;; :items  '("1"   "Other")
+    :make-instance-extra-apply-args :radio-button-pane-args
+    :title " Choose the best answer:"
+    :title-font *bio-text-button-font
+    :layout-class 'capi:column-layout
+    ;;  :selected-item nil
+    :selection nil
+   ;; :callback-type :item-interface
+    ;; :choice-selection nil
+    :visible-min-width 400
+    :background :yellow
+    :font  *bio-text-button-font  #|(gp:make-font-description 
+                        :family *answer-pane-font-face
+                        :weight :normal  :size *answer-font-size)|#    
+    )
+   ;;must include in layout programatically
+   (check-button-pane
+    capi:check-button-panel
+   :make-instance-extra-apply-args :check-button-pane-args
+    ;; :items  '("1"   "Other")
+    :title " Choose the best answer:"
+    :title-font *bio-text-button-font
+    :layout-class 'capi:column-layout
+    ;;  :selected-item nil
+    :selection nil
+    ;; :choice-selection nil
+    ;; :callback-type :item-interface
+    :visible-min-width 400
+    :background :yellow
+    :font  *bio-text-button-font 
+    )
+   (go-fr-button
+    capi:push-button
+    :background :green
+    :text  "       GO to next  >>      "
+    :font  *go-frame-button-font 
+    ;;   :color-requirements 
+    ;;   :selected T
+    :default-p T  ;;means if return hit, selects this button
+    ;;was (gp:make-font-description :size *button-font-size  :weight :bold) ;; :slant :italic)
+    ;; choose in calling function
+    ;;  :callback 'text-input-OR-button-interface-callback ;;'go-select-scales-frame-callback
+    :callback-type :item-interface
+    :make-instance-extra-apply-args :go-button-args
+    )
+   (na-none-button
+    capi:push-button
+    :background :green
+    :text  " NOT APPLICABLE or NONE: GO to next >> "
+    :font  *go-frame-button-font 
+    :default-p NIL
+    :callback-type :item-interface
+           ;;NO   :callback 'terminate-interface-callback 
+   :make-instance-extra-apply-args :na-none-button-button-args
+   :callback 'NA-NONE-BUTTON-CALLBACK  ;;HERE66
+  ;;   :make-instance-extra-apply-args :na-none-button-args
+    )
+   ;;end panes
+   )   
+  (:layouts
+   (column-layout
+    capi:column-layout
+    '()
+    :make-instance-extra-apply-args  :layout-args
+    )
+   ;;end layouts
+   )
+  (:default-initargs
+   :best-width *text-input-OR-button-interface-best-width
+   :best-height *text-input-OR-button-interface-best-height
+   :layout 'column-layout
+   :background :white  ;;was :red
+   :internal-border 15
+    :visible-min-height 400
+   )
+  ;;END text-input-OR-button-interface
   )

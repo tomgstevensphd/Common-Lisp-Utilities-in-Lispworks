@@ -82,7 +82,7 @@
 ;;SEND-SHAQ-DAT
 ;;
 ;;ddd
-(defun send-shaq-dat (&key path  (shaq-data-list *shaq-data-list)
+(defun send-shaq-dat (&key path  (csq-data-list *CSQ-DATA-LIST)
                            (shaq-scaledata-list *shaq-scaledata-list))
   "In U-web.lisp, "
   (setf out nil)
@@ -99,8 +99,8 @@
          ;; "http://web.csulb.edu/~tstevens/success/rtfs/1jstk.htm") ;; "http://web.csulb.edu/~tstevens")
          ;; "http://web.csulb.edu/~tstevens/health%20tips.htm");;  "http://web.csulb.edu/~tstevens/success/")  ;; "http://web.csulb.edu")
          ;;body-or-stream, status-code, headers, uri, stream, must-close, reason-phrase
-         (shaq-alldata-text (format nil "~%;;;>>>DATE: ~A TIME: ~A~%~A"date time ;;was (list shaq-data-list shaq-scaledata-list) printed NO quotes on strings
-          (format nil "(~S ~S)" shaq-data-list shaq-scaledata-list)
+         (shaq-alldata-text (format nil "~%;;;>>>DATE: ~A TIME: ~A~%~A"date time ;;was (list csq-data-list shaq-scaledata-list) printed NO quotes on strings
+          (format nil "(~S ~S)" csq-data-list shaq-scaledata-list)
           ))
          (v1-body-or-stream)  ;;no effect? "THIS IS TEST XX")
          (v2-status-code)
@@ -126,7 +126,7 @@
       ;;end mvb,let, send-shaq-dat
       )))
 ;;TEST
-;; (send-shaq-dat :shaq-data-list '("This is SHAQ send-shaq-dat TEST DATA") :shaq-scaledata-list '("This is SHAQ send-data-dat SCALE DATA TEST DATA"))
+;; (send-shaq-dat :csq-data-list '("This is SHAQ send-shaq-dat TEST DATA") :shaq-scaledata-list '("This is SHAQ send-data-dat SCALE DATA TEST DATA"))
 ;; 2017-11-10 RESULT-ERROR:
 #|"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">
 <html><head>

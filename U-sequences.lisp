@@ -190,3 +190,45 @@
 ;;  (match-subseq 
 ;; (position  "PCategory"   "PCategory intSrq6Extra = new PCategory(\"intSrq6Extra\",1, intSrq6ExtraQ, \"int\",  FrAnswerPanel.LikeUs7,questionInstancesArray, frameTitle, frameDimWidth, frameDimHeight);")
 |#
+
+
+
+;;MAX-SEQ-N
+;;2020
+;;ddd
+(defun max-seq-n (max-n seq  &key (trim-end-p T) )
+  "U-sequences.   RETURNS (values new-seq trimmed-seq)"
+  (let*
+      ((new-seq)
+       (n-seq (length seq))
+       (trim-n (- max-n 1))
+       (trimmed-seq)
+       )
+    (cond
+     ((<= n-seq max-n)
+      (setf new-seq seq))
+     (T
+      (cond
+       (trim-end-p
+        (setf new-seq (subseq seq 0 max-n)
+              trimmed-seq (subseq seq max-n n-seq)))
+       (T
+        (setf new-seq (subseq seq (- trim-n 1)  n-seq)
+              trimmed-seq (subseq seq 0 (- trim-n 1)))))))
+    (values new-seq trimmed-seq)
+    ;;end let, max-seq-n
+    ))
+;;TEST
+;; (max-seq-n  6 "1234567890")
+;; works= "123456"  "7890"
+;; (max-seq-n  6 "1234567890" :trim-end-p nil)
+;; works= "567890"  "1234"
+;;for bigger nums
+;; ;; (max-seq-n  20  "1234567890")
+;; works= "1234567890"  NIL
+;; for 0
+;;  (max-seq-n  0  "1234567890")
+;;works  ""  "1234567890"
+;;for lists
+;; (max-seq-n  6 '(1 2 3 4 5 6 7 8 9 0))
+;; works= (1 2 3 4 5 6)   (7 8 9 0)

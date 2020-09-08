@@ -8,6 +8,199 @@
 
 
 
+;;SOME UTILITY FUNCTIONS BY PAUL GRAHAM p45ff
+;;from Figure 4.1: Small functions which operate on lists.
+;;(proclaim ’(inline last1 single append1 conc1 mklist))
+
+;;LAST1
+;;2019 from PGraham
+;;ddd
+(defun last1 (lst)
+  "U-lists RETURNS last item in a list"
+  (car (last lst)))
+;;TEST
+;; (last1 '(a b c)) = C
+
+;; 1-ITEM-LIST-P
+;;2019 from PGraham's single func
+;;ddd
+(defun 1-item-list-p (lst)
+  "U-lists, tests whether something is a list of one element"
+  (and (consp lst) (not (cdr lst))))
+;;TEST
+;; (1-item-list-p '(a b c)) = NIL
+
+
+;;APPEND1
+;;2019 from PGraham
+;;ddd
+(defun append1 (lst obj)
+  "U-lists, appends one item to a list w/o adding (list item)"
+  (append lst (list obj)))
+;;TEST
+;; (append1 '(a b) 'c)  = (A B C)
+
+
+;;MY-APPEND1
+(defun my-append1 (list obj)
+  "U-lists, appends one item to a list [NOT= (NIL etc)] w/o adding (list item)"
+  (cond
+   ((not (null-list-p list))
+    (append list (list obj)))
+   (T (setf list (list obj))))
+  )
+;;TEST
+;; (my-append1 '(NIL) 'THIS)  = (THIS)
+;; (my-append1 '(NIL NIL) 'THIS) = (THIS)
+;; (my-append1 '(A B) 'C) = (A B C)
+
+
+
+;;LAST1
+;;from PGraham
+;;ddd
+(defun last1 (lst)
+  (car (last lst)))
+;;TEST
+;; (last1 '(a b c))
+
+;;SINGLE
+;;from PGraham
+;;ddd
+(defun single (lst)
+  (and (consp lst) (not (cdr lst))))
+
+;;MKLIST
+;;from PGraham
+;;ddd
+(defun mklist (obj)
+  (if (listp obj) obj (list obj)))
+
+;;ASSURE-LIST
+;;2019 from PGraham mklist
+;;ddd
+(defun assure-list (obj &key not-nil-p)
+  "U-lists, makes sure obj is a list"
+  (if (listp obj) obj (list obj)))
+;;TEST
+;; (assure-list 'a) = (A)
+;; (assure-list nil) = NIL
+
+;;from Figure 4.2: Larger functions that operate on lists.
+
+;;LIST-LONGER-P
+;;2019 from PGraham's list-longer-p function
+;;ddd
+(defun list-longer-p (x y)
+  "U-lists, tests to see if list X is list-longer-p than Y"
+  (labels ((compare (x y)
+             (and (consp x)
+                  (or (null y)
+                      (compare (cdr x) (cdr y))))))
+    (if (and (listp x) (listp y))
+        (compare x y)
+      (> (length x) (length y)))))
+;;TEST
+;; (list-longer-p '(a b c) '(d e f g h)) = NIL
+
+
+;;FILTER-BY-FUNC
+;;2019 from PGraham's filter
+;;ddd 
+(defun filter-by-func (func lst)
+  "U-lists,  get back a list of whatever non-nil values are returned by the function as it is applied to the elements of the list."
+  (let ((acc nil))
+    (dolist (x lst)
+      (let ((val (funcall func x)))
+        (if val (push val acc))))
+    (nreverse acc)))
+;;TEST
+;; (filter-by-func 'values  '(a b c d e f g h))
+;; works= (A B C D E F G H)
+;; (filter-by-func 'numberp   '(a b c d e f g h))  = NIL
+
+
+
+;;MAKE-SUBLISTS
+;;2019 from PGraham called his version group
+;;ddd
+(defun make-sublists (source n &key return-only-n-long-p)
+  "U-lists, groups list members into sublists n long (last list remainder)"
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+             (let ((rest (nthcdr n source))
+                   (remain) ;;was a global var
+                   (result)   ;;was a global var
+                   )
+               (when (consp rest)
+                 (setf result
+                       (cond
+                        ((or (null return-only-n-long-p)
+                             (>= (length rest) n))
+                         (rec rest (cons (subseq source 0 n) acc)))
+                        (rest (setf remain rest))
+                        (t (nreverse (cons source acc))))
+                       ;;end setf
+                       )
+               (break)
+               (values result acc source)  
+                       ;;end , when, 
+                       )
+           (if source (rec source nil) nil)
+           (break)
+               )))
+           ))
+;;TEST
+;; (make-sublists ’(a b c d e f g) 2) = 
+
+;;GROUP
+;;PGraham
+;;ddd
+(defun group (source n &key return-only-n-long-p)
+  "U-lists, groups list members into sublists n long (last list remainder)"
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+             (let ((rest (nthcdr n source)))
+               (if (consp rest)
+                   (rec rest (cons (subseq source 0 n) acc))
+                 (nreverse (cons source acc))))))
+    (if source (rec source nil) nil)))
+;;TEST
+;; (group '(a b c d e f g h i j) 3) = ((A B C) (D E F) (G H I) (J))
+
+
+;;FLATTEN
+;;PGraham
+;;ddd
+(defun flatten (x)
+  (labels ((rec (x acc)
+             (cond ((null x) acc)
+                   ((atom x) (cons x acc))
+                   (t (rec (car x) (rec (cdr x) acc))))))
+    (rec x nil)))
+;;TEST
+;; (flatten '(a b (1 2 (x y (z)) 3 4 (aa bb) 5 6) c d))
+;;works= (A B 1 2 X Y Z 3 4 AA BB 5 6 C D)
+
+
+;;PRUNE
+;;PGraham
+;;ddd
+(defun prune (test tree)
+  "U-lists. Every leaf for which the function returns true is removed."
+  (labels ((rec (tree acc)
+             (cond ((null tree) (nreverse acc))
+                   ((consp (car tree))
+                    (rec (cdr tree)
+                         (cons (rec (car tree) nil) acc)))
+                   (t (rec (cdr tree)
+                           (if (funcall test (car tree))
+                               acc
+                             (cons (car tree) acc)))))))
+    (rec tree nil)))
+;;PRUNE
+;;(prune ’evenp ’(1 2 (3 (4 5) 6) 7 8 (9))) = (1 (3 (5)) 7 (9))
+;; 
 
 
 ;;GET-KEY-LIST
@@ -72,7 +265,7 @@
            (setf all-non-nth-items (append all-non-nth-items  non-nth-items)))
          ;;end mvb, clause
          ))
-      (t   (setf non-nth-items (append non-nth-items (list 1nested-lists)))))
+      (t   (setf all-non-nth-items (append all-non-nth-items (list 1nested-lists)))))
      ;;end loop
      )        
     (values nths-1nested-lists all-non-nth-items)
@@ -117,6 +310,28 @@
       
 
 
+;;GET-BUTLAST-IN-LISTS
+;;2020
+;;ddd
+(defun get-butlast-in-lists (n lists)
+  "U-lists RETURNS list of (butlast N) for each list."
+  (let*
+      ((new-list)
+       )
+    (loop
+     for list in lists
+     do
+     (setf new-list (append new-list (list (butlast list n))))
+     )
+    new-list
+  ;;end letget-butlast-in-lists
+  ))
+;;TEST
+;; (get-butlast-in-lists 2 '((1 2 3 4 5 6)(a b c d e f)))
+;; works= ((1 2 3 4) (A B C D))
+
+
+
 ;;MAKE-LISTS-FROM-ITEMS
 ;;2017
 ;;ddd
@@ -158,6 +373,11 @@
 ;;   (make-lists-from-items '(A "this" 77 c) '(1 1 1 1) '(2 2 2 2) '(3 3 3 3))
 ;;  works =  ((A 1 2 3) ("this" 1 2 3) (77 1 2 3) (C 1 2 3))
 ;;   '((X 9)(M 4) NON (Z 2)))
+
+;; *tomex-drive-syms = (C-MAIN-BU TOM-SE5TBHD-MAIN PD-MEDIA)
+;; (make-lists-from-items *tomex-drive-syms) 
+;; works= ((C-MAIN-BU) (TOM-SE5TBHD-MAIN) (PD-MEDIA))
+
 
 
 ;;GET-ALL-NTHS-IN-LISTS--DEPRECIATED, but works
@@ -570,7 +790,8 @@
        ( match-item3)
        )
     (unless  find-nth (setf find-nth 0))
-    (unless return-nth (setf return-nth (+ find-nth 1)))
+    (unless (or return-nth (equal find-nth T))
+                (setf return-nth (+ find-nth 1)))
  
     (cond
      ;;SPEC IS TO SEARCH EVERY LIST AT THIS LEVEL
@@ -1173,18 +1394,21 @@
 ;; LIST
 ;;  (find-list-item-by-substrings '("mat" "abc" "end") '("that" "nomatchhere" "nope""abcthis"  "thisxyz" "midthisend"))
 ;; works= ("nomatchhere" "abcthis" "midthisend")  (1 3 5)
+;; NO MATCH
+;; (find-list-item-by-substrings "what"  '("that" "nomatchhere" "nope""abcthis"  "thisxyz" "midthisend")) 
+;;works= NIL
 
 
 
 
 ;;PRINT-LIST
-;;
+;;2020 modified to work with format 
 ;;ddd
 (defun print-list (list &key stream no-newline-p incl-quotes-p incl-parens-p incl-label sort-string-test (num-spaces 1) separator-str )
-  "in U-lists.lisp, Prints each list item on newline (or not) with quotes (or not) for strings (only). If sort-string-test, use it (eg. #'sting<) to sort the list. ALSO see FORMAT-STRING-LIST--generally a better choice. separator-str puts that string in place of spaces between elements."
+  "in U-lists.lisp, Prints each list item on newline (or not) with quotes (or not) for strings (only). If sort-string-test, use it (eg. #'sting<) to sort the list. ALSO see FORMAT-STRING-LIST--maybe a better choice. separator-str puts that string in place of spaces between elements.
+  NOTE: 2020-Will EVAL & PRINT FORMAT STATEMENTS."
   (let
       ((string "")
-       (item-string "")
        (space " " )
        (space1)
        )
@@ -1192,45 +1416,63 @@
      (separator-str
       (setf space separator-str))
      ((> num-spaces 0)
-              (dotimes (n  num-spaces)
-                (setf space (format nil "~A " space))))
+      (dotimes (n  num-spaces)
+        (setf space (format nil "~A " space))))
      (t (setf space "")))
 
-  (if sort-string-test
-      (setf list (sort list sort-string-test)))
-  (if incl-parens-p
-      (setf string (format nil "~A" #\( )))
-  (if incl-label
-      (setf string (format nil "~A~A "string incl-label)))
-  ;;for each item
-  (loop
-   for item in list
-   for n from 0 to (list-length list)
-   do
-  ;; (format t "item= ~A item-string= ~A~%" item item-string)
-    ;;incl-quotes-p -- Include quotes or not?
-    (if (> n 0) (setf space1 space)
-        (setf space1 ""))
-    
-    (cond
-     (incl-quotes-p
-      (setf item-string (format nil "~A~A~S" item-string space1 item)))
-     (t
-      (setf item-string (format nil "~A~A~A" item-string space1 item))))
-    ;;newline-p--newline at end of each item?
-    (if (null no-newline-p)
-       (setf item-string (format nil "~A~%" item-string)))
-    ;;end loop
-    )
-  (cond
-   (incl-parens-p
-      (setf string (format nil "~A~A~A"string item-string  #\))))
-   (t (setf string (format nil "~A~A"string item-string ))))
-
-  (format stream "~A" string)
-  ))
-;;test
-;;  (print-list '(I L F M) :no-newline-p t :separator-str "-") = "I-L-F-M"
+    (if sort-string-test
+        (setf list (sort list sort-string-test)))
+    (if incl-parens-p
+        (setf string (format nil "~A" #\( )))
+    (if incl-label
+        (setf string (format nil "~A~A "string incl-label)))
+    ;;for each item
+    (loop
+     for item in list
+     for n from 0 to (list-length list)
+     do
+     (let*
+         ((item-string "")
+          )
+     ;; (format t "item= ~A item-string= ~A~%" item item-string)
+     ;;incl-quotes-p -- Include quotes or not?
+       (cond
+        ((> n 0) (setf space1 space))
+        (t (setf space1 "")))
+     (cond
+      ((null (listp item))
+       (cond
+        (incl-quotes-p
+         (setf item-string (format nil "~A~A~S" item-string space1 item)))
+        (t
+         (setf item-string (format nil "~A~A~A" item-string space1 item))))
+       ;;end stringp
+       )
+      ;;for FORMAT lists within the list
+      ((and (listp item) (equal (car item) 'format))
+       (setf item-string (format nil "~A~A" space1 (eval item)) ))
+      (t nil))                
+     ;;newline-p--newline at end of each item?
+     (if (null no-newline-p)
+         (setf item-string (format nil "~A~%" item-string))) 
+     (cond
+      (incl-parens-p
+       (setf string (format nil "~A~A~A"string item-string  #\))))
+      (t (setf string (format nil "~A~A"string item-string ))))
+     ;;end let,loop
+     ))
+    (format stream "~A" string)
+    ))
+;;TEST
+;;2020 (print-list '(one "two" (format nil "This is a ~A" 'TEST) "what") :no-newline-p T)
+;;works= "ONE  two  This is a TEST  what"
+;; (print-list '(one "two" (format nil "This is a ~A" 'TEST) "what"))
+#|"ONE
+  two
+  This is a TEST
+  what
+"|#
+;;  (print-list '(M F L I) :no-newline-p t :separator-str "-") = "M-F-L-I"
 ;;
 ;;  (print-list '("a" "b" C "d") :no-newline-p t :num-spaces 0)
 ;;  works = "abCd"
@@ -1248,9 +1490,24 @@
 C
 "d"|#
 ;; (print-list '("a" "b" c "d") :stream t :incl-quotes-p t :incl-parens-p t)
+#| ("a"
+  "b"
+  C
+  "d"
+)
+NIL|#
 ;;  (print-list  '(test (a (b 1 2 3)(c 4 5 6) d (e 7 ("x" 1 2 3) f  "g")))  :stream t :incl-quotes-p t :incl-parens-p t :incl-label 'MY-TEST-LABEL)
+#| (MY-TEST-LABEL TEST
+(A (B 1 2 3) (C 4 5 6) D (E 7 ("x" 1 2 3) F "g"))
+)
+NIL|#
 ;; (setf xxyy '(a b c d))
 ;; (print-list xxyy)
+#|"A
+  B
+  C
+  D
+"|#
 ;; (print-list 
 ;; (make-one-dim-indecies '(3 1 1 1))
 ;;
@@ -1295,6 +1552,7 @@ C
     ))
 ;; (print-list2 '("a" "b" C "d")) 
 ;; works = "abCd"
+
 
 
 ;;PRINT-NESTED-LIST
@@ -1387,10 +1645,11 @@ C
 |#
 
 ;;MY-LESSP
-;;
+;;modified 2019 to return first item
 ;;ddd
-(defun my-lessp (item1 item2)
-  "In U-lists, items can be numbers, strings, or symbols. If both numbers, compares using >, if symbols, converts to strings, then compares by string-greaterp."
+(defun my-lessp (item1 item2 &optional only-nums-p)
+  "In U-lists, items can be numbers, strings, or symbols. If both numbers, compares using >, if symbols, converts to strings, then compares by string-greaterp. 
+  IF TRUE,RETURNS FIRST ITEM When ONLY-NUMS-P, if either arg not a number, then returns NIL"
   (let
       ((result)
        (item1-str)
@@ -1399,28 +1658,35 @@ C
     (cond
      ((and (numberp item1)(numberp item2))
       (setf result (< item1 item2)))
-     ((and (stringp item1)(stringp item2))
-      (setf result (string-lessp item1 item2)))
-     (t (setf item1-str (format nil "~A" item1)
-              item2-str (format nil "~A" item2)
-              result (string-lessp item1-str item2-str))))
+     ((null only-nums-p)
+      (cond
+       ((and (stringp item1)(stringp item2))
+        (setf result (string-lessp item1 item2)))
+       (t (setf item1-str (format nil "~A" item1)
+                item2-str (format nil "~A" item2)
+                result (string-lessp item1-str item2-str)))))
+     (t nil))
+    (when result
+      (setf result item1))
     result
     ;;end let, my-lessp
     ))
 ;;TEST
 ;;  (my-lessp 7  3) = NIL
-;;  (my-lessp 3 7) = T
+;;  (my-lessp 3 7) = 3  ;was T
 ;;  (my-lessp "THIS" "apple") = NIL
-;;  (my-lessp "APPLE" "this")  = 0
+;;  (my-lessp "APPLE" "this")  = "APPLE" ;;was 0
 ;;  (my-lessp 'this 'apple) = NIL
-;;  (my-lessp 'apple 'this) = 0
+;;  (my-lessp 'apple 'this) = APPLE ;;was 0
+
+
 
 
 ;;MY-GREATERP
 ;;
 ;;ddd
-(defun my-greaterp (item1 item2)
-  "In U-lists, items can be numbers, strings, or symbols. If both numbers, compares using >, if symbols, converts to strings, then compares by string-greaterp. RETURNS item1 if greater, otherwise NIL."
+(defun my-greaterp (item1 item2 &optional only-nums-p)
+  "In U-lists, items can be numbers, strings, or symbols. If both numbers, compares using >, if symbols, converts to strings, then compares by string-greaterp. RETURNS item1 if greater, otherwise NIL. When ONLY-NUMS-P, if either arg not a number, then returns NIL"
   (let
       ((result)
        (item1-str)
@@ -1432,26 +1698,419 @@ C
      ((null item1) nil) ;;bec item2 NOT greater than item1
      ((and (numberp item1)(numberp item2))
       (setf result (> item1 item2)))
-     ((and (stringp item1)(stringp item2))
-      (setf result (string-greaterp item1 item2)))
-     (t (setf item1-str (format nil "~A" item1)
-              item2-str (format nil "~A" item2)
-              result (string-greaterp item1-str item2-str))))
-     item1
+     ((null only-nums-p)
+      (cond
+       ((and (stringp item1)(stringp item2))
+       (setf result (string-greaterp item1 item2)))
+      (t
+       (setf item1-str (format nil "~A" item1)
+             item2-str (format nil "~A" item2)
+             result (string-greaterp item1-str item2-str)))))
+     (t nil))
+    (when result
+      (setf result item1))
+     result
     ;;end let, my-greaterp
     ))
 ;;TEST
 ;; (my-greaterp 'a nil) = A
 ;; ;; (my-greaterp nil 'a ) = nil
 ;; (my-greaterp nil nil) = nil
-;; (my-greaterp 7 2)
-           
+;; (my-greaterp 7 2) = 7
+;; (my-greaterp "apple" "orange") = NIL
+;; (my-greaterp  "orange" "apple") = "orange"
+;; (my-greaterp 'xyz 'abc) = XYZ
+;;  (my-greaterp 'abc  'xyz) = NIL
+;;2019
+;;  (my-greaterp "A" 7) = "A"
+;;  (my-greaterp  7 "A") = NIL
+;; (my-greaterp  7 "A" T)
+ 
+
+
+;;MY-GREATERP-NUM
+;;2019
+;;ddd
+(defun my-greaterp-num (num1 num2 &key (if-non-num NIL))
+  "U-lists. For use as a test on numbers only.   RETURNS T or NIL. Non-numbers return NIL  "
+  (cond
+   ((and (numberp num1)(numberp num2))
+    (let
+        ((result (> num1 num2))
+         )
+      ;;end let, my-greaterp-num
+      result))
+   (t if-non-num))
+  )
+;;TEST
+;; (my-greaterp-num 5  6) = NIL
+;; (my-greaterp-num 6  3) = T
+;; (my-greaterp-num 'X  2 :if-non-num 'non-num) = NON-NUM
+
+
+;;MY-LESSP-NUM
+;;2019
+;;ddd
+(defun my-lessp-num (num1 num2 &key (if-non-num NIL))
+  "U-lists. For use as a test on numbers only.   RETURNS T or NIL. Non-numbers return NIL  "
+  (cond
+   ((and (numberp num1)(numberp num2))
+    (let
+        ((result (< num1 num2))
+         )
+      ;;end let, my-lessp-num
+      result))
+   (t if-non-num))
+  )
+;;TEST
+;; (my-lessp-num 5  6) = T
+;; (my-lessp-num 6  3) = NIL
+;; (my-lessp-num 'X  2 :if-non-num 'non-num) = NON-NUM
+
+
+
+
+
+
+
+
+
+
+
+;;MANUAL SORTED LIST
+;; testlist= (3 9 2 6 1) sorted= nil
+;; -greatest  ;; 3 > 9 nil, S=NIL; S= (9 3) T=(2 6 1)
+;; -2 (car T) >  9(carS) nil, recurse
+;; 2 > 3 (2nd/last S) nil (last S); S= (9 3 2) T=(6 1)
+;; 6(car T) > 9(carS) nil; 
+;; 6 > 3(2nd S) T;  S = [head= (9) cur=6 tail=(3 2)] = (9 6 3 2)   T= (1) 
+;; 1(car/last T) > 9(carS)  nil; 
+;; 1(car/last T) > 6 2ndS  nil;
+;; 1(car/last T) > 3 3rdS nil;
+;; 1(car/last T) > 2 (last S); nil S= (9 6 3 2 1)  T= NIL
+
+;;SSSSSS START HERE LEARN HOW RECCURSE WITH sort-x
+(defun sort-x (testlist &key sortedlist (sortn 0) (test 'my-greaterp) (delete-nils-p T))
+  "U-lists"
+  (let*
+      ((curitem (car testlist))
+       (testitem (cond 
+                  (sortedlist (car sortedlist))
+                  (t (second testlist))))
+       (result (funcall test curitem testitem))
+       (len-sortedlist (list-length sortedlist))
+       )
+    (when delete-nils-p
+      (setf sortedlist (delete NIL  sortedlist)))
+
+    ;;(afout 'out (format nil "BEGIN curitem= ~A testitem= ~A testlist= ~A sortedlist= ~A sortn= ~A" curitem testitem testlist  sortedlist sortn))
+    ;;TESTING ONLY
+    ;;(incf **stop-n)
+    ;;(when (= **stop-n 50) (break "STOP"))
+    (when (and  curitem testitem)
+      (cond
+       (result
+        (cond
+         (sortedlist
+          (setf sortedlist (append (list curitem) sortedlist)))
+         ;;null sortedlist
+         (t (setf sortedlist  (list curitem testitem)
+                  testlist (cdr testlist))))
+        ;;end result
+        )
+       ((null curitem) NIL)
+       ;;NULL RESULT
+       (t
+        (cond
+         (sortedlist
+          (loop
+           for sorteditem in sortedlist
+           for n from 0 to len-sortedlist
+           for left-n from len-sortedlist downto  0
+           do
+           (let*
+               ((result1 (funcall test curitem sorteditem))
+                (but-n n) ;; (- n 1))
+                )
+             ;;(afout 'out (format nil "BEGIN LOOP, curitem= ~A sorteditem= ~A  sortedlist= ~A result1= ~A"  curitem sorteditem sortedlist result1))
+             (cond
+              (result1
+               ;;but-n and n are right to use below--checked
+               (setf sortedlist (append (butlast sortedlist  (- but-n 1))
+                                        (list curitem sorteditem) (nthcdr (+ n 1) sortedlist)))
+               ;;test only (when (and (numberp curitem)(= curitem 3))(break "IN result 3"))
+               (return))
+              (t
+               (when (= left-n 1)
+               ;;(afout 'out (format nil "IN LOOP when left-n=1, curitem= ~A sorteditem= ~A  sortedlist= ~A "  curitem sorteditem sortedlist))
+                 (setf sortedlist (append1 sortedlist curitem))
+                 (return))
+               ;;(when (and (numberp curitem)(= curitem 3))(break "RESULT NIL 3"))
+               ))
+             ;;(afout 'out (format nil "IN LOOP, curitem= ~A sorteditem= ~A  sortedlist= ~A "  curitem sorteditem sortedlist))
+             ;;END LET, LOOP 
+             ))
+          ;;end sortedlist
+          )
+         ;;null sortedlist
+         (t (setf sortedlist  (list  testitem curitem)
+                  testlist (cdr testlist)))
+         ))
+
+       )
+      ;;(when (and (numberp curitem)(= curitem 3))(break "END 3"))
+      (when testlist
+        (multiple-value-bind (sortedlist1 testlist1)  ;;if don't use (cdr testlist) stack overfl
+            (sort-x  (cdr testlist)  :sortedlist sortedlist :sortn (incf sortn)  :test test)
+          (setf sortedlist  sortedlist1
+                testlist  testlist1)
+          ;;end mvb,when 
+          ))
+      ;;(afout 'out (format nil "END curitem= ~A testitem= ~A result= ~A testlist= ~A sortedlist= ~A sortn= ~A" curitem testitem result testlist  sortedlist sortn))
+      (when delete-nils-p
+        (setf sortedlist (delete NIL  sortedlist)))
+      ;;end when (and testitem curitem)
+      )
+    (values sortedlist testlist)
+    ;;end let, when, sort-x
+    ))
+;;TEST
+;; (sort-x '(4 7 3 9 3 5))
+;; (progn (setf out nil) (sort-x  '(5 6 7 8)))
+;; works= (8 7 6 5)  NIL
+;; (progn (setf out nil)  (sort-x '(4 5 6 7 3 9 3 5)))
+;; works= (9 7 6 5 5 4 3 3)  NIL
+
+                       
+
+#|(defun sort-lists (nth  testlists  &key sortedlists  (sort-n 0)
+                        (test 'my-greaterp))
+  "   RETURNS    INPUT:  "
+  (let*
+      ((curlist (car testlists))
+       (curitem (nth nth curlist))
+       (testlist  (cond ((null sortedlists) (second testlists))
+                        (t (car sortedlists))))
+       (testitem (nth nth testlist))
+       (result (funcall test curitem testitem))
+       (restlists (cond ((null sortedlists) (cddr testlists))
+                        (t (cdr testlists))))
+       (sorthead)
+       (sorttail)
+       (len-sorted (list-length sortedlists))       
+       )
+    (incf sort-n)
+    ;; (when (equal curitem 2) (break "2"))
+    (cond
+     (result 
+      (cond
+       (sortedlists
+        (setf sortedlists (append (list curlist) sortedlists))
+        )
+       ;;null sortedlists 
+       (t
+        (setf sortedlists (list curlist testlist))
+        ;;(break "null sortedlists result")
+        )))
+     ;;null result
+     (t   
+      (cond
+       (sortedlists
+        (let*
+            ((len-sortedlists1 (list-length sortedlists))
+             (sorthead1  (butlast sortedlists  (- len-sorted sort-n)))
+             (sorttail1 (nthcdr sort-n sorted-lists))
+             ;;not needed?
+             (sortedsublists (append (list curlist) (cdr sortedlists)))
+             )
+          (break "t")
+          (multiple-value-setq (sortedlists testlists restlists) ;;should not be restlists?
+              (sort-lists nth  sorttail1    :sortedlists nil  :test test))
+          (break "null result, after recurse")
+          ;;end let, sortedlists
+          ))
+       ;;null sortedlists
+       (t
+        (setf sortedlists (list curlist testlist ))
+        ;;end t,cond/t,cond
+        ))))
+ 
+    ;;FOR TESTING ONLY
+   ;; (setf *alltests (append *alltests (list (list curlist testlist RESULT  ))))
+    (incf **stop-n)
+    (when (= **stop-n 20) (break "STOP"))
+
+    (when restlists (multiple-value-setq (sortedlists testlists restlists) 
+                        (sort-lists nth  restlists    :sortedlists sortedlists  :test test)))     
+    ;;(afout 'out (format nil "sortedlists= ~A restlists= ~A~% testlists= ~A "sortedlists restlists testlists ))
+    (values   sortedlists testlists restlists)
+    ;;end let, sort-lists
+    ))|#
+
+
+;;SORT-LISTS
+;;2019
+;;ddd
+(defun sort-lists (nth  testlists  &key sortedlists  (sort-n 0)
+                        (test 'my-greaterp))
+  " USE sort-1nested-lists INSTEAD   RETURNS    INPUT:  "
+  (let*
+      ((curlist (car testlists))
+       (curitem (nth nth curlist))
+       (testlist  (cond ((null sortedlists) (second testlists))
+                        (t (car sortedlists))))
+       (testitem (nth nth testlist))
+       (result (funcall test curitem testitem))
+       (restlists (cond ((null sortedlists) (cddr testlists))
+                        (t (cdr testlists))))
+       (sorthead)
+       (sorttail)
+       (len-sorted (list-length sortedlists))
+       )
+    (incf sort-n)
+    ;; (when (equal curitem 2) (break "2"))
+    (cond
+     (result 
+      (cond
+       (sortedlists
+        (setf sortedlists (append (list curlist) sortedlists))
+        )
+       ;;null sortedlists 
+       (t
+        (setf sortedlists (list curlist testlist))
+        ;;(break "null sortedlists result")
+        )))
+     ;;null result
+     (t   
+      (cond
+       (sortedlists
+        (let*
+            ((len-sortedlists1 (list-length sortedlists))
+             (sorthead1  (butlast sortedlists  (- len-sorted sort-n)))
+             (sorttail1 (nthcdr sort-n sortedlists))
+             ;;not needed?
+             (sortedsublists (append (list curlist) (cdr sortedlists)))
+             )
+          ;;(break "t")
+          (multiple-value-setq (sortedlists testlists restlists) ;;should not be restlists?
+              (sort-lists nth  sorttail1    :sortedlists nil  :test test))
+          (break "null result, after recurse")
+          ;;end let, sortedlists
+          ))
+       ;;null sortedlists
+       (t
+        (setf sortedlists (list curlist testlist ))
+        ;;end t,cond/t,cond
+        ))))
+ 
+    ;;FOR TESTING ONLY
+   ;; (setf *alltests (append *alltests (list (list curlist testlist RESULT  ))))
+#|    (incf **stop-n)
+    (when (= **stop-n 20) (break "STOP"))|#
+
+    (when restlists (multiple-value-setq (sortedlists testlists restlists) 
+                        (sort-lists nth  restlists    :sortedlists sortedlists  :test test)))     
+    ;;(afout 'out (format nil "sortedlists= ~A restlists= ~A~% testlists= ~A "sortedlists restlists testlists ))
+    (values   sortedlists testlists restlists)
+    ;;end let, sort-lists
+    ))
+;;TEST
+;; (setf *alltests nil)
+;;  (sort-lists 1 '((d 4)(f 6)(b 2)(e 5)(c 3)))
+;;  SSSSS START HERE DEBUGGING -- WHY DOES THE TEST YIELD WRONG RESULTS??
+
+
+
+
+;;SORT-LIST
+;;2019
+;;ddd
+(defun sort-list (testlist &key sortedlist (sortn 0) (test 'my-greaterp) (delete-nils-p T))
+  "U-lists. Sorts list with different options than CL sort and my-sort based on it."
+    (when (and delete-nils-p (null sortedlist))
+      (setf testlist (delete NIL  testlist)))
+  (unless sortedlist
+    (setf sortedlist (list (car testlist))
+          testlist (cdr testlist)))
+  (let*
+      ((curitem (car testlist))
+       (len-sortedlist (list-length sortedlist))
+       (new-sortedlist sortedlist) ;;already sorted (incl testlist items)
+       (next-testlist (cdr testlist))
+       )
+    ;;(afout 'out (format nil "BEGIN curitem= ~A  testlist= ~A sortedlist= ~A sortn= ~A" curitem  testlist  sortedlist sortn))
+    ;;TESTING ONLY
+    ;;(incf **stop-n)
+    ;;(when (= **stop-n 50) (break "STOP"))
+    (cond
+     ;;TEXT CURITEM VS EACH ITEM IN SORTEDLIST, IF FAIL TEST, PUT BEFORE NEXT ITEM
+     ((and curitem sortedlist)
+      ;;(break "curitem sortedlist")
+      (loop
+       for sorteditem in sortedlist
+       for n from 0 to len-sortedlist ;;only (- len-sortedlist 1) will loop
+       for left-n from len-sortedlist downto  0  
+       do
+       (let*
+           ((result (funcall test curitem sorteditem))
+            ;;(but-n  n) ;; (- n 1))
+            )
+         ;;(afout 'out (format nil "BEGIN LOOP, curitem= ~A sorteditem= ~A  sortedlist= ~A result= ~A"  curitem sorteditem sortedlist result))
+
+         (cond
+          ((null result)
+          ;; (break "result0")
+           ;;but-n and n are right to use below--checked
+           (setf new-sortedlist (append  (butlast sortedlist left-n)  (list curitem ) (last sortedlist left-n)))
+           ;;(break "result")
+           ;;test only (when (and (numberp curitem)(= curitem 3))(break "IN result 3"))
+         ;;(afout 'out (format nil "END LOOP, curitem= ~A sorteditem= ~A  new-sortedlist= ~A left-n= ~A n= ~A "  curitem sorteditem sortedlist left-n n))
+           (return))
+          ((= n (- len-sortedlist 1))
+           (setf new-sortedlist (append sortedlist (list curitem)))
+         ;;(afout 'out (format nil "END LOOP, curitem= ~A sorteditem= ~A  new-sortedlist= ~A "  curitem sorteditem sortedlist))
+           (return))
+          (t nil))
+
+         ;;END LET, LOOP 
+         ))
+      ;;end (and curitem
+      )
+     ;;null sortedlist
+     (curitem
+      (setf new-sortedlist (list curitem)))
+     ;;null curitem and sortedlist
+     (t nil))
+
+    ;;(break "1")
+    (when next-testlist    
+        (setf new-sortedlist  ;;if don't use (cdr testlist) stack overfl
+            (sort-list  next-testlist  :sortedlist new-sortedlist :sortn (incf sortn)  :test test)))
+
+      ;;(afout 'out (format nil "END curitem= ~A  result= ~A testlist= ~A next-testlist= ~A new-sortedlist= ~A sortn= ~A" curitem  result testlist next-testlist  new-sortedlist sortn))
+      (when delete-nils-p
+        (setf new-sortedlist (delete NIL  new-sortedlist))) 
+    new-sortedlist
+    ;;end unless, let, when, sort-list
+    ))
+;;TEST
+;; (progn (setf out nil)  (sort-list '(4 5 6 7 3 9 3 5)))
+;;works = (3 3 4 5 5 6 7 9)
+;; (progn (setf out nil)  (sort-list '(6 7 3 9 3 5) :sortedlist '(4 5)))
+;; works= (3 3 4 5 5 6 7 9)
+;; (progn (setf out nil)  (sort-list '(6 3 5) :sortedlist '(4 5)))
+;; works= (3 4 5 5 6)
+;; (progn (setf out nil)  (sort-list '(4 5 6 7 3 9 3 5) :test 'my-lessp))
+;; works= (9 7 6 5 5 4 3 3)
+
+          
 
 ;;MY-SORT-LISTS
 ;;
 ;;ddd
-(defun my-sort-lists (nth lists  &key sorted-lists (ascending-p T) descending-p from-end reduce-duplicates-p ) 
-  "In U-lists.  Sorts by largest item first only by NTH in the lists.  RETURNS (values sorted-lists ascending-lists descending-lists other-items length-newlist) If  DESCENDING-P, both sorted-lists and descending-lists contain descending lists. Othewise SORTED-LIST is ASCENDING.  ascending-lists is always listed.  If from-end, counts from end. If sorted-lists, begins with presorted (ascending) lists to append lists to.  REDUCE-DUPLICATES-P may get rid of all duplicates."
+(defun my-sort-lists (nth lists  &key sorted-lists test (ascending-p T) descending-p from-end reduce-duplicates-p ) 
+  "In U-lists.  Sorts by largest item first only by NTH in the lists.  RETURNS (values sorted-lists ascending-lists descending-lists other-items length-newlist) If  DESCENDING-P, both sorted-lists and descending-lists contain descending lists. Othewise SORTED-LIST is ASCENDING.  ascending-lists is always listed.  If from-end, counts from end. If sorted-lists, begins with presorted (ascending) lists to append lists to.  REDUCE-DUPLICATES-P may get rid of all duplicates.
+ DEPRECIATED but work ascending-p descending-p. TEST overides them--uses funcall."
   (let*
       ((ascending-lists)
        (descending-lists)
@@ -1471,12 +2130,7 @@ C
       ((listp list)
        (setf  length-list (list-length list))
        (setf new-nth nth) ;;not needed??
-
-#|     done in append-sorted-list??   (cond
-         (from-end 
-          (setf new-nth (- length-list nth 1)))
-         (t (setf new-nth nth)))|#
-                     
+                   
        (cond
         ((> length-list new-nth)
          ;;(setf nth-list (nth new-nth list))
@@ -1488,17 +2142,14 @@ C
        ;;end listp
        )
       (t (setf other-items (append other-items (list list)))))
-
      ;;end loop
      )
-
     (cond
      (descending-p
       (setf ascending-lists  sorted-lists
             sorted-lists (reverse sorted-lists)
             descending-lists sorted-lists))
      (t (setf ascending-lists  sorted-lists)))
-
     (values sorted-lists ascending-lists descending-lists other-items length-newlist)
     ;;end let, my-sort-lists
     ))
@@ -1734,8 +2385,8 @@ C
                                              &key sortkey sort-betw-groups-key
                                              splice-matched-lists-p 
                                              only-group-numbers-p (only-sort-numbers-p T) 
-                                     descending-groups-p descending-sorts-p)
-  "In  U-lists,     INPUT: keylists. Keylists are first grouped into nested lists by groupkey. If sortkey, then sorted within that group by sortkey values. RETURNS (values sorted-groupkey-lists other-items). If splice-matched-lists-p, then does NOT group matched lists within separate lists. NOTE: If either groupkey or sortkey is a NUMBER, then if will find NTH value in list instead of key and value. SORT-BETW-GROUPS-KEY if a number, sorts between groups by that nth, if a key sorts by keyvalue (next item)."
+                                     descending-groups-p descending-sorts-p test)
+  "In  U-lists,     INPUT: keylists. Keylists are first grouped into nested lists by groupkey. If sortkey, then sorted within that group by sortkey values. RETURNS (values sorted-groupkey-lists other-items). If splice-matched-lists-p, then does NOT group matched lists within separate lists. NOTE: If either groupkey or sortkey is a NUMBER, then if will find NTH value in list instead of key and value. SORT-BETW-GROUPS-KEY if a number, sorts between groups by that nth, if a key sorts by keyvalue (next item). TEST can be my-greater-p or any test."
   (let
       ((groupkey-lists)
        (sorted-wkeyval) 
@@ -1962,6 +2613,41 @@ C
 ;; :group-sorted-lists-p
 ;; (sort-keylists-by-keyvalue 'K2 '((K1 3) (K2 4 K1 3) (K1 6 K2 1) (K3 3 K2 1) (K1 2 K2 1) (K2 4 K1 7) (K2 1 K1 5)) :group-sorted-lists-p T)
 ;;works= (((K2 1 K1 5) (K1 2 K2 1) (K3 3 K2 1) (K1 6 K2 1)) ((K2 4 K1 7) (K2 4 K1 3)))  (((1 (K2 1 K1 5)) (1 (K1 2 K2 1)) (1 (K3 3 K2 1)) (1 (K1 6 K2 1))) ((4 (K2 4 K1 7)) (4 (K2 4 K1 3))))   ((K1 3))
+
+
+;;SORT-SYMS-BY-KEYVALUE
+;;2020
+;;ddd
+(defun sort-syms-by-keyvalue (key symlist &key omit-nil-vals-p (test 'my-greaterp) )
+  "U-lists RETURNS (values sorted-syms sorted-symval-lists nilval-list)"
+  (let*
+      ((sorted-symval-lists)
+       (nilval-list)
+       (symval-lists)
+       )
+    (loop
+     for sym in symlist
+     do
+     (let*
+         ((val (eval-sym sym))
+          (symval-pair (list sym (get-key-value key val)))
+          )
+       (cond
+        ((or val (null omit-nil-vals-p))
+         (setf symval-lists (append1 symval-lists symval-pair )))
+        (T (setf nilval-list (append1 nilval-list sym))))
+     ;;end let,loop
+     ))
+    ;;ORDER THE LISTS
+    (setf sorted-symval-lists (sort-1nested-lists 1 symval-lists :test test)
+          sorted-syms (get-nth-in-all-lists 0 sorted-symval-lists))   
+    (values sorted-syms sorted-symval-lists nilval-list)
+    ;;end let, sort-syms-by-keyvalue
+    ))
+;;TEST
+;; (sort-syms-by-keyvalue :CSRANK '(spiritualintegrati careaboutothersfee careforothers  enlightenworld spreadknowledge valuegrouphappines  seekultimatetruth highimpact ) :TEST 'MY-LESSP)
+;;works= (VALUEGROUPHAPPINES CAREABOUTOTHERSFEE CAREFOROTHERS ENLIGHTENWORLD SPREADKNOWLEDGE SPIRITUALINTEGRATI SEEKULTIMATETRUTH HIGHIMPACT)
+;; ((VALUEGROUPHAPPINES 1) (CAREABOUTOTHERSFEE 2) (CAREFOROTHERS 3) (ENLIGHTENWORLD 4) (SPREADKNOWLEDGE 4.5) (SPIRITUALINTEGRATI 5) (SEEKULTIMATETRUTH 6) (HIGHIMPACT 7))     NIL
 
 
 
@@ -2395,13 +3081,13 @@ C
 ;;GET-GREATEST/LEAST-LIST-BY-FUNCALLED-ITEMS
 ;;2018
 ;;ddd
-(defun get-greatest/least-list-by-funcalled-items (function funcargs append-n 
+(defun get-greatest/least-list-by-funcalled-items (function funcargs list-n 
                                                             uncked-lists
                                                             &key itemlist restlists (nthlist  0) ret-n 
                                                             (test 'my-greaterp) 
                                                             splice-args-p 
-                                                            funcargs2 append-n2 splice-args2-p)
-  "In U-lists In uncked-lists, compares items found by function funcargs append-nth at append-n with uncked-lists.  The test used to compare item is test.  RETURNS  (values selected ret-value ret-n  restlists uncked-lists nthlist) ret-n is n from 0 of the selected list. nthlist is length of restlists.  Note: Funcargs2 (unlike funcargs) is a LIST of args that is appended at append-n2."
+                                                            funcargs2 list-n2 splice-args2-p)
+  "In U-lists In uncked-lists, compares items found by [function funcargs list-nth] at list-n with uncked-lists.  The test used to compare item is test.  RETURNS  (values selected ret-value ret-n  restlists uncked-lists nthlist) ret-n is n from 0 of the selected list. nthlist is length of restlists.  Note: Funcargs2 (unlike funcargs) is a LIST of args that is appended at list-n2."
   (let*
       ((testlist)   
        (testitem) 
@@ -2417,9 +3103,9 @@ C
 
     ;;find item using my-funcall
     (setf newargs1 
-          (append-nth itemlist append-n funcargs :splice-list-p splice-args-p ))
+          (append-nth itemlist list-n funcargs :splice-list-p splice-args-p ))
     (when funcargs2
-      (setf newargs1 (append-nth itemlist append-n funcargs :splice-list-p splice-args2-p )))
+      (setf newargs1 (append-nth itemlist list-n funcargs :splice-list-p splice-args2-p )))
     (setf item (my-funcall-arglist function newargs1 :use-quoted-args-p T))
     
     ;;FIND TESTLIST
@@ -2428,10 +3114,10 @@ C
       (setf  testlist (car uncked-lists))
       ;;find testitem funcargs
       (setf newargs2
-            (append-nth testlist append-n funcargs :splice-list-p splice-args-p ))
+            (append-nth testlist list-n funcargs :splice-list-p splice-args-p ))
       (when funcargs2
         (setf newargs2
-              (append-nth testlist append-n funcargs :splice-list-p splice-args2-p )))
+              (append-nth testlist list-n funcargs :splice-list-p splice-args2-p )))
       ;;find testitem and new uncked-lists
       (setf  testitem (my-funcall-arglist function newargs2 :use-quoted-args-p T)
              ;;(nth nthitem testlist)
@@ -2448,7 +3134,7 @@ C
         ;; uncked-lists (cdr uncked-lists)
         (multiple-value-setq (selected ret-value ret-n restlists uncked-lists nthlist)
             (get-greatest/least-list-by-funcalled-items  function funcargs 
-                                                         append-n  uncked-lists
+                                                         list-n  uncked-lists
                                                          :itemlist  itemlist :restlists restlists :nthlist (incf nthlist)
                                                          :ret-n ret-n :test test)))
        ;;(find-greatest/least-1nested-list  nthitem uncked-lists :test test :itemlist itemlist :restlists restlists :nthlist (incf nthlist) :ret-n ret-n)))
@@ -2459,7 +3145,7 @@ C
           ;;uncked-lists (cdr uncked-lists)
           (multiple-value-setq (selected ret-value ret-n restlists uncked-lists nthlist)
               (get-greatest/least-list-by-funcalled-items  function funcargs 
-                                                           append-n  uncked-lists
+                                                           list-n  uncked-lists
                                                            :itemlist  testlist :restlists restlists :nthlist (incf nthlist)
                                                            :ret-n ret-n :test test))))
       #|(multiple-value-setq (selected ret-n restlists uncked-lists nthlist)
@@ -2471,7 +3157,6 @@ C
      (t (setf selected itemlist
               ret-value item)
         (unless ret-n (setf ret-n nthlist))))
-
     (values selected  ret-value ret-n restlists uncked-lists nthlist)
     ;;end let, get-greatest/least-list-by-funcalled-items
     ))
@@ -2486,7 +3171,7 @@ C
 ;; ;;(get-greatest/least-list-by-funcalled-items #'get-key-value '(k2) 1 '((k1 8 k2 4)(k1 5 k2 7)(k1 2)(k2 6)(k1 5 k2 9)(k1 6 k2 3)))
 ;;works= (K1 5 K2 9) 9  4   ((K1 8 K2 4) (K1 2) (K2 6) (K1 5 K2 7) (K1 6 K2 3))   NIL  7
 ;;For 2nested list 
-;;NOTE: ONLY CHECKS FIRST OCCURANCE OF K2 if several k2 lists in same overall list.
+;;NOTE: FOLLOWING ONLY CHECKS FIRST OCCURANCE OF K2 if several k2 lists in same overall list???
 ;; (get-greatest/least-list-by-funcalled-items #'get-keyvalue-in-nested-list '(((k2 T))) 1 '(((k1 8 k2 4)(k1 5 k2 7))((k1 2)(k2 6))((k1 5 k2 9)(k1 6 k2 3))))
 ;; works= ((K1 5 K2 9) (K1 6 K2 3))  NIL  (((K1 8 K2 4) (K1 5 K2 7)) ((K1 2) (K2 6)))   NIL  4
 
@@ -2615,6 +3300,7 @@ In U-lists, Appends a list to a  pre-sorted list where the list is compared to t
     ;;end let, sort-keylists-by-key
     ))
 ;;TEST
+;; key nth= 0 sort-dim-n= 1 (begins at 1?)
 ;;  (sort-keylists-by-key 0  '((1 3 2) (2 3 2) (3 3 2) (4 3 2) (1 4 2) (2 4 2) (3 4 2)))
 ;; works = (((1 4 2) (1 3 2)) ((2 4 2) (2 3 2)) ((3 4 2) (3 3 2)) ((4 3 2)))   (1 2 3 4 1 2 3)
 ;;  (sort-keylists-by-key 0 '((L (1 2 3))(F (3 4 5))(L (6 78))))
@@ -2780,7 +3466,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
       (t (setf n-items  (ceiling (/ flat-list-length  n-lists)))))
      ;;(afout 'out (format nil "n-items= ~A" n-items))
      (setf resorted-list (sort-list-into-nested-lists flat-list n-items)
-           n-nested-lists (list-length resorted-lists))
+           n-nested-lists (list-length resorted-list))
      ;;end n-lists
      )
     (n-items-per-list
@@ -2944,10 +3630,8 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
        (sorted-lists)
        (last-item)
        (ordered-list)
-       (last-item)
        (delete-duplicates-nth)
-       (new-list)
-       )
+           )
     (loop
      for list in lists
      do
@@ -3210,6 +3894,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
        (result)
        (duplicate-list)
        (duplicatep)
+       (ordered-list)
        )
     (cond
      ((funcall test (nth nth list1)(nth nth list2)) ;;was(my-equal (nth nth list1)(nth nth list2))
@@ -3238,9 +3923,6 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;;  (delete-duplicate-nth 0  '(a b c d) '(one b 2 x)) = ((A B C D) (ONE B 2 X))  NIL NIL
 ;;  (delete-duplicate-nth 1 '(a b c d) '(one b 2 x) :compare-nth 3) = (ONE B 2 X)  (A B C D) T
 ;;  (delete-duplicate-nth 1 '(a b c d) '(one b 2 x) :compare-nth 3 :return-lessp t) = (A B C D)  (ONE B 2 X) T
-
-
-
 
 
 ;;COMPARE-LISTS
@@ -3439,11 +4121,11 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
          (t nil)))
        (t (setf new-list (append new-list (list item)))))
       ;;(afout 'out (format nil "item= ~A old-item= ~A new-item= ~A~% new-list= ~A~%" item old-item new-item new-list))
-      )
-      
+      )     
    (values  new-list item-found-p)
     ))
 ;;TEST
+;;(replace-list-item  '(very long list)  '((list1 a b c d e)(list2 1 2 3 4 5)(list3 x y z))
 ;;(replace-list-item '((1 3 2)(2 3 2))  '((1 3 2)) '(((2 5 1))((1 3 2))((1 4  3))))
 ;; works= (((2 5 1)) ((1 3 2) (2 3 2)) ((1 4 3)))   T
 #|(defun testrli ()
@@ -3496,7 +4178,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;;ddd
 (defun delete-list-items (items list &key (test 'my-equal) (begin 0) end
                                 not-delete-nil-p )
-  "In U-lists. Deletes same item from all lists. RETURNS (values newlist deleted-items)"
+  "In U-lists. Deletes same item from all lists. RETURNS (values newlist deleted-items)NOT WORK with nested-lists; will work with non-nested list items."
   (let
       ((newlists)
        (deleted-items)
@@ -3543,6 +4225,280 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;; works= (1 2 3 THIS 4 5 5 K1 7 8)  (K1)
 ;;  (delete-list-items '(c  NIL ""  " "  ) '(a b c NIL d "" x yz))
  ;;works=  (A B D X YZ)  (C "")
+;; (delete-list-items '(a (x Y z)) '(c a (a b) d (x y z)  7 (X Y Z)))
+;; works= (C (A B) D 7)    (A (X Y Z) (X Y Z))
+;;
+;; (delete-list-items '(9 (a b c))  '((8 (a b c))(9 (a b c)) x y ))
+;; NOT WORK = ((8 (A B C)) (9 (A B C)) X Y)   NIL
+
+
+
+
+#|(get-set-append-delete-keyvalue-in-nested-list new-value key-spec-lists nested-lists &key append-value-p list-first-item-in-append-p add-value-p splice-newvalue-at-nth-p key-in-prev-keylist-p (test (quote my-equal)) return-list-p key=list-p put-key-after-items put-value-after-items new-begin-items new-end-items splice-key-value-in-list-p splice-old-new-values-p parens-after-begin-items-p (return-nested-list-p t) (max-list-length 1000) (if-not-found-append-key-value-p t) if-not-found-append-keyvalue-list-p if-not-found-add-item-in-last-nested-list-p orig-list-items-leftn (recurse-for-key-p t) (bottom-level-p t) (if-get-no-return-old-keylist-p t) last-key-found-p oldkey)
+
+>>>> Documentation : 
+In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) KEYLOC-N NOT USED--searches entire list at that level  for key (as before if keyloc-n = T) [In which case will check entire list at that level for key].  Use depreciated old function for that.
+   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
+   If in  NOT LAST KEYSPEC VAL-NTH is a NUMBER  searches that location [can be VALUE LIST] for the nested list with next key.  IF VAL-NTH not a number (eg aT), searches ALL NESTED LISTS for the NEXT KEY.
+   To APPEND KEY & VALUE TO TOP LIST, set :IF-NOT-FOUND-APPEND-KEYVALUE-LIST-P to NIL. (To append whole list, set to T)
+    RETURNS (values return-keylist return-nested-lists new-keylist return-value    
+              return-old-keylist last-key-found-p old-value new-key-spec-lists)
+     If RETURN-LIST-P, return-keylist is the ENTIRE list containing key, otherwise same as new-keylist. 
+     KEY-SPEC-LISTS are lists of (key keyloc-n val-n) [val-nth optional, default= 0) from outermost to innermost (last) key. Eg of proper list (:k1 (a) :key1 (k2 (b) :key2 (k3 (c) k4 (d) :key3 (:key5 OLD-VALUE)...)); key-spec-list= ((:key1 2)(:key2  2)(:key3 4)(:key5 0)) .
+     KEY-IN-PREV-KEYLIST-P Adds or appends (depending on &key above) the last key and new-value (if not found in the previous flat keylist) to that previous keylist). If found, acts normally. PREFERRED if last key is same flat keylist as previous key.
+     IF-NOT-FOUND-APPEND-KEY-VALUE-P adds a key and keyvalue to innermost list if not found (but preceding key must be found). If last keyloc-n = 0, puts old previous keyvalue at end of new keylist. If last keyloc-n > 0, puts it first, then fills in nils before new key in last list which is new value of previous key. 
+     IF KEY = :NTH, then gets, sets, or appends number in KEYLOC-N PLACE. Note: If second item in spec-list isn't number, uses default keyloc-n.  
+     PUT-KEY-AFTER-ITEMS is a list of items which is used if keyloc-n > 0 to fill in items between key and value [done automatically if old items are there]. splice-key-value-in-list-p does similar except includes items after the value. 
+    If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.  
+   ADD-VALUE-P just adds new-value after old-value.   Only with add-value-p, SPLICE-NEWVALUE-AT-NTH-P, Also use :NTH and :KEYLOC-N for location (:NTH 99) = eg (:k1 1 :k2 2 :newkey newval) instead of (:k1 1 :k2 2  (:newkey newval))
+   LAST-KEY-FOUND-P must be NIL (set only in recursive calls), or keeps from adding new values sometimes.          
+   NOTE: IF KEYS NOT FOUND, Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
+   return-nested-list-p often makes no difference.
+   LIST-FIRST-ITEM-IN-APPEND-P to set keylist to key (newitem) not key newitem.
+   * This version DOES NOT USE THE KEYLOC-N to search lists
+  * THIS CAN BE USED AS A GENERAL SEARCH FUNCTION|#
+
+
+
+;;APPLY-FUNC-TO-NESTEDLIST-ITEMS
+;;2019
+;;ddd
+(defun apply-func-to-nestedlist-items (nested-list func &key arglist return-nil-p)
+  "U-liists.   RETURNS result-list [same form as nested-list, but with every new item the result of applying func with optional arglist. Works on any kind of nested-list? "
+  (let
+      ((result-list)
+       (item-result)
+       )
+    ;;FOR ALL ITEMS IN NESTED-LIST
+    (cond
+     ((listp nested-list)
+      (loop
+       for item in nested-list
+       do
+       (let*
+           ((result)
+            )
+         (cond
+          ((listp item)
+           (multiple-value-bind (result1)
+               (apply-func-to-nestedlist-items  item func :arglist arglist)
+             (setf result result1)       
+             ;;end mvb, listp item
+             ))
+          (t
+           (cond 
+            (arglist 
+             (setf result (eval (append `(funcall ,func ,item) arglist))))
+            (t (setf result (eval (append `(funcall ,func ,item))))))
+           ;;end t,cond
+           ))
+         ;;accumlate
+         (when (or result return-nil-p)
+           (setf result-list (append result-list (list result))))
+         ;;end let,loop
+         ))
+      ;;end listp nested-list
+      )
+     ;;NESTED-LIST NOT LIST
+     (T
+      (cond 
+       (arglist 
+        (setf item-result (eval (append `(funcall ,func ,nested-list) arglist))))
+       (t (setf item-result (eval `(append (funcall ,func ,nested-list))))))
+      (when (or item-result return-nil-p)
+        (setf result-list (append result-list (list item-result)))) 
+      ;;end t,cond
+      ))
+    result-list
+    ;;end let, apply-func-to-nestedlist-items
+    ))
+;;TEST
+;; func = #'+  arglist '(1 1) ;; adds 2 to each item
+;;  (apply-func-to-nestedlist-items '(1 (2 3 (4 5) 6 (99 999)) 7 (8 (9 10 (11 12)) (1))) #'+ :arglist '( 1 1))
+;; works = (3 (4 5 (6 7) 8 (101 1001)) 9 (10 (11 12 (13 14)) (3)))
+;; no arglist
+;; (apply-func-to-nestedlist-items '(1 (2 3 (4 5) 6 (99 999)) 7 (8 (9 10 (11 12)) (1))) #'sqrt )
+;; works = (1.0 (1.4142135 1.7320508 (2.0 2.236068) 2.4494899 (9.949874 31.606963)) 2.6457513 (2.828427 (3.0 3.1622777 (3.3166249 3.4641016)) (1.0)))
+
+
+
+
+
+;;SEARCH/DELETE-ITEM-IN-NESTED-LIST
+;;2019
+;;ddd   
+(defun search/delete-item-in-nested-list (item nested-list  
+                                               &key new-nested-list search-only-p (test 'my-equal) 
+                                               from-end  (start 0) end stop-after-first-p (n 0)) 
+                                                 ;;added (n 0), was undefined
+  "U-list   RETURNS (values  new-nested-list matched-sublists matched-items matched-item)   INPUT: item can be a list, string, symbol, etc.   STOP-AFTER-FIRST-P Only finds/deletes FIRST INSTANCE of item. If nil, all instances will be deleted and/or found  When SEARCH-ONLY-P, does NOT delete any items. Returns full nested-list and found sublists. MATCHED-SUBLISTS  includes nested sublists.  If match is in main list, only the matched-item is included."
+  (let
+      ((result)
+       (found-item)
+       (matched-item)
+       (matched-items)
+       (matched-sublist)
+       (matched-sublists)
+       (sub-new-nested-list)
+       (len-nested-list (cond ((listp nested-list) (list-length nested-list))(t 0)))       
+       )
+    ;;1. TEST TO SEE IF ITEM = NESTED-LIST
+    (cond
+     ;;BOTH ARE LISTS
+     ((and (listp item)(listp nested-list))
+      (cond
+       ;;list = nested-list
+       ((setf result 
+              (my-equal-nested-lists  item nested-list :test test))
+        (setf found-item result))
+       (t (setf result nil)))
+      ;;end both lists
+      )
+     ;;BOTH NOT LISTS AND PASS TEST
+     ((and (null (listp item))(null (listp nested-list))
+           (setf result (funcall test item nested-list))
+           (setf found-item nested-list))
+      ;;end both not lists, pass test
+      )
+     (t NIL))
+    
+    ;;WHEN ITEM = NESTED-LIST (either item or list)
+    (when result
+      (setf matched-item nested-list
+        matched-items (list matched-item))
+      ;;matched-sublist nested-list)      
+      ;;otherwise, omit item from sub-new-nested-list
+      )
+    ;;NOT FIND MATCH ABOVE
+    (when (null result)
+      (cond
+       ;;IF LISTP NESTED-LIST, RECURSE ON EACH NESTED-LIST ITEM
+       ((listp nested-list)           
+        (loop
+         for nested-item in nested-list
+         for n from 0 to len-nested-list
+         do
+         (let
+             ((nestedlist-tail)
+              (loop-matched-sublist)
+              (loop-matched-sublists)
+              )
+           (cond
+            ;;non-list ITEM = non-list NESTED-ITEM?
+            ((and (not (listp item)) (not (listp nested-item))
+                  (funcall test item nested-item))
+             (setf matched-item  nested-item
+                   matched-items (append matched-items (list nested-item)))
+             ;;(break "not lists")
+             ;;otherwise, omit item from sub-new-nested-list
+             ;;(afout 'out (format nil "AFTER ITEM=NESTED-ITEM; NESTED-LIST- ~a sub-new-nested-list= ~A  "NESTED-LIST sub-new-nested-list ))
+             )
+            ;;list ITEM; non-list NESTED-ITEM [prevents need to recurse in this case]
+            ((and (listp item) (not (listp nested-item)))
+             ;;since no match, add to sub-new-nested-list
+             (setf sub-new-nested-list (append sub-new-nested-list (list nested-item)))
+             )                
+            ;;NESTED-ITEM = LIST; item = list or not
+            ((listp nested-item)
+             ;; HERE2
+             ;;(afout 'out (format nil "BEFORE RECURSE; NESTED-LIST- ~a sub-new-nested-list= ~A  "NESTED-LIST sub-new-nested-list ))
+             (multiple-value-bind (sub-new-nested-list1 recurse-matched-sublists
+                                                        matched-items1 matched-item1)
+                 (search/delete-item-in-nested-list item nested-item
+                                                    :test test 
+                                                    :from-end from-end  :start start :end end 
+                                                    :stop-after-first-p stop-after-first-p)
+               (when recurse-matched-sublists
+                 (setf loop-matched-sublists 
+                       (append loop-matched-sublists recurse-matched-sublists)))
+               (when matched-items1
+                 (setf matched-items (append matched-items matched-items1)))
+
+               ;;IF FOUND LIST (and final-new-list1 =  :empty-item)
+               (cond
+                ;;FOUND, BUT DON'T APPEND sub-new-nested-list--must include this!
+                (matched-item1 
+                 (when nested-item
+                   (setf loop-matched-sublists 
+                         (append loop-matched-sublists (list nested-item))))  ;;matched-sublists1))        
+                 ;;OMIT FOLLOWING???
+                 (when sub-new-nested-list1
+                   (setf sub-new-nested-list 
+                         (append sub-new-nested-list (list sub-new-nested-list1))))
+
+                 ;;include following?
+                 ;;end matched-item1
+                 )
+                (sub-new-nested-list1
+                 (setf sub-new-nested-list
+                       (append sub-new-nested-list (list sub-new-nested-list1)))
+                 )
+                (t NIL))
+               ;;mvb, listp nested-item
+               ))
+            ;;NESTED-ITEM NOT A LIST and/or NOT MATCH
+            (t
+             (when nested-item
+               (setf sub-new-nested-list (append sub-new-nested-list (list nested-item))))))
+             
+           ;;AT LOOP END
+           ;;(afout 'out (format nil " END LOOP;  NESTED-LIST- ~a ~%nested-item=  ~A~%sub-new-nested-list= ~A  " NESTED-LIST nested-item  sub-new-nested-list ))  
+           (when loop-matched-sublists
+             (setf matched-sublists (append matched-sublists loop-matched-sublists))
+             )
+           ;;RETURN IF MATCH & stop-after-first-p
+           (when (and stop-after-first-p loop-matched-sublists)
+               (setf nestedlist-tail (nthcdr (+ n 1) nested-list))
+               (when nestedlist-tail
+                 (setf sub-new-nested-list (append sub-new-nested-list nestedlist-tail)))
+               (return))
+           ;;end let, loop, nested-list = list
+           )))
+       ;;ITEM = NESTED-LIST not lists
+       ((funcall test item nested-list)
+        (let*
+            ((nestedlist-tail)
+             )
+        (setf matched-sublists (append matched-sublists (list nested-list)))
+
+        (when stop-after-first-p
+          (setf nestedlist-tail (nthcdr (+ n 1) nested-list))
+          (when nestedlist-tail
+            (setf sub-new-nested-list (append sub-new-nested-list nestedlist-tail))))
+        ;;leave sub-new-nested-list as is
+        ))
+       ;;OTHERWISE NO MATCH IN NESTED LIST so add item to sub-new-nested-list
+       (t  (setf sub-new-nested-list (append sub-new-nested-list (list nested-list)))))
+      ;;end when null result
+      )
+    ;;ACCUMLATE
+    (when sub-new-nested-list 
+      (setf new-nested-list (append new-nested-list  sub-new-nested-list)))
+    (when matched-sublist
+      (setf matched-sublists (append matched-sublists (list matched-sublist 444))))
+
+    ;;When search-only-p, return original nested-list; 
+    (when search-only-p
+      (setf new-nested-list nested-list))
+
+    ;;(afout 'out (format nil "AT END NESTED-LIST ~a sub-new-nested-list= ~A~%==> NEW-NESTED-LIST= ~A " NESTED-LIST sub-new-nested-list new-nested-list ))
+    (values  new-nested-list matched-sublists matched-items matched-item)
+    ;;end let, search/delete-item-in-nested-list
+    ))
+;;TEST
+;;  (search/delete-item-in-nested-list  'a  '(1 (2 3 (4 5) 6 (a b c)) 7 (8 (9 10 (11 12)) (1 a))))
+;;  works =(1 (2 3 (4 5) 6 (B C)) 7 (8 (9 10 (11 12)) (1)))     ((A B C) (1 A))  (A A)   NIL
+;;  (search/delete-item-in-nested-list  'a  '(1 (2 3 (4 5) 6 (a b c)) 7 (8 (9 10 (11 12)) (1 a))) :stop-after-first-p T)
+;; works=   (1 (2 3 (4 5) 6 (B C)) 7 (8 (9 10 (11 12)) (1 A)))   ((A B C))     (A)   NIL
+;;  (search/delete-item-in-nested-list  'a  '(1 (2 3 (4 5) 6 (a b c)) 7 a (8 (9 10 (11 12)) (1 a))))
+;;  works= (1 (2 3 (4 5) 6 (B C)) 7 (8 (9 10 (11 12)) (1)))    ((A B C) (1 A)) (A A A)  A
+;; FOR ITEM = a LIST
+;;   (search/delete-item-in-nested-list '(a ("this" 7) b)  '(1 2 (3 (a ("this" 7) d)  4) 5 (e (a ("this" 7) b) f) 8 9)   )
+;; works= (1 2 (3 (A ("this" 7) D) 4) 5 (E F) 8 9)   ((A ("this" 7) B))   ((A ("this" 7) B))  NIL
+;;   (search/delete-item-in-nested-list '(a ("this" 7) b)  '(1 2 (3 (a ("this" 7) b)  4) 5 (e (a ("this" 7) b) f) 8 9)   )
+;; works=  (1 2 (3 4) 5 (E F) 8 9)    ((A ("this" 7) B) (A ("this" 7) B))   ((A ("this" 7) B) (A ("this" 7) B))   NIL
+
+
 
 
 
@@ -3833,6 +4789,8 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;;TO RETURN KEYS-NOT-FOUND
 ;; (find-keys-and-values-in-list  '(:k2 :k3 :k-none1 :k9 :k-none2) '(:k4 99 :k2 'this :k5 'that :k3 67) :RETURN-KEYS-NOT-FOUND-P T)
 ;; works=  (:K2 (QUOTE THIS) :K3 67)   (:K2 :K3)   (:K-NONE1 :K9 :K-NONE2)
+;; (find-keys-and-values-in-list '(:C :CV :CD :V) '((2 3 4) "2.3.4" :C "HAPPY" :V "ARTVAL" :S (((2 3 4 1) "2.3.4.1" ) )) :return-keys-not-found-p T)
+;;works= (:C "HAPPY" :V "ARTVAL")  (:C :V)  (:CV :CD)
 
 ;;TO RETURN VALUES INSTEAD
 ;;   (values-list '(:K2 (QUOTE THIS) :K3 67)) returns :K2 (QUOTE THIS) :K3 67
@@ -3846,7 +4804,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 (defun set-keys-and-values-in-list  (keys-values old-keylist 
                                                &key  return-keys-not-found-p 
                                                (test 'my-equal))
-  "In U-list.lisp,RETURNS . In a list of misc placed key-value pairs, will return  the keys and values in key-list in the form of a list. . Then use values-list if want to convert to values list.  old-keylist can be a nested list?"
+  "In U-list.lisp,RETURNS . In a list of misc placed key-value pairs, will return  the keys and values in key-list in the form of a list. . Then use values-list if want to convert to values list.  OLD-KEYLIST can be a NESTED list?"
   (let*
       ((new-keys-values  old-keylist)
        (key)
@@ -3906,10 +4864,6 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;;TEST
 ;;  (set-keys-and-values-in-list '(k1 new1 k3 new3 k5 new5) '(k2 222 k5 555 k6 666 k1 111 k7 777)))
 ;;works=  (K2 222 K5 NEW5 K6 666 K1 NEW1 K7 777 K3 NEW3)   (K1 K5)   (K3)
-
-
-
-
 
 
 ;;NOTE: RANDOMIZE WORKS WELL, BUT THE 'LESSP AND 'GREATERP ARE
@@ -4027,8 +4981,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
      for n from 0 to len-lists
      do
      (when (and (listp testlist)
-       (setf result  
-             (member item testlist :test test)))
+             (member item testlist :test test))
        (setf nth n
              found-list testlist)
        (return))
@@ -4049,12 +5002,13 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
 ;;APPEND-KEY-VALUE-IN-LIST
 ;;  at times APPEND-KEY-VALUE used as name instead (error?)
 ;;
-;; revised 2017
+;; revised 2017, 2019
 ;;ddd
 (defun append-key-value-in-list (key value listsym
-                                     &key (key-n 0)  (val-nth 1) (test 'my-equal)
-                                     set-listsym-to-newlist-p  
+                                     &key (key-n T)  (val-nth 1) (test 'my-equal)
+                                     set-listsym-to-newlist-p  not-duplicate-p
                                      (append-value-p T)  ;;puts new-value in SAME list as old-value
+                                     (delete-nils-p T) csym symvals
                                      list-first-item-in-append-p
                                      add-value-p ;;puts new-value in keylist after old-value
                                      splice-key-value-in-list-p
@@ -4065,41 +5019,73 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
                                      list-first-value-p    
                                      recursive-call-p)
   "In U-lists,  In a NESTED-list set to listsym, finds key and replaces val-nth element with value at key-n.  Can set either to T to search entire list.  Works for any flat or nested list.  If key not found, appends key and value to list. RETURNS (values new-list return-keylist old-keylist return-new-keylist return-key-found-p)  New 2016, sets listsym to new list.
-   APPEND-VALUE-P puts new-value in SAME list as old-value
+    LISTSYM can be a list with first item = sym that is used for  name
+   APPEND-VALUE-P puts new-value in SAME list as old-value when new-value=list
+   SPLICE-OLD-NEW-VALUES-P MUST be used for nonlist new-value or it REPLACES old-value.
    ADD-VALUE-P puts new-value in keylist after old-value
   Revised 2017: revised. DEPRECIATED:  append-as-flatlist-p, append-first-as-flatlist-p, list-first-value-p, recursive-call-p.  Based upon get-set-append-delele- "
-(let
+
+  ;;SO CAN USE SYMVALS INSTEAD OF CSYM, but can't set csym to csymlist.
+  (when (listp listsym)
+    (unless symvals
+      (setf symvals listsym))
+    (unless csym 
+      (setf csym (my-make-symbol (car listsym)))))
+  (let
       ((target-list) 
        )
-  (cond
-   ((symbolp listsym)
-     (setf target-list (eval listsym)))
-   ((listp listsym)
-    (setf target-list listsym)))
-  ;;If list-first-item-in-append-p, append-value-p must be T 
-  (when list-first-item-in-append-p
-    (setf append-value-p T))
-  (multiple-value-bind (return-keylist new-list return-new-keylist return-value old-keylist return-key-found-p)
-      ;;was (new-list return-key-found return-old-value return-new-keylist)
-      ;;returns (return-keylist new-return-nested-lists new-keylist return-value  old-keylist return-key-found-p ) 
-      (get-set-append-delete-keyvalue-in-nested-list value 
-                                                     (list (list key key-n val-nth))  target-list 
-                                                      :add-value-p  add-value-p 
-                                                      :append-value-p append-value-p
-                                                      :splice-key-value-in-list-p  splice-key-value-in-list-p
+    (cond
+     ((symbolp listsym)
+      (setf target-list (eval listsym)))
+     ((listp listsym)
+      (setf target-list listsym)))
+    ;;If list-first-item-in-append-p, append-value-p must be T 
+    (when list-first-item-in-append-p
+      (setf append-value-p T))
+    (multiple-value-bind (return-keylist new-list return-new-keylist return-value old-keylist return-key-found-p)
+        ;;was (new-list return-key-found return-old-value return-new-keylist)
+        ;;returns (return-keylist new-return-nested-lists new-keylist return-value  old-keylist return-key-found-p ) 
+        (get-set-append-delete-keyvalue-in-nested-list value 
+                                                       (list (list key key-n val-nth))  target-list 
+                                                       :add-value-p  add-value-p 
+                                                       :append-value-p append-value-p
+                                                       :splice-key-value-in-list-p  splice-key-value-in-list-p
                                                        :splice-old-new-values-p splice-old-new-values-p
                                                        :list-first-item-in-append-p list-first-item-in-append-p
-                                                        :test test :return-list-p T)
+                                                       :not-duplicate-p not-duplicate-p
+                                                       :test test :return-list-p T)
       ;;old (append-key-value-in-list  key value target-list :append-as-flatlist-p append-as-flatlist-p)
 
-    (when set-listsym-to-newlist-p
-      (set listsym new-list))
-    ;;was (values new-list return-key-found return-old-value return-new-keylist)
-    ;;(break "end")
-    (values new-list return-keylist old-keylist return-new-keylist return-key-found-p)
-    ;;end mvb, let, set-key-value
-    )))
+      (when set-listsym-to-newlist-p
+        (set listsym new-list))
+      ;;was (values new-list return-key-found return-old-value return-new-keylist)
+      ;;(break "end")
+      (values new-list return-keylist old-keylist return-new-keylist return-key-found-p)
+      ;;end mvb, let, set-key-value
+      )))
 ;;TEST
+;  FOR KEYS  RANDOMLY IN A LIST WITH OWN SUBLIST/VALUE
+;; (setf testlist-ky '(a b :key1 (:key2 x y) :key3 nil :key4 (1 2 3) :key5 m))
+;;  (append-key-value-in-list :key3 'this 'testlist-ky  :set-listsym-to-newlist-p T)
+;; works= (A B :KEY1 (:KEY2 X Y) :KEY3 (THIS) :KEY4 (1 2 3) :KEY5 M)
+;; append same key again
+;; APPENDS A VALUE=LIST
+;; (append-key-value-in-list :key3 'that 'testlist-ky :append-value-p t :set-listsym-to-newlist-p T))
+;; works= (A B :KEY1 (:KEY2 X Y) :KEY3 (THIS THAT) :KEY4 (1 2 3) :KEY5 M)
+;; (append-key-value-in-list :key4 'that 'testlist-ky :append-value-p t)
+#|(A B :KEY1 (:KEY2 X Y) :KEY3 NIL :KEY4 (1 2 3 THAT) :KEY5 M)
+(A B :KEY1 (:KEY2 X Y) :KEY3 NIL :KEY4 (1 2 3 THAT) :KEY5 M)
+(A B :KEY1 (:KEY2 X Y) :KEY3 NIL :KEY4 (1 2 3) :KEY5 M)
+(A B :KEY1 (:KEY2 X Y) :KEY3 NIL :KEY4 (1 2 3 THAT) :KEY5 M)   T|#
+;; DON'T USE TO APPEND, BUT TO REPLACE VALUE (must include :append-value-p T to append a value list)
+;;   (append-key-value-in-list :key3 'that 'testlist-ky)
+;; REPLACES OLD VALUE!!= (A B :KEY1 (:KEY2 X Y) :KEY3 (THAT) :KEY4 (1 2 3) :KEY5 M)
+;;
+;; WHEN NOT-DUPLICATE-P
+;; (append-key-value-in-list  :S '$SLF   '(:S ($CS $MIS $EXC $TBV $WV $SLF $REFG $FAM)) :not-duplicate-p T)
+;; (:S ($CS $MIS $EXC $TBV $WV $SLF $REFG $FAM))   (:S ($CS $MIS $EXC $TBV $WV $SLF $REFG $FAM))  (:S ($CS $MIS $EXC $TBV $WV $SLF $REFG $FAM))  (:S $CS $MIS $EXC $TBV $WV $SLF $REFG $FAM)
+
+;; FOR KEYS FIRST IN OWN LIST
 ;; (setf testlistY '(a b (:key1 x y) c (:key2 (a))))
 ;;   (append-key-value-in-list :key2 '(new-value-list) 'testlistY)
 ;; = (A B (:KEY1 X Y) C (:KEY2 (A (NEW-VALUE-LIST)))) .. ETC
@@ -4189,6 +5175,7 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
        (testitem)
        (found-key)
        (found-item)
+       (found-list)
        (found-n)
        (last-found-n)
        (return-item)
@@ -4436,13 +5423,17 @@ CL-USER 68 > (ceiling (/ 9  4)) = 3  -3/4
                    new-item new-item1
                    found-n found-n1)
              (setf new-list 
-                   (append (butlast nested-lists last-found-n) (list new-list1) ;; 'MATCHKEY-FOUND)
+                   (append (butlast nested-lists last-found-n) (list new-list1)
+                           ;; 'MATCHKEY-FOUND)
                            (nthcdr (+ last-found-n 1) nested-lists)))
            ;;(BREAK "after FOUND-ITEM loop mvb (found-item1 new-list1 found-n1 new-item1)")
              ;;end found-item1
              )
-            (t (setf new-list 
-                   (append (butlast nested-lists last-found-n) (list item) ;; 'MATCHKEY-NOT-FOUND)
+            (t (setf new-list  ;;HERENOW
+                   (append (butlast nested-lists last-found-n)
+                           (list (format nil "~A  NOT FOUND--CHANGE THIS OUTPUT?" 
+                                         found-item))
+                           ;; 'MATCHKEY-NOT-FOUND)
                            (nthcdr (+ last-found-n 1) nested-lists)))))
            ;;end mvb,listp
            ))
@@ -4780,7 +5771,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;2016
 ;;ddd
 (defun set-nth-in-list (value nth list)
-  "In U-list, sets nth item in list to value. RETURNS new list."
+  "In U-list, sets nth item in list to value. begin=0. RETURNS new list."
   (let
       ((new-list)
        )
@@ -4804,39 +5795,214 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 
 
 
+;;SET-KEY-VALUE-IN-LISTS
+;;2020
+;;ddd
+(defun set-key-value-in-lists (key value list-of-lists
+                          &key append-values-p (replace-old-value-p T)
+                          (set-listsym-to-newlist-p T)
+                          (append-as-keylist-p T) append-as-flatlist-p no-dupl-p
+                           (test 'my-equal))
+"In U-lists, SETS SAME VALUE FOR ALL NON-NESTED. LISTS WITH KEY. EACH list-sym can be a SYMBOL OR LIST, but only symbol can be set to new list. In a list which LISTSYM evals to, finds key and replaces next element with value. If key not found, appends key and value) to list. Uses equal. If APPEND-VALUES-P, makes a value list of old & new vals. append-values-p has precedence over replace-old-value-p.
+  RETURNS (values newlists old-values symlist). APPEND-AS-KEYLIST-P causes a keylist to be appended if no key found, APPEND-AS-FLATLIST-P (has priority) causes key value to be appended. If both are NIL, then nothing appended if key not found.  NOTE: RECURSIVE function, may replace set-key-value-in-nested-lists (this newer, doesn't need key-specs, better for simplier cases?). Use set-key-value-in-list if start with list instead of listsym. NO-DUPL-P will not append if already in value-list."
+  (let*
+      ((newlists)
+       (old-values)
+       (symlist)
+       )
+    (loop
+     for sym/list in list-of-lists
+     do
+     (multiple-value-bind (newlist  new-key-val old-value)
+         (set-key-value key value sym/list
+                        :append-values-p append-values-p
+                        :replace-old-value-p replace-old-value-p
+                        :append-as-keylist-p append-as-keylist-p
+                        :append-as-flatlist-p append-as-flatlist-p 
+                        :no-dupl-p no-dupl-p :test test )
+       ;;If symbol & reset it
+       (when (and set-listsym-to-newlist-p
+                  (symbolp sym/list))
+         (set sym/list newlist)
+         (setf symlist (append symlist (list sym/list))))
+       ;;in any case
+       (setf newlists (append newlists (list newlist))
+             old-values (append old-values (list old-value)))
+       ;;end mvb,loop
+       ))
+    (values newlists old-values symlist)
+    ;;end let, set-key-value-in-lists
+    ))
+;;TEST
+;; (set-key-value-in-lists :k2 'newval '((:k2 old)(:k1 33 :k2 44) (:k2 '(old))))
+;; works= ((:K2 NEWVAL) (:K1 33 :K2 NEWVAL) (:K2 NEWVAL))      (OLD 44 (QUOTE (OLD)))  NIL
+;; (setf   ls1 '(:k2 old) ls2 '(:k1 33 :k2 44))
+;; (set-key-value-in-lists :k2 'newval '(ls1 ls2))
+;; works= ((:K2 NEWVAL) (:K1 33 :K2 NEWVAL))  (OLD 44)  (LS1 LS2)
+;;also:  LS1 = (:K2 NEWVAL) and LS2 = (:K1 33 :K2 NEWVAL)
+
+
+
 
 ;;SET-KEY-VALUE
-;;
+;;2020 revised
 ;;  loops thru entire list even if key found. May want to use rest-list later, tho that must keep calc cdrs for every element
 ;;ddd
-(defun set-key-value (key value listsym
-                          &key (append-as-keylist-p T) append-as-flatlist-p 
-                          (set-listsym-to-newlist-p NIL))
-  "In U-lists, LISTSYM can be a symbol or list, but only symbol can be set to new list. In a list which LISTSYM evals to, finds key and replaces next element with value. If key not found, appends key and value) to list. Uses equal. RETURNS (values new-list key-found old-value) . APPEND-AS-KEYLIST-P causes a keylist to be appended if no key found, APPEND-AS-FLATLIST-P (has priority) causes key value to be appended. If both are NIL, then nothing appended if key not found.  NOTE: RECURSIVE function, may replace set-key-value-in-nested-lists (this newer, doesn't need key-specs, better for simplier cases?). Use set-key-value-in-list if start with list instead of listsym."
-  
+(defun set-key-value (key value list-or-sym
+                          &key append-values-p (replace-old-value-p T)
+                          (append-as-keylist-p T) append-as-flatlist-p no-dupl-p
+                          set-listsym-to-newlist-p  (test 'my-equal))
+  "In U-lists, USE SET-KEY-VALUE-IN-LIST for NESTED LISTS.  Can be a symbol or list, but only symbol can be set to new list. In a list which LISTSYM evals to, finds key and replaces next element with value. If key not found, appends key and value) to list. Uses equal. If APPEND-VALUES-P, makes a value list of old & new vals. append-values-p has precedence over replace-old-value-p.
+  RETURNS (values newlist  new-key-val old-value)  . APPEND-AS-KEYLIST-P causes a keylist to be appended if no key found, APPEND-AS-FLATLIST-P (has priority) causes key value to be appended. If both are NIL, then nothing appended if key not found.  NOTE: RECURSIVE function, may replace set-key-value-in-nested-lists (this newer, doesn't need key-specs, better for simplier cases?). Use set-key-value-in-list if start with list instead of listsym. NO-DUPL-P will not append if value or member of value if (listp value).
+  NOTE: ONLY WORKS ON SYMS FOR GLOBAL VARS, NOT LOCAL VARS.
+  For SET-LISTSYM-TO-NEWLIST-P to work list-or-sym must be a sym."
   (let
       ((target-list) 
+       (key-found-p)
+       (old-value)
+       (newlist)
+       (new-key-val)
        )
     ;;SYMBOL OR LIST?
     (cond
-     ((listp listsym)
-      (setf target-list listsym))
-     (t (setf target-list (eval listsym))))
+     ((listp list-or-sym)
+      (setf target-list list-or-sym))
+     (t (setf target-list (eval list-or-sym))))
 
-  (multiple-value-bind (new-list return-key-found return-old-value
-                                 return-new-keylist)
-      (set-key-value-in-list  key value target-list 
-                      :append-as-keylist-p append-as-keylist-p 
-                      :append-as-flatlist-p append-as-flatlist-p)
-
-    (when (and set-listsym-to-newlist-p (symbolp listsym))
-      (set listsym new-list))
-
-    (values new-list return-key-found return-old-value return-new-keylist)
-    ;;end mvb, let, set-key-value
-    )))
+    (loop
+     for item in target-list
+     for n from 0 to 5000
+     do
+     (let
+         ((rest-list)
+          )
+     (cond
+      (key-found-p
+       (setf old-value item
+             rest-list (nthcdr (+ n 1) target-list))
+       ;;(afout 'out (format nil "rest-list= ~A" rest-list))
+       (cond
+        (append-values-p
+         (cond
+          ((and no-dupl-p (listp old-value))
+           (cond
+            ;;both lists, union
+            ((listp value)
+             (setf new-key-val (list key (union value old-value :test 'my-equal))))
+            ;;old list, new not, but dup
+            ((member value old-value :test 'my-equal)
+             ;;don't change target-list if value is already in old-value list
+             (setf new-key-val (list key old-value)))
+            ;;old list, new not, not dup
+            (T (setf new-key-val (list key (append1 old-value value))))))
+        ;;(return))
+        ;;DUPS OK
+        ;;old list, new not
+        ((and (listp old-value)(null (listp value)))
+         (setf new-key-val (list key (append1 old-value value))))
+        ;;both lists
+        ((and (listp old-value) (listp value))
+         (setf new-key-val (list key (append old-value  value))))
+        ;;old not list, new is
+        ((and old-value (listp value))
+         (setf new-key-val (list key (append (list old-value) value))))
+        ;;both not lists
+        ((and old-value value)
+         (setf new-key-val (list key (list old-value value))))       
+        (T NIL))
+         ;;end append-values-p
+         )
+        ;;NOT APPEND-P
+        (replace-old-value-p
+         (setf new-key-val (list key value)))
+        ;;just join in a list--note if value is list will be (key old-val (new-val))
+        (T (setf new-key-val (list key (list old-value value)))))
+       ;;SET THE NEWLIST
+       (setf newlist (append newlist new-key-val rest-list))
+       (return)
+       ;;end key-found-p
+       )
+      ((funcall test item key)
+       (setf key-found-p T))
+      (T
+       (setf newlist (append newlist (list item)))))
+     ;;end let, loop
+     ))
+    (unless key-found-p
+      (cond
+       ((and append-values-p (not (listp value)))
+         (setf new-key-val (list key (list value))))
+       (T (setf new-key-val (list key value))))
+      ;;append newlist
+      (cond
+       (append-as-flatlist-p 
+        (setf newlist (append newlist  new-key-val)))
+       (append-as-keylist-p
+        (setf newlist (append newlist (list new-key-val))))
+       ;;default = append-as-flatlist-p
+       (T (setf newlist (append newlist  new-key-val))))
+       ;;(afout 'out (format nil  "in set-key-value, key-found-p NIL END: key= ~A value= ~A list-or-sym= ~A " key value list-or-sym))
+        ;;end unless key found
+        )
+    (when (and set-listsym-to-newlist-p (symbolp list-or-sym))
+      (when list-or-sym
+        (set list-or-sym newlist)))
+    ;;(afout 'out (format nil "SET-KEY-VALUE END, list-or-sym= ~A key= ~A value= ~A~% newlist= ~A " list-or-sym key value  newlist))
+    (values newlist  new-key-val old-value)
+    ;;(values new-list return-key-found return-old-value return-new-keylist)
+    ;;end , let, set-key-value
+    ))
 ;;TEST
+;;SET-KEY-VALUE END, list-or-sym= ($P Persim Model NIL Person Simulation Model S ($CS) CLEV 0 QT SYS) key= S value= $CS
+;; newlist= ($P Persim Model NIL Person Simulation Model S ($CS) CLEV 0 QT SYS S ($CS) CLEV 0 QT SYS) 
+;; (set-key-value :S '$CS  '($P "Persim Model" NIL "Person Simulation Model" :S ($CS) :CLEV 0 :QT :SYS)  :replace-old-value-p NIL  :append-values-p T :set-listsym-to-newlist-p T :append-as-flatlist-p T :no-dupl-p T)
+;;works = ($P "Persim Model" NIL "Person Simulation Model" :S ($CS) :CLEV 0 :QT :SYS)    (:S ($CS))   ($CS)
+;;(set-key-value :S '($CS)  '($P "Persim Model" NIL "Person Simulation Model" :S ($CS) :CLEV 0 :QT :SYS)  :replace-old-value-p NIL  :append-values-p T :set-listsym-to-newlist-p T :append-as-flatlist-p T :no-dupl-p T)
+;;works= ($P "Persim Model" NIL "Person Simulation Model" :S ($CS) :CLEV 0 :QT :SYS)   (:S ($CS))  ($CS)
+;;  (set-key-value :S '($CS $T)  '($P "Persim Model" NIL "Person Simulation Model" :CLEV 0 :QT :SYS) :replace-old-value-p NIL  :append-values-p T :set-listsym-to-newlist-p NIL :append-as-flatlist-p T :no-dupl-p T)
+;;works= ($P "Persim Model" NIL "Person Simulation Model" :CLEV 0 :QT :SYS :S ($CS $T))   (:S ($CS $T))  NIL
+
+;;; (set-key-value :k1 '(new-val x y z) '(1 2 3 :k1 (oldvals x y m n) a b))
+;; works= (1 2 3 :K1 (NEW-VAL X Y Z) A B)   (:K1 (NEW-VAL X Y Z))  (OLDVALS X Y M N)
+;;; (set-key-value :k1 'new-val '(1 2 3 :k1 old-val a b))
+;; (1 2 3 :K1 NEW-VAL A B)  (:K1 NEW-VAL)  OLD-VAL
+;; test omit dupls inside a newvalue list:
+;; (set-key-value :S '(sym1 oldsym2 sym2) '("supsysX" "sup phrase" $MIS.supsysX "this" :S (oldsym1 oldsym2))    :replace-old-value-p NIL  :append-values-p T :set-listsym-to-newlist-p T :append-as-flatlist-p T :no-dupl-p T)
+;;works= ("supsysX" "sup phrase" $MIS.SUPSYSX "this" :S OLDSYM1 SYM1 OLDSYM2 SYM2)   (OLDSYM1 SYM1 OLDSYM2 SYM2)   (OLDSYM1 OLDSYM2)
+;; (set-key-value  :S '<UTYPE  '("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS)  :append-values-p T  :replace-old-value-p NIL   :set-listsym-to-newlist-p T :no-dupl-p T :append-as-flatlist-p T)
+;; works=  ("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS :S (<UTYPE))   (:S (<UTYPE))   NIL
+;; add another
+;; (set-key-value  :S '<UGOALS  '("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS :S (<UTYPE))  :append-values-p T  :replace-old-value-p NIL   :set-listsym-to-newlist-p T :no-dupl-p T :append-as-flatlist-p T)
+;; works= ("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS :S (<UTYPE <UGOALS))   (:S (<UTYPE <UGOALS))   (<UTYPE)
+;; try to add duplicate
+;; (set-key-value  :S '<UGOALS  '("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS :S (<UTYPE <UGOALS))  :append-values-p T  :replace-old-value-p NIL   :set-listsym-to-newlist-p T :no-dupl-p T :append-as-flatlist-p T)
+;;works= ("$BIO" "Bio Info" NIL NIL NIL :CSS $SLF :CLEV 4 :QT :SYS :S (<UTYPE <UGOALS))   (:S (<UTYPE <UGOALS))  (<UTYPE <UGOALS)
+;; (set-key-value :k1 'new-val '(1 2 3 :k1 old-val a b))
+;; works=  (set-key-value :k1 'new-val '(1 2 3 :k1 old-val a b))    (1 2 3 :K1 NEW-VAL A B)  (:K1 NEW-VAL)  OLD-VAL
+;;for :append-values-p;; old-val list, value not
+;;(set-key-value :k1 'new-val '(1 2 3 :k1 old-val a b) :append-values-p T)
+;;works= (1 2 3 :K1 (OLD-VAL NEW-VAL) A B)    (:K1 (OLD-VAL NEW-VAL))   OLD-VAL
+;; ;;for :append-values-p;; both vals are lists
+;; (set-key-value :k1 '(new-val xx)  '(1 2 3 :k1 (old-val 1 2) a b) :append-values-p T)
+;; works= (1 2 3 :K1 (OLD-VAL 1 2 NEW-VAL XX) A B)   (:K1 (OLD-VAL 1 2 NEW-VAL XX))   (OLD-VAL 1 2)
+;; if-no-dupl-p
+;; (set-key-value :k1 'val-xx  '(1 2 3 :k1 (old-val 1 val-xx 2) a b) :append-values-p T :no-dupl-p T)
+;; works (returns orig list & value): (1 2 3 :K1 (OLD-VAL 1 VAL-XX 2) A B)  (OLD-VAL 1 VAL-XX 2)   (OLD-VAL 1 VAL-XX 2)
+;; if-no-dupl-p & not lists
+
+;; for adding a value in flatlist
+;; (set-key-value :S  '(a b c) '(1 2 3 4) :append-as-flatlist-p T)
+;; (1 2 3 4 :S (A B C))  T  (OLD VALUE)
+;; for replacing with a keylist
+;; (set-key-value :S  '(a b c) '(1 2 3 4)) => 
+;; works= (1 2 3 4 (:S (A B C)))  NIL  NIL  (:S (A B C))
 ;; for replacing a value in flatlist
+;; (set-key-value :S  '(a b c) '(1 2 3 4 :S (old value)) :append-as-flatlist-p T)
+;; works= (1 2 3 4 :S (A B C))    :S (OLD VALUE)     (:S (A B C))
+;; THIS FUNCTION ONLY WORKS ON SYMS FOR GLOBAL VARS, NOT LOCAL VARS SEE BELOW:
+;; (LET ((keylist1 '(a b :key1 99 c d :key2 66 e :key3 '(this))))  (set-key-value :key2 '(new-value) keylist1 :set-listsym-to-newlist-p T) keylist1)
+;; DOES NOT SET KEYLIST1 to new var, if use 'KEYLIST1,
+;; get UNBOUND VAR ERROR.  
 ;; (setf keylist1 '(a b :key1 99 c d :key2 66 e :key3 '(this)))  
 ;; (set-key-value :key2 '(new-value)  'keylist1)
 ;; works= (A B :KEY1 99 C D :KEY2 (NEW-VALUE) E :KEY3 (QUOTE (THIS)))  :KEY2  66   (:KEY2 (NEW-VALUE))
@@ -4848,6 +6014,10 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;; (set-key-value :key4 '(new-value) 'keylist1 
 ;; works= (A B :KEY1 99 C D :KEY2 66 E :KEY3 (QUOTE (THIS)) (:KEY4 (NEW-VALUE)))  NIL  NIL  (:KEY4 (NEW-VALUE))
 ;;
+
+
+
+
 ;;replace value for key in nested list
 ;;  (setf keylist2 '(a b :key1 99 c d ( :key2 66 ) e :key3 '(this)))
 ;;  (set-key-value :key2 '(new-value) 'keylist2)
@@ -4861,12 +6031,71 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 
 
 
+
+;;SET-KEYS-VALUES-IN-LIST
+;;2020 modified/tested
+;;ddd
+(defun set-keys-values-in-list (key-value-pairs keylist 
+                                                &key append-values-p 
+                                                omit-if-null-value-p  no-dupl-p
+                                                (replace-old-value-p T)
+                                                (append-as-flatlist-p T) append-as-keylist-p)
+  "U-lists Sets keys & values in NON-NESTED list from key-value lists using set-key-value. Useful for adding only keys with NON-NIL VALUES."
+  (let*
+      ((new-keylist keylist)
+       (old-key-vals)
+       (keys-found)
+       )
+    (loop
+     for k-v-pair in key-value-pairs 
+     do
+     (let*
+         ((key (car k-v-pair))
+          (val (second k-v-pair))
+          )
+       (unless (and omit-if-null-value-p (null val))
+         (multiple-value-bind (new-keylist1 kf1 old-val1) ;;(newlist kf old-val)
+             (set-key-value key val new-keylist :no-dupl-p no-dupl-p
+                            :append-values-p append-values-p
+                            :replace-old-value-p replace-old-value-p
+                            :append-as-keylist-p append-as-keylist-p
+                            :append-as-flatlist-p append-as-flatlist-p)
+           (setf new-keylist new-keylist1) 
+           (setf old-key-vals (append old-key-vals (list (list key old-val1))))
+           (when kf1
+             (setf keys-found (append keys-found (list key))))
+           ;;end let,,loop
+           ))))
+     (values  new-keylist keys-found old-key-vals)
+   ;;end let, set-keys-values-in-list
+  ))
+;;TEST
+;; (set-keys-values-in-list '((:k1 new1)(:k2 new2)) '(:a a :k1 old1 :c c :k2 old2 :d d))
+;; works= (:A A :K1 NEW1 :C C :K2 NEW2 :D D)   (:K1 :K2)  ((:K1 OLD1) (:K2 OLD2))
+;; If add new keys & some have nil vals & append-values-p
+;; (set-keys-values-in-list '((:k1 new1)(:k2 (old2 new2))(:kx1 add1)(:kx2 nil)) '(:a a :k1 old1 :c c :k2 (old2 xx) :d d) :append-values-p T :replace-old-value-p NIL  :omit-if-null-value-p T :append-as-flatlist-p T :no-dupl-p T))
+;;works= (:A A :K1 (OLD1 NEW1) :C C :K2 (XX OLD2 NEW2) :D D :KX1 (ADD1))   (:K1 :K2 :KX1)   ((:K1 OLD1) (:K2 (OLD2 XX)) (:KX1 NIL))
+;;don't append values
+;;(set-keys-values-in-list '((:k1 new1)(:k2 (old2 new2))(:kx1 add1)(:kx2 nil)) '(:a a :k1 old1 :c c :k2 (old2 xx) :d d) :replace-old-value-p NIL  :omit-if-null-value-p T :append-as-flatlist-p T :no-dupl-p T)
+;;works= (:A A :K1 (OLD1 NEW1) :C C :K2 ((OLD2 XX) (OLD2 NEW2)) :D D :KX1 ADD1)   (:K1 :K2 :KX1)   ((:K1 OLD1) (:K2 (OLD2 XX)) (:KX1 NIL))
+;;normally add keys&vals when know not on list with (NULL append-values-p)?
+;; (set-keys-values-in-list '((:k1 new1)(:k2 (new2))(:kx1 add1)(:kx2 nil)) '(:a a  :d d) :append-values-p NIL :replace-old-value-p NIL  :omit-if-null-value-p T :append-as-flatlist-p T :no-dupl-p T)
+;;works= (:A A :D D :K1 NEW1 :K2 (NEW2) :KX1 ADD1)   (:K1 :K2 :KX1)    ((:K1 NIL) (:K2 NIL) (:KX1 NIL))
+
+
+
+;;add new keys&vals to a list with APPEND-VALUES-P 
+;; (set-keys-values-in-list '((:k1 new1)(:k2 (new2))(:kx1 add1)(:kx2 nil)) '(:a a  :d d) :append-values-p T :replace-old-value-p NIL  :omit-if-null-value-p T :append-as-flatlist-p T :no-dupl-p T)
+;; works= (:A A :D D :K1 (NEW1) :K2 (NEW2) :KX1 (ADD1))   (:K1 :K2 :KX1)   ((:K1 NIL) (:K2 NIL) (:KX1 NIL))
+
+
+
 ;;SET-KEY-VALUE-IN-LIST 
 ;;
 ;;ddd
 (defun set-key-value-in-list (key value list 
                           &key (append-as-keylist-p T) append-as-flatlist-p recursive-call-p)
-  "In U-lists, In a  LIST (not LIST-SYM), finds key and replaces next element with value. If key not found, appends key and value) to list. Uses equal. RETURNS (values new-list key-found old-value) . APPEND-AS-KEYLIST-P causes a keylist to be appended if no key found, APPEND-AS-FLATLIST-P (has priority) causes key value to be appended. If both are NIL, then nothing appended if key not found.  NOTE: RECURSIVE function, may replace set-key-value-in-nested-lists (this newer, doesn't need key-specs, better for simplier cases?)"
+  "In U-lists, In a NESTED? LIST (not LIST-SYM), finds key and replaces next element with value. If key not found, appends key and value) to list. Uses equal. RETURNS (values new-list key-found old-value) . APPEND-AS-KEYLIST-P causes a keylist to be appended if no key found, APPEND-AS-FLATLIST-P (has priority) causes key value to be appended. If both are NIL, then nothing appended if key not found.  NOTE: RECURSIVE function, may replace set-key-value-in-nested-lists (this newer, doesn't need key-specs, better for simplier cases?)"
   (let
       ((key-found-p)
        (key-found)
@@ -4895,8 +6124,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          (multiple-value-setq (new-sublist key-found old-value new-keylist)
              (set-key-value-in-list key value element  :append-as-keylist-p append-as-keylist-p
                             :append-as-flatlist-p append-as-flatlist-p 
-                            :recursive-call-p T))
-         
+                            :recursive-call-p T))      
          (when key-found 
            (setf return-new-keylist new-keylist
                  return-key-found key-found
@@ -5004,10 +6232,10 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 
 ;;GET-KEY-VALUE
 ;;
-;;modified 2016-04
+;;modified 2016-04, 2019 so key could be a nth
 ;;ddd
 (defun get-key-value (key list &key (nth-item 1) (test 'my-equal))
-  "In U-lists. gets key value in a flat list of keys or list including keylists. nth-item =1 is value following key.In U-lists, searches a flat list for a key, RETURNS (values value key keylist) the value following key if found, nil if not. Uses my-equal which will even match symbols and strings. NOTE: Differs from GETF which requires a keyword. Any string or symbol can be used for key in get-key-value."
+  "In U-lists. gets key value in a flat list of keys or list including keylists. nth-item =1 is value following key.In U-lists, searches a flat list for a key, RETURNS (values value key keylist) the value following key if found, nil if not. Uses my-equal which will even match symbols and strings. NOTE: Differs from GETF which requires a keyword. Any string or symbol can be used for key in get-key-value. IF TEST = 'NTH, finds nth value instead of a key."
   (let
       ((value)
        (key-foundp)
@@ -5015,6 +6243,12 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
        (keylist)
        )
     (when (listp list)
+      (cond
+       ((equal test 'nth)
+        (setf value (NTH (+ key nth-item) list)
+                  key-foundp T
+                  keylist list))
+       (t
       (loop
        for element in list
        do
@@ -5037,9 +6271,10 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          (return))
         ((> nth 0) (incf  nth))
         (t nil))
-       ;;end loop, when
-       ))
-
+       ;;end loop
+       )
+       ;;end t, cond, when
+       )))
     (values value key-foundp keylist)
     ;;end let, get-key-value
     ))
@@ -5062,6 +6297,15 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;  (getf  '(a b c :this (1 2 3) d e f) :this) = nil
 ;;  (getf  '(a b c :this (1 2 3) d e f)  1) = NIL
 
+;; (get-key-value 'k2 '(k1 a b (k2 xx y) d))
+;; works= XX  K2  (K2 XX Y)
+
+;;FOR KEY = NTH & nth-item 1
+;;(get-key-value 2 '(A B C D E F) :TEST 'NTH)
+;; workd = D    T   (A B C D E F)
+;;FOR KEY = NTH & nth-item 0
+;;(get-key-value 2 '(A B C D E F) :TEST 'NTH :nth-item 0)
+;; C  T  (A B C D E F)
 
 
 
@@ -5101,7 +6345,6 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
        ))
     (when key-values
       (setf keylist (append (list key) key-values)))
-
     (values key-values key-foundp keylist)
     ;;end let, get-key-values
     ))
@@ -5132,7 +6375,8 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;
 ;;ddd
 (defun set-key-to-value-in-plists (plist-list &key eval-value)
-  "In U.lists.lisp, sets key to value eg. '((a 7)(b 'this)....), If eval-value is T, sets the key = (eval value), otherwise sets key = value. RETURNS (values plist-list plist)."
+  "In U.lists.lisp, sets key to value eg. '((a 7)(b 'this)....), If eval-value is T, sets the key = (eval value), otherwise sets key = value. RETURNS (values plist-list plist).
+  MAKES GLOBAL VARS ONLY."
   (let ((key)
         (value)
         (plist)
@@ -5155,30 +6399,208 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
   (setf  xxyy 'this)
   (set-key-to-value-in-plists '((a 7)(b 'this)(c xxyy)))  ;; NOTE: b = 'this c= xxyy
   (set-key-to-value-in-plists '((d 8)(e 'that)(f xxyy)) :eval-value t)) ;; e= that, f= this|# 
+;;TEST GLOBAL ONLY
+;; (let ((k11)(k22)) (set-key-to-value-in-plists '((k11 'this)(k22 'that))) (list 'k11 k11 'k22 k22))
+;; returns: (K11 NIL K22 NIL) therefore LOCAL vars NOT set.
+;; However, GLOBAL vars ARE set: CL-USER 25 > k11 = (QUOTE THIS)
+
+
+
+
+
+;;SET-SYM&SUBSYMS
+;;2020
+;;ddd
+(defun set-sym&subsyms (list-sym nested-symlists 
+                                 &key (eval-nested-syms-p T)
+                                 (return-symlists-p T) (sym-nth 0)(val-nth 1))
+  "U-lists  RETURNS (values evaled-syms non-evaled-items return-symlists) INPUT: nested-lists is lists of syms and items/lists to set sym-nth to val-nth  "
+  (let*
+      ((evaled-syms)
+       (return-symlists)
+       (non-evaled-items)
+       )
+    (cond
+     ((symbolp list-sym) NIL)
+     ((stringp list-sym)
+      (setf list-sym (my-make-symbol list-sym)))
+     (t nil))
+    ;;SET LIST-SYM
+      (cond
+       ((symbolp list-sym)
+        (set list-sym nested-symlists)
+        (setf evaled-syms (list list-sym))
+        ;;EVAL-NESTED-SYMS-P?
+        (when eval-nested-syms-p
+          (loop
+           for item in nested-symlists
+           do
+           (cond
+            ((listp item)
+             (let*
+                 ((sym (my-make-symbol (nth sym-nth item)))
+                  (symvals (nth val-nth item))
+                  )
+               (set sym symvals)
+               (setf evaled-syms (append evaled-syms (list sym)))  
+               (when return-symlists-p
+                 (setf return-symlists (append return-symlists (list symvals))))
+               ;;end let, listp,
+               ))
+            (T (setf non-evaled-items (append non-evaled-items (list item)))))
+           ;;end loop,when,symbolp
+           )))
+        (T (setf non-evaled-items (append non-evaled-items (list list-sym)))))
+      (values evaled-syms non-evaled-items return-symlists)
+      ;;end let, set-sym&subsyms
+      ))
+;;TEST
+;;  (set-sym&subsyms 'testlistX  '((sym1xx (a b c))("sym2xx" (x y z))))
+;; works= (TESTLISTX SYM1XX SYM2XX)  NIL
+;;also:  SYM1XX = (A B C)    SYM2XX = (X Y Z)
+;;also: TESTLISTX = ((SYM1XX (A B C)) ("sym2xx" (X Y Z)))
+
+
+
+
+
+;;SET-SYMS-TO-SECOND
+;;2019
+;;ddd
+(defun set-syms-to-second (sym-val-pairs  &key  convert-keys-p
+                                          (set-sym-to-val-p T))
+  "U-lists   RETURNS (values syms vals)  sims  INPUT:eg. ((key val) etc) Unless know keyword present, don't use convert-keys-p, slower. MAKES GLOBAL VARS ONLY. Can UNBIND SYMS LATER."
+  (let
+      ((syms)
+       (vals)
+       )
+    (loop
+     for sym-val-pair in sym-val-pairs 
+     do
+     (let*
+         ((sym (car sym-val-pair))
+          (val (second sym-val-pair))
+          )
+       (when convert-keys-p
+         (setf sym (convert-keyword sym)))
+       (setf syms (append syms (list sym))
+             vals (append vals (list val)))
+       (when set-sym-to-val-p
+         (set sym (second sym-val-pair)))
+     ;;end let,loop
+     ))
+    (values syms vals)
+    ;;end let, set-syms-to-second
+    ))
+;;TEST
+;; (set-syms-to-second '((a '(x))( b 22)))
+;; works= (A B) 
+  ;;also CL-USER 21 > a  (QUOTE (X))  CL-USER 22 > b 22
+;; TO UNBIND, (makunbound-vars '(A B)) = unbinds a and b
+;;FOR CONVERT-KEYS-P
+;; (set-syms-to-second '((:keyy7 33)(:keyy9 99)) :convert-keys-p T)
+;; works = (KEYY7 KEYY9)  
+;; also:  KEYY7 = 33
+;; CAN'T SET LOCAL VARS--ONLY GLOBAL ONES (tried macros etc)
+;; (let*  ((a)(b))  (set-syms-to-second '((a '(x))( b 22))))
+;; SETS GLOBAL a = '(x) b = 22 NOT JUST LOCAL SCOPE
+;; (let*  ((a)(b))  (set-syms-to-second ((a '(x))( b 22))))
+;; (defun my-settest (var val) (set var val))
+;; (let*  ((a)(b))  (my-settest 'a 22))
+;; result= SETS GLOBAL, not local VAR A = 22
+
+
 
 ;;SET-SYMS-TO-VALUES
 ;;
 ;;ddd
-(defun set-syms-to-values (symlist value-list)
-  "In U-lists, sets each symbol in symlist to the corresponding value in value-list"
+(defun set-syms-to-values (symlist value-list &key (set-sym-to-val-p T)
+                                   convert-keys-p)
+  "In U-lists, RETURNS (values sym-value-pairs sym-value-flatlist)
+ If  SET-SYM-TO-VAL-P sets each symbol in symlist to the corresponding value in value-list. Unless know keyword present, don't use convert-keys-p, slower.
+  MAKES GLOBAL VARS ONLY. Can UNBIND SYMS LATER."
   (let
-      ((sym-value-list)
+      ((sym-value-flatlist)
+       (sym-value-pairs)
        )
     (loop
      for sym in symlist
      for value in value-list
      do
-     (set sym value)
-     (setf sym-value-list (append sym-value-list (list (list sym value))))
+     (when convert-keys-p
+         (setf sym (convert-keyword sym)))
+     (when set-sym-to-val-p
+       (set sym value))
+     (setf sym-value-flatlist (append sym-value-flatlist (list sym value))
+           sym-value-pairs (append sym-value-pairs (list (list sym value))))
      )
-    sym-value-list
+    (values sym-value-pairs sym-value-flatlist)
     ))
 ;;TEST
 ;; (set-syms-to-values '(X1 X2 X3) '(99 "THIS" '(WHAT)))
-;; works= ((X1 99) (X2 "THIS") (X3 (QUOTE (WHAT))))  
+;; works= ((X1 99) (X2 "THIS") (X3 (QUOTE (WHAT))))    (X1 99 X2 "THIS" X3 (QUOTE (WHAT)))
 ;; also X1 = 99,  x2="THIS",  x3= (QUOTE (WHAT))
+;; Using CONVERT-KEYS-P
+;; (set-syms-to-values '(:X1 X2 :X3) '(99 "THIS" '(WHAT)) :SET-SYM-TO-VAL-P T :CONVERT-KEYS-P T)
+;; works= ((X1 99) (X2 "THIS") (X3 (QUOTE (WHAT))))    (X1 99 X2 "THIS" X3 (QUOTE (WHAT)))
+;;also:  x1 = 99    x2 = "THIS"
+;; TO UNBIND (makunbound-vars '(X1 X2)) = unbinds x1 and x2
+;
+;;TEST LOCAL VARS
+;; (let* ((kk1)( kk2)) (set-syms-to-values '(kk1 kk2) '(44 66)) (list 'kk1 kk1 'kk2 kk2))
+;; returns (KK1 NIL KK2 NIL) therefore LOCAL VARS NOT SET
+;; also: GLOBAL VARS ARE SET: KK1 = 44   CL-USER 30 > KK2 = 66
 
 
+
+;;SET-SYMS-TO-EVALED-SYMS
+;;
+;;ddd
+(defun set-syms-to-evaled-syms (symlist1 symlist2 &key convert-keys-p
+                                         (not-set-when-no-sym1 T))
+  "In U-lists, RETURNS (values sym-value-pairs sym-value-flatlist)
+ If  SET-SYM-TO-VAL-P sets each symbol in symlist to the corresponding value in value-list. Unless know keyword present, don't use convert-keys-p, slower.
+  MAKES GLOBAL VARS ONLY. Can UNBIND SYMS LATER.
+  UNLESS-NIL-P, sets to value ONLY if value is bound and not nil.
+  NOT-SET-WHEN-NO-SYM1 If BOTH (boundp sym1) AND (NOT boundp sym2),
+  uses sym1 for vals."
+  (let
+      ((sym-value-flatlist)
+       (sym-value-pairs)
+       )
+    (loop
+     for sym1 in symlist1
+     for sym2 in symlist2
+     do
+     (let*
+         ((val (eval-sym sym2))
+          )
+     (when convert-keys-p
+       (setf sym1 (convert-keyword sym)))
+     (cond
+      (not-set-when-no-sym1
+       (cond
+        ((and (null val)
+              (setf val (eval-sym sym1))) NIL)
+        (T (set sym1 val))))
+      (T (set sym1 val)))
+     (setf sym-value-flatlist (append sym-value-flatlist (list sym1 val))
+           sym-value-pairs (append sym-value-pairs (list (list sym1 val))))
+     ;;(break "end set-syms-to-evaled-syms loop")
+     ))
+    (values sym-value-pairs sym-value-flatlist)
+    ;;end set-syms-to-evaled-syms
+    ))
+;;TEST
+;;2020
+;; (setf boundx 'newval)
+;; (set-syms-to-evaled-syms '(X1 X2 X3 X4 X5) '(99 NIL 'UNBOUND BOUNDX '(WHAT))) 
+;; works= ((X1 99) (X2 NIL) (X3 NIL) (X4 NEWVAL) (X5 NIL))
+;;               (X1 99 X2 NIL X3 NIL X4 NEWVAL X5 NIL)
+;;ALSO: X1 = 99  ; X2 = NIL ; X4 = NEWVAL
+;;
+;; (set-syms-to-evaled-syms   '(*ALL-MAKE-CSYMS-SYMS&VALS) '(*file-*ALL-MAKE-CSYMS-SYMS&VALS) :not-set-when-no-sym1 T)
+;;works: keeps *ALL-MAKE-CSYMS-SYMS&VALS set to its vals.
 
 
 
@@ -5259,6 +6681,8 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          ((selected1)
           (uncked-lists1)
           (restlists1)
+          (ret-n1)
+          (nthlist1)
           )
        ;;(afout 'out (format nil "uncked-lists1= ~A~% sorted-lists= ~A" uncked-lists1  sorted-lists))
        (cond
@@ -5268,7 +6692,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          ;;append sorted-lists
          (setf sorted-lists (append sorted-lists (list selected1))
                uncked-lists restlists1)
-         (break "1")
+         ;;(break "1")
          )
        (t (setf non-lists (append non-lists (list uncked-lists1)))))
      ;;end let,loop
@@ -5277,7 +6701,6 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
     ;;end let, sort-1nested-lists
     ))
 ;;TEST
-;;(sort-1nested-lists 1 '((C 3)(B 2)(A 1)(F 6)(D 4)(E 5)))
 ;; (sort-1nested-lists 1 '((C 3)(B 2)(A 1)(F 6)(D 4)(E 5)))
 ;; works= ((F 6) (E 5) (D 4) (C 3) (B 2) (A 1))  6  NIL
 ;; (sort-1nested-lists 1 '((C 3)(B 2)(A 1)(F 6)(D 4)(E 5)) :test 'my-lessp)
@@ -5285,7 +6708,33 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;; (my-sort-lists nth lists &key sorted-lists (ascending-p t) descending-p from-end reduce-duplicates-p)
 ;; (my-sort-lists 1 '((C 3)(B 2)(A 1)(F 6)(D 4)(E 5)))
 ;; works = ((A 1) (B 2) (C 3) (D 4) (E 5) (F 6))   ((A 1) (B 2) (C 3) (D 4) (E 5) (F 6))  NIL    NIL 6
-;; (sort-1nested-lists 1 '(((A 3 K1 5 X)(A 3 K1 5 Y)(A 3 K1 5 Z))((B 1 K1 3 X)(B 1 K1 3 Y)(B 1 K1 3 Z))((C 7 K1 8 X)(C 7 K1 8 Y))))
+;; (sort-1nested-lists 4 '(((A 3 K1 5 X)(A 3 K1 5 Y)(A 3 K1 5 Z))((B 1 K1 3 X)(B 1 K1 3 Y)(B 1 K1 3 Z))((C 7 K1 8 X)(C 7 K1 8 Y))))
+;; works= (((C 7 K1 8 X) (C 7 K1 8 Y)) ((B 1 K1 3 X) (B 1 K1 3 Y) (B 1 K1 3 Z)) ((A 3 K1 5 X) (A 3 K1 5 Y) (A 3 K1 5 Z)))   3   NIL
+
+
+;;SORT-INNER-LISTS
+;;2019
+;;ddd
+(defun sort-inner-lists (nthitem 2nested-lists  &key (test 'my-greaterp) )
+  "U-lists   RETURNS    INPUT:  "
+  (let
+      ((sorted-lists)
+       )
+    (loop
+     for nested-list in 2nested-lists
+     do
+     (let*
+         ((sorted-list (sort-1nested-lists nthitem nested-list :test test))
+          )
+       (setf sorted-lists (append sorted-lists (list sorted-list)))
+       ;;end let,loop
+       ))
+    sorted-lists
+    ;;end let, defun
+    ))
+;;TEST
+ ;; (setf **sort-testx (sort-inner-lists 2 '(((INTIMATE "0.750" 7.5) (FLEXIBLE "0.750" 7) (EXUBERANT "0.750" 8) (LOVEX "0.750" 4) (PATERNAL "0.750" 23) (INSPIREOTHERS "0.750" 2) (COURTEOUS "0.750" 22) (COGNITIVEPSYCHS "0.750" 12) (GREATLEADER "0.750" 1) (CLOSE "0.750" 18) (PLAYFUL "0.750" 10) (INDUSTRIOUS "0.750" 5) (LIBERALCHRISTIAN "0.750" 8) (EMPATHETICLISTENER "0.750" 9) (LAWFUL "0.750" 17) (VERBALSKILLS "0.750" 16) (SOCIALCONSTRAINTS "0.750" 21) (RESPECTED "0.750" 20) (INDIVIDUALISTIC "0.750" 15) (PERFORMANCE-ORIENT "0.750" 6) (INFLUENCIAL "0.750" 11) (NOTHISTORY-ORIENTE "0.750" 19) (NOTANALYTIC "0.750" 14) (MATERIALISTIC "0.750" 13) (SKILLEDMOVEMENTS "0.750" 16))    ((CASUAL 0.5 5) (UNBRIDLEDHUMOR 0.5 7) (FANTASYWORLD 0.5 6) (CRITICAL 0.5 9) (PUBLICSERVANT 0.5 2) (SEEKATTENTION 0.5 7) (PERFORMER 0.5 4) (STARPERFORMER 0.5 1) (CATHOLIC 0.5 8) (PEOPLE-JOB 0.5 3))) :test 'my-lessp))
+;; works = (((GREATLEADER "0.750" 1) (INSPIREOTHERS "0.750" 2) (LOVEX "0.750" 4) (INDUSTRIOUS "0.750" 5) (PERFORMANCE-ORIENT "0.750" 6) (FLEXIBLE "0.750" 7) (INTIMATE "0.750" 7.5) (LIBERALCHRISTIAN "0.750" 8) (EXUBERANT "0.750" 8) (EMPATHETICLISTENER "0.750" 9) (PLAYFUL "0.750" 10) (INFLUENCIAL "0.750" 11) (COGNITIVEPSYCHS "0.750" 12) (MATERIALISTIC "0.750" 13) (NOTANALYTIC "0.750" 14) (INDIVIDUALISTIC "0.750" 15) (SKILLEDMOVEMENTS "0.750" 16) (VERBALSKILLS "0.750" 16) (LAWFUL "0.750" 17) (CLOSE "0.750" 18) (NOTHISTORY-ORIENTE "0.750" 19) (RESPECTED "0.750" 20) (SOCIALCONSTRAINTS "0.750" 21) (COURTEOUS "0.750" 22) (PATERNAL "0.750" 23)) ((STARPERFORMER 0.5 1) (PUBLICSERVANT 0.5 2) (PEOPLE-JOB 0.5 3) (PERFORMER 0.5 4) (CASUAL 0.5 5) (FANTASYWORLD 0.5 6) (SEEKATTENTION 0.5 7) (UNBRIDLEDHUMOR 0.5 7) (CATHOLIC 0.5 8) (CRITICAL 0.5 9)))
 
 
 ;;SORT-2NESTED-LISTS-BY-CARLIST
@@ -5295,13 +6744,14 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 (defun sort-2nested-lists-by-carlist  (nthitem 2nested-lists &key ret-n 
                                                (test 'my-greaterp))
   "In U-lists  Sorts list of 1nested-lists by nth item in each list. RETURNS (values sorted-lists len-uncked non-lists) by item passing test first. "
-  (let
+  (let*
       ((sorted-lists)
        (itemlist)
        (restlists)
        (non-lists)
-       (ret-n)
-       (len-uncked (list-length uncked-lists))
+      (ret-n)
+       (uncked-lists 2nested-lists)
+       (len-uncked (list-length uncked-lists)) 
        )    
     (loop
      for list in 2nested-lists
@@ -5310,6 +6760,8 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          ((selected1)
           (uncked-lists1)
           (restlists1)
+          (ret-n1)
+          (nthlist1)
           )
        ;;(afout 'out (format nil "uncked-lists1= ~A~% sorted-lists= ~A" uncked-lists1  sorted-lists))
        (cond
@@ -5345,20 +6797,21 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
          (item)
          (selected)
          )
-    (when (null itemlist)
-      (setf itemlist (car uncked-lists)
-            item (nth nthitem itemlist)
+    (when  (null itemlist)                        
+      (setf itemlist (car uncked-lists))
+      (when (and itemlist (listp itemlist))
+         (setf   item (nth nthitem itemlist)
             ret-n nthlist
-            uncked-lists (cdr uncked-lists)))
-
-    (setf  item (nth nthitem itemlist)
-           testlist (car uncked-lists)
-           testitem (nth nthitem testlist)
-           uncked-lists (cdr uncked-lists))
+            uncked-lists (cdr uncked-lists))))
+    (when (and itemlist (listp itemlist))
+      (setf  item (nth nthitem itemlist)
+             testlist (car uncked-lists)
+             testitem (nth nthitem testlist)
+             uncked-lists (cdr uncked-lists)))
       (cond
        ((null testlist)
         (setf selected itemlist))
-       ((funcall test item testitem)
+       ((and (listp testlist)(funcall test item testitem))  ;;added and (listp testlist)
         ;;(afout 'out (format nil "1 testitem= ~A item= ~A" testitem item))
         (setf restlists (append restlists (list testlist)))
         ;; uncked-lists (cdr uncked-lists)
@@ -5571,7 +7024,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;MY-RANDOM-SELECTION
 ;;2016
 ;;ddd
-(defun my-random-selection (list percent &key total-n selections )
+(defun my-random-selection (list percent &key total-n selections)
   "In U-lists, RETURNS (values selections rest-list)"
   (let
       ((list-n (list-length list))
@@ -5587,8 +7040,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
       (extend-current-stack 300))
      ((> list-n 1000)
       (extend-current-stack 100))
-     (t nil))     
-    
+     (t nil))      
     (cond
      ((null total-n) 
       (setf total-n list-n
@@ -5682,6 +7134,53 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;  ;; (delete-items-from-list '(3  6  8)  '(0 1 2 3 4 5 6 7 8 9  10 11) :start 3 :end 7)
 ;; works = (4 5 7 9)  (3 6 8)
 
+
+
+;;DELETE-KEYS&VALS-FROM-LIST
+;;2020
+;;ddd
+(defun delete-keys&vals-from-list (flat-list &key keys vals (test 'my-equal)  )
+  "U-lists. If key or val is member of keys or vals, removes BOTH key & val (assumes value next item).  RETURNS (values new-list deleted-pairs)"
+  (let*
+      ((new-list)
+       (deleted-pair)
+       (deleted-pairs)
+       (last-item)
+       (remove-val-p)
+       (len-flat-list (list-length flat-list))
+       )
+    (loop
+     for item in flat-list
+     for n from 1 to len-flat-list
+     do
+     (let*
+         ((key)
+          (val)
+          )
+       ;;(afout 'out (format nil "BEGIN: item= ~A last-item= ~A" item last-item))
+     (cond
+      (remove-val-p
+       (setf deleted-pair (append deleted-pair (list item))
+            deleted-pairs (append deleted-pairs (list deleted-pair))
+            deleted-pair nil
+            remove-val-p nil))
+     ((member item keys :test 'my-equal)
+      (setf remove-val-p T
+            deleted-pair (list item)))     
+     ((member item vals :test 'my-equal)
+      (setf deleted-pair (list (last1 new-list) item)
+            deleted-pairs (append deleted-pairs (list deleted-pair))
+            new-list (butlast new-list)))
+     (T (setf new-list (append new-list (list item)))))
+;;    (afout 'out (format nil "new-list= ~A item= ~A last-item= ~A" new-list item last-item))
+     ;;end let,loop
+     ))
+    (values new-list deleted-pairs )
+    ;;end let, delete-keys&vals-from-list
+    ))
+;;TEST
+;; (delete-keys&vals-from-list '(:a 1 :b 2 :c nil :d 4 :e nil) :keys '(:b) :vals '(nil 4))
+;; works= (:A 1)    ((:B 2) (:C NIL) (:D 4) (:E NIL))
 
 
 
@@ -5856,7 +7355,7 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
        ((equal test 'greaterp)
         (setf result  (string-greaterp item1-char item2-char)))
        ((equal test 'equal)
-        (setf result (if stringp item1 (string-equal item1-char item2-char))))
+        (setf result (if (stringp item1) (string-equal item1-char item2-char))))
        (t nil))
       ))
     result
@@ -5918,6 +7417,31 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;; (integers-list-p '(1 2 3 TO 4 5 6) :exceptions '(THIS "TO")) = 6
 
 
+;;MAKE-INTEGER-LIST
+;;2019
+;;ddd
+(defun make-integer-list (min-n &optional max-n &key n-ints  reverse-p)
+  "U-lists   RETURNS    INPUT:  "
+  (unless max-n
+    (setf max-n (- (+ min-n n-ints) 1)))                   ;; (+ (- max-n min-n) 1)))
+  (let
+      ((int-list)
+       )
+    (loop
+     for n from min-n to max-n
+     do
+     (setf int-list (append int-list (list n)))     
+     ;;end let,loop
+     )
+  (when reverse-p
+    (setf int-list (reverse int-list)))
+  int-list
+    ;;end let, defun
+    ))
+;;TEST
+;; (make-integer-list 3  11)
+;;works= (3 4 5 6 7 8 9 10 11)
+ 
 
 
 
@@ -5933,9 +7457,8 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 
 
 
-
-(defun testflt ()
-  (flatten-list-tree '(1 2 3 4 (a b c) (d (e f (g)) h) (i (j) k))))  
+#|(defun testflt ()
+  (flatten-list-tree '(1 2 3 4 (a b c) (d (e f (g)) h) (i (j) k))))  |#
 #|=> FINAL, flat-list= ((A B C) (D) (E F) (G H) (I) (J K))
  flat-sublist= (J K)
  simple-list= (A B C D E F G H I J K)|#
@@ -5943,8 +7466,36 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;works  (flatten-list-tree '(a b c (d) (e f (g h)))))
 ;;
 ;;FLATTEN-LIST-TREE
+;;2019 copied from PSeibel's collect-leaves function
 ;;ddd
-(defun flatten-list-tree (list-tree)
+(defun flatten-list-tree (tree)
+  "Me RETURNS a  flattened tree list"
+  (let ((flatlist ()))
+    (labels ((walk (tree)
+               (cond
+                ((null tree))
+                ((atom tree) (push tree flatlist))  ;;atom is any nono-cons object (not  X.Y)
+                (t (walk (car tree))
+                   (walk (cdr tree))))
+             ;;end WALK def
+             ))
+      ;;NOTE: THE FUNCTION CALL IS OUTSIDE THE FUNCT DEF, 
+      ;;   but INSIDE LABELS
+      (walk tree)     
+   ;;end  labels, flatten-list-tree
+    (values (nreverse flatlist) tree))))
+;;TEST
+;; (flatten-list-tree '(a b c (d) (e f (g h))))
+;; works = (A B C D E F G H)   (A B C (D) (E F (G H)))
+;; ;; (flatten-list-tree '(a (b c (d (e (f ) g ) h) i (j (k) l) m (n)) p))
+;; works = (A B C D E F G H I J K L M N P)
+;; (A (B C (D (E (F) G) H) I (J (K) L) M (N)) P)
+;; ;; (flatten-list-tree '(a (b c (d '(e (f ) g ) h) i (j '(k) l) m (n)) p))
+
+
+;;FLATTEN-LIST-TREE-DEPRECIATED, less efficient, but works
+;;ddd
+#|(defun flatten-list-tree (list-tree)
   "In U-lists.lisp, takes a list tree and removes extra parens of sublists to return values
     a flat list ol sublists and single list of all elements"
   (let 
@@ -5958,10 +7509,9 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
       (flatten-list-tree1 list-tree flat-list simple-list))
   (if flat-sublist (setf flat-list (append flat-list (list flat-sublist))))
  ;;(show-text (format nil "FINAL, flat-list= ~A~% simple-list= ~A~%"flat-list  simple-list) 200 t)
-  (values flat-list simple-list)))
-
+  (values flat-list simple-list)))|#
 ;;ddd
-(defun flatten-list-tree1 (list-tree &optional flat-sublist simple-list)
+#|(defun flatten-list-tree1 (list-tree &optional flat-sublist simple-list)
   (let 
       ((last-sublist)
        (flat-list)
@@ -5989,7 +7539,34 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
      ;;if no more items in dir list, append the flat-sublist to flat-list
      (t nil ))
     #| (show-text (format nil "1 FLATTEN, flat-list= ~a~% flat-sublist= ~a~% simple-list= ~a~% "    flat-list flat-sublist simple-list) 200 T)|#
-    (values flat-list flat-sublist simple-list)))
+    (values flat-list flat-sublist simple-list)))|#
+
+
+
+;;FLAT-LIST-EQUAL
+;;
+;;(flat-list-equal '(a b c) '(a b c)) = (A B C) A
+;;(flat-list-equal '(a b c) '(a d  c)) = nil B
+;;(flat-list-equal '(a b c) '(a b  c d)) = nil nil
+;;(flat-list-equal '(a b c d e) '(a b  c d)) = nil E
+(defun flat-list-equal (list1 list2)
+  "In U-lists.lisp, tests to see if two flat lists are identical; returns values list1 & first item OR nil and first item not equal, "
+  (let
+      ((item (car list1))
+       (return-item)
+       (return-list)
+       )
+    ;;(afout  'eout (format nil "item= ~A  list1= ~A~%list2= ~A~%" item list1 list2))
+      (cond
+       ((equal item (car list2))
+        (setf return-item item
+              return-list (cdr list1))
+        (unless (null item)
+          (multiple-value-setq (return-list return-item) (flat-list-equal return-list (cdr list2)))))
+       (t (setq return-list nil 
+                return-item item)))
+      (values return-list return-item)))
+
 
 
 ;;FLAT-LIST-EQUAL
@@ -6123,6 +7700,37 @@ RETURNS (values old-target new-list target-n new-item matched-key2).  keylocn= n
 ;;  (testmnl)
 ;; with no keys returns (A B C D NIL NIL NIL NIL NIL)
 ;;with 
+
+
+
+;;MAKE-LIST-SYMBOL
+;;2019
+;;ddd
+(defun make-list-symbol (list  &key (separator-str ".") )
+  "U-lists  RETURNS (values listsym liststr list-n)    INPUT:   Eg (this a b 22 C x)) =  THIS.A.B.22.C.X "
+  (let
+      ((listsym)
+       (liststr "")
+       (list-n (list-length list))
+       )
+    (loop 
+     for item in list
+     for n from 1 to list-n
+     do
+     (cond
+      ((= n 1)
+       (setf liststr (format nil "~A" item)))
+      (t (setf liststr (format nil "~A~A~A" liststr separator-str item))))
+     ;;end loop
+     )
+    (setf listsym (my-make-cs-symbol liststr))
+    (values listsym liststr list-n)
+    ;;end let, make-list-symbol
+    ))
+;;TEST
+;; (make-list-symbol '(this a b 22 C x)) 
+;; THIS.A.B.22.C.X  "THIS.A.B.22.C.X"  6
+;; NOTE: (my-make-cs-symbol '(this a b 22 C x)) = *SYM-NOT-FOUND
 
 
 
@@ -6533,6 +8141,32 @@ NIL|#
 ;;  (setf *output2p (print-nested-list *outputx2  :stream t :incl-quotes-p t :no-outer-parens-p t))
 
 
+
+;;GET-LIST2-ITEM-FROM-LIST1-MATCHED-ITEM
+;;2019
+;;ddd
+(defun get-list2-item-from-list1-matched-Nth-item (item list1 list2
+                                                    &key (test 'my-equal))
+  "   RETURNS (values  matched-list2-item  matched-list1-item  nth-item)  nth-item begins w/ 0."
+  (let
+      ((matched-list1-item)
+       (matched-list2-item)
+       (nth-item)
+       )
+    (multiple-value-setq (matched-list1-item nth-item)
+        (find-list-item item list1 :return-first-p T))
+    (setf matched-list2-item (nth nth-item list2)) 
+    (values  matched-list2-item  matched-list1-item  nth-item)
+    ;;end let, get-list2-item-from-list1-matched-Nth-item
+    ))
+;;TEST
+;;  (get-list2-item-from-list1-matched-Nth-item "this" '(a b "this" "what" d) '(11 22 33 44 55))
+;; works=  33  "this"   2
+
+
+
+
+
 ;;MAKE-ASCENDING-LIST
 ;;
 ;;ddd
@@ -6850,13 +8484,14 @@ NIL|#
                  (setf test-value2 (quote test-value2)))
                ;;(break "here")
                (cond
-                ((replace-test test-value2 test-value1))
+                ((funcall replace-test test-value2 test-value1)
+                 ;;was (replace-test test-value2 test-value1))
                  (setf new-list (append new-list (list new-nested-list))
                        rejected-items (append rejected-items (list testlist))))
                 (t (setf new-list (append new-list (list testlist))
                          rejected-items (append rejected-items (list new-nested-list)))))
                ;;end mvb, mvb,MY-EQUAL
-               ))
+               )))
           ;;not equal, so append item to new-list
           (t
            (setf new-list (append new-list (list testlist)))))
@@ -6880,13 +8515,214 @@ NIL|#
 
 
 
+;;APPEND-NO-DUPLS SSSSS-REPLACE APPENDS IN GLOBAL LISTS
+;;2020
+;;ddd
+(defun append-no-dupls (list &rest items )
+  "In U-lists.lisp.  Appends list with all sublist items and item if each is NOT a member of list [test= 'my-equal]. APPENDS LIKE normal APPEND.   RETURNS (values new-list dupl-items)"
+  (let*
+      ((new-list list)
+       (dupl-items)
+       )
+    (loop
+     for item in items
+     do
+     (cond
+      ((listp item)
+       (loop
+        for subitem in item
+        do        
+        (cond
+         ((member subitem new-list :test 'my-equal)
+          (setf dupl-items (append1 dupl-items subitem)))
+         (T (setf new-list (append1 new-list subitem))))
+       ;;end loop, listp
+       ))
+       (T 
+        (multiple-value-bind (new-list1 dupl-items1)
+           (append-item-no-dupls new-list item)
+         (setf new-list  new-list1
+               dupl-items (append dupl-items dupl-items1)))))
+     ;;end loop
+     )
+    (values new-list dupl-items)
+    ;;end append-no-dupls
+    ))
+;;TEST
+;;  (append-no-dupls '(a b c d e)  '(b) '(x) '(d) '(y))
+;; works=  (A B C D E X Y)    (B D)
+;;  (append-no-dupls '(A B C D)  '(B D X))
+;; works= (A B C D X)  (B D) [like normal append]
+;; (append-no-dupls '(A B C D)  '(B D X)  'Y  'A)
+;; makes dotted list = (A B C D X . Y)   (B D A)
+;; (append-no-dupls '(A B C D)  '((B D X))  (list 'Y  'A) (list '(a b z)))
+;; works like normal append=
+;; (A B C D (B D X) Y (A B Z))    (A)  [note: A in last list is double nested]
+
+
+
+
+;; APPEND-NO-NTH-SUBLIST-DUPLS
+;;2020
+;;ddd
+(defun append-no-nth-sublist-dupls (nth list1 list2 &key (test 'my-equal)
+                                        (append-only-lists-p T))
+  "In U-lists.lisp.  USE for appending SYM&SYMVALS lists w/ no dupls. Appends list1 with all sublist items in list2 if each sublist does NOT contain an nth value that is the same as the nth value of any list1 sublist. [test= 'my-equal]. APPENDS LIKE normal APPEND.   RETURNS (values new-list dupl-items)"
+  (let*
+      ((newlist list1)
+       (rejected-items)
+       (list1-sublist-nth-items)
+       )
+    ;;First make list of all list1 nth items
+    (loop
+     for item in list1
+     do
+     (when (listp item)
+       (setf list1-sublist-nth-items (append1 list1-sublist-nth-items  (nth nth item))))
+     )
+   ;;Test list2 nth item to see if append to list1
+    (loop
+     for item in list2
+     do
+     (cond
+      ((listp item)
+       (cond
+        ((member (nth nth item) list1-sublist-nth-items :test test)
+         (setf rejected-items (append1 rejected-items item)))
+        (T (setf newlist (append1 newlist item)))))
+       ((null append-only-lists-p)
+        (setf newlist (append1 newlist item)))
+       (T (setf rejected-items (append1 rejected-items item))))
+       ;;end loop
+       )
+    (values newlist rejected-items)
+    ;;end append-no-nth-sublist-dupls
+    ))
+;;TEST
+;; (append-no-nth-sublist-dupls 0 '((a b  c)(d e f)(g h i)) '((l m n)(d h i)(p q r) 77 88))
+;; works= ((A B C) (D E F) (G H I) (L M N) (P Q R))   ((D H I) 77 88)
+;; if 
+;; (append-no-nth-sublist-dupls 0 '((a b  c)(d e f)(g h i)) '((l m n)(d h i)(p q r) 77 88) :append-only-lists-p NIL)
+;;works= ((A B C) (D E F) (G H I) (L M N) (P Q R) 77 88)    ((D H I))
+
+
+
+
+;;APPEND-ITEM-NO-DUPLS
+;;2020
+;;ddd
+(defun append-item-no-dupls (list &rest items )
+  "In U-lists.lisp.  Appends list only if item isn NOT a member [test= 'my-equal] Also see APPEND-NO-DUPLICATES (which also checks sublist items to see any items are a member of list). Do not add (list item) to append a list."
+  (let*
+      ((new-list list)
+       (dupl-items)
+       )
+    (loop
+     for item in items
+     do
+     (cond
+      ((member item list :test 'my-equal)
+       (setf dupl-items (append1 dupl-items item)))
+      (T (setf  new-list (append new-list  item))))
+     ;;end loop
+     )
+    (values new-list dupl-items)
+    ;;end append1-item-no-dupls
+    ))
+;;TEST
+;; (append-item-no-dupls '(a b c d e)  '(b) '(x) '(d) '(y))
+;; works [note: b NOT= (b) etc] = (A B C D E B X D Y)  NIL
+;; ;; (append-item-no-dupls '(a b c d e)  'b 'x 'd 'y)  = ERROR
+;;works = ERROR (like normal append)
+;; (append-item-no-dupls '(a b c d e)  '(b c x))
+;; works= (A B C D E B C X)    NIL
+
+
+;;APPEND1-NO-DUPLS
+;;2020
+;;ddd
+(defun append1-no-dupls (list &rest items )
+  "In U-lists.lisp.  Appends list with all sublist items and item if each is NOT a member of list [test= 'my-equal]. APPENDS LIKE APPEND1.
+  RETURNS (values new-list dupl-items)"
+  (let*
+      ((new-list list)
+       (dupl-items)
+       )
+    (loop
+     for item in items
+     do
+     (cond
+      ((listp item)
+       (loop
+        for subitem in item
+        do
+       (multiple-value-bind (new-list1 dupl-items1)
+           (append1-item-no-dupls new-list subitem)
+         (setf new-list  new-list1
+               dupl-items (append dupl-items dupl-items1)))
+       ;;end loop, listp
+       ))
+       (T 
+        (multiple-value-bind (new-list1 dupl-items1)
+           (append1-item-no-dupls new-list item)
+         (setf new-list  new-list1
+               dupl-items (append dupl-items dupl-items1)))))
+     ;;end loop
+     )
+    (values new-list dupl-items)
+    ;;end append1-no-dupls
+    ))
+;;TEST
+;; (append1-no-dupls '(A B C D)  '(B D X)  'Y  'A)
+;;works= (A B C D X Y)   (B D A)
+;;(append1-no-dupls '(A B C D)  '(B D X)  99 )
+;; works= (A B C D X 99)  (B D)
+;; note traditional append main-list (list sublist) to created (main
+;; ((append1-no-dupls '(A B C D)  '((B D X))  (list 'Y  'A) (list '(a b z)))
+;; works= (A B C D (B D X) Y (A B Z))   (A)
+;; (append1-no-dupls '(a b c d e)  '(b) '(x) '(d) '(y))
+;; works= (A B C D E X Y)   (B D)
+
+
+
+;;APPEND1-ITEM-NO-DUPLS
+;;2020
+;;ddd
+(defun append1-item-no-dupls (list &rest items )
+  "In U-lists.lisp.  Appends list only if item isn NOT a member [test= 'my-equal] Also see APPEND-NO-DUPLICATES (which also checks sublist items to see any items are a member of list). Do not add (list item) to append a list."
+  (let*
+      ((return-list list)
+       (dupl-items)
+       )
+    (loop
+     for item in items
+     do
+     (cond
+      ((member item list :test 'my-equal)
+       (setf dupl-items (append1 dupl-items item)))
+      (T (setf  return-list (append1 return-list  item))))
+     ;;end loop
+     )
+    (values return-list dupl-items)
+    ;;end append1-item-no-dupls
+    ))
+;;TEST
+;; (append1-item-no-dupls '(a b c d e)  '(b) '(x) '(d) '(y))
+;; works [note: b NOT= (b) etc] = (A B C D E (B) (X) (D) (Y))   NIL
+;; ;; (append1-item-no-dupls '(a b c d e)  'b 'x 'd 'y)
+;; works = (A B C D E X Y)    (B D)
+;; (append1-item-no-dupls '(a b c d e)  '(b c x) 'a )
+;; works= (A B C D E (B C X))    (A)
+
+
+
 
 ;;APPEND-NO-DUPLICATES
 ;;  NOTE: use APPEND-GREATEST-KEYVALUE-NESTED-LIST for nested-lists to get no duplicates OR to append the list with 1-matched keyvalue, 2-replace if greater than keyvalue
 ;;
 ;;ddd
 (defun append-no-duplicates (list &rest items)
-  "In U-lists.lisp. USE ADJOIN INSTEAD? or USE INSTEAD OF APPEND sometimes. Appends items to list that neither the item or ANY subitem match an item in list. Note: subitems of LIST are NOT searched. Uses string-equal for strings. Otherwise works like append. NOTE: use APPEND-GREATEST-KEYVALUE-NESTED-LIST for nested-lists."
+  "In U-lists.lisp. REPLACED BY APPEND-NO-DUPLS  Use adjoin instead? or use instead of append sometimes. Appends items to list that NEITHER THE ITEM OR ANY SUBITEM match an item in list. Note: subitems of LIST are NOT searched. Uses string-equal for strings. Otherwise works like append. NOTE: use APPEND-GREATEST-KEYVALUE-NESTED-LIST for nested-lists."
   (let
       ((search-item)
        (return-list list)
@@ -7334,9 +9170,10 @@ NIL|#
 ;;2018
 ;;ddd
 (defmacro make-values-list (values-funcall &key (nvars 8) (trim-nils-p T))
-  "U-lists   RETURNS a list of the values   INPUT: up to 26 values or other items  "
+  "U-lists   RETURNS a list of the values   INPUT: NVARS= num of vars want to put in list--up to 52 values or other items "
   (let*
-      ((allvars '(a b c d e f g h i j k l m n o p q r s t u v w x y z))
+      ((allvars '(a b c d e f g h i j k l m n o p q r s t1 u v w x y z a2 b2 c2 d2 e2 
+                    f2 g2 h2 i2 j2 k2 l2 m2 n2 o2 p2 q2 r2 s2 t2 u2 v2 w2 x2 y2 z2))
        (vars (subseq allvars 0 nvars))    
        (letlist) ;; `((return-list)))
        (return-list  (append (list 'list) `,vars))
@@ -7351,8 +9188,7 @@ NIL|#
            ,letlist            
          (multiple-value-setq ,vars
              ,values-funcall)
-       ,return-list
-       
+       ,return-list       
     (when ,trim-nils-p
       (delete-conseq-repeats NIL ,return-list :from-end T))
     ))
@@ -7360,7 +9196,17 @@ NIL|#
     ;;end  make-values-list
     ))
 ;;(make-values-list (values 1 2 3))
-;;works = (1 2 3 NIL NIL NIL NIL NIL)
+;;works =(1 2 3)   (NIL NIL NIL NIL NIL)
+;; (setf ***testout (make-string-input-stream (make-values-list (DESCRIBE-OBJECT *SWORLDVIEW-INST t) :nvars 25)))
+#| (with-open-stream (stream :direction :output)
+  (let*
+      ((outstring (make-string-input-stream (make-values-list (DESCRIBE-OBJECT *SWORLDVIEW-INST stream ) :nvars 25)))
+       )
+    (setf ***teststr outstring)
+    ))
+(DOS-INPUT-STREAM (MAKE-STRING-INPUT-STREAM DOS-OUTPUT-STR))
+|#
+
 
 
 #| SIMPLE VERSION RETURNS EXTRA NIL'S
@@ -7548,6 +9394,39 @@ NIL|#
 ;;  xx-list = (TEST THAT)
 
 
+;;APPEND-KEYVALS-IF-NONIL
+;;2019
+;;ddd
+(defun append-keyvals-if-nonil (keyvals-list list &key eval-value-p)
+  "U-lists   RETURNS (values new-keylist appended-items INPUT: keyvals-list= lists of key-value pairs. (eg. ((:k1 val1)etc) When eval-value-p, evals the val variable. "
+  (let
+      ((new-keylist list)
+       (appended-items)
+       )
+   (loop
+     for keyval in keyvals-list
+     do
+     (let*
+         ((key (car keyval))
+          (val (second keyval))
+          )
+       (when (and eval-value-p (symbolp val)(boundp val))
+         (setf val (eval val)))
+       (when val
+         (setf appended-items (append appended-items (list key val))))     
+      ;; (break "loop")
+     ;;end let,loop
+     ))
+   (when appended-items
+     (setf new-keylist (append new-keylist appended-items)))
+    (values  new-keylist appended-items)
+    ;;end let, append-keyvals-if-nonil
+    ))
+;;TEST
+;; (append-keyvals-if-nonil '((:k2 nil) (:k3 77)) '(a b c))
+;; works = (A B C :K3 77)   (:K3 77)
+
+
 
 ;;APPEND-NO-EVAL
 ;;2018
@@ -7627,7 +9506,8 @@ NIL|#
 ;;
 ;;ddd
 (defun my-equal-lists (list1 list2 &key exclusion-items (test 'my-equal))
-  "In U-lists.  Tests 2 items in 2 lists using my-equal in order. Omits exclusion-items on either list. List items MUST BE IN SAME ORDER--including exclusion items."
+  "In U-lists.  Tests 2 items in 2 lists using my-equal in order. Omits exclusion-items on either list. List items MUST BE IN SAME ORDER--including exclusion items. 
+  RETURNS (values result matched-items unmatched-items unmatched-ns excluded-items)"
   (let
       ((matched-items)
        (unmatched-items)
@@ -7657,6 +9537,133 @@ NIL|#
 ;; works= T  ((L L) (2 2) (3 3) (2 2) (3 3) (3 3))   NIL   NIL  (TO "to")
 ;;  (my-equal-lists '(L 2 3 TO 1 3 3) '(l 2 3 "to"  2 3 3) :exclusion-items '(TO))
 ;; works= NIL  ((L L) (2 2) (3 3) (3 3) (3 3))  ((1 2))  (5)  (TO "to")
+;;
+;; (my-equal-lists '(a b x c 7 e) '(a b x c 7 e))
+;; works = T    ((A A) (B B) (X X) (C C) (7 7) (E E))   NIL  NIL  NIL
+;;  (my-equal-lists '("a" "b") '(a b)) = T    (("a" A) ("b" B))   NIL  NIL NIL
+
+
+;;MY-EQUAL-ITEM-LIST-OR-MEMBER
+;;2019
+;;ddd
+(defun my-equal-item-list-or-member (item item-or-list  &key (test 'my-equal) )
+  "U-lists. Is item equal or a member of item-or-list  RETURNS  (values return-equal compare-type)  compare-type= item-item, item-list, list-list, or NIL if can't compare.   INPUT:  Only ITEM-OR-LIST is searhed for list MEMBERSHIP. Otherwise, either can be a symbol, string, number, or list. "
+  (let
+      ((return-equal)
+       (compare-type)
+       )
+    (cond
+     ;;neither is a list
+     ((and (null (listp item))
+           (null (listp item-or-list)))
+      (setf return-equal (funcall test item item-or-list)
+            compare-type 'item-item))
+     ;;item not-list, item-or-list=list
+     ((and (null (listp item))
+           (listp item-or-list))
+      (setf return-equal (car (member item item-or-list :test test))
+            compare-type 'item-list))
+     ;;both are lists
+     ((and (listp item) (listp item-or-list))
+      (setf return-equal (my-equal-lists item item-or-list :test test)
+            compare-type 'list-list))
+     ;;redundant below ((and (listp item)(null (listp item-or-list))) NIL)      
+     (t nil))
+     (values return-equal compare-type)
+    ;;end let, my-equal-item-list-or-member
+    ))
+;;TEST
+;; (my-equal-item-list-or-member 'a  '(d a g))    = A  ITEM-LIST
+;; (my-equal-item-list-or-member '(d a g)  '(d a g)) =   T  LIST-LIST
+;; (my-equal-item-list-or-member '(d a g)  '(d 1 g)) = NIL   LIST-LIST
+;; (my-equal-item-list-or-member '(d a g)  '("d" "A" "G")) = T  LIST-LIST
+;; (my-equal-item-list-or-member "S" "s")   =   T   ITEM-ITEM
+;; (my-equal-item-list-or-member 'S "s") = T  ITEM-ITEM
+
+
+
+;;MY-EQUAL-NESTED-LISTS
+;;2019
+;;ddd
+(defun my-equal-nested-lists (list1 list2  &key (test 'my-equal))
+  " U-lists  RETURNS (values result unmatched-items tested-list1 tested-list2 )   INPUT: Any degree of nested lists can be tested eg. for inequality as well. Uses test-nested-lists."
+  (multiple-value-bind (result unmatched-items tested-list1 tested-list2 )
+      ( test-nested-lists list1 list2  :test test)
+    (values result unmatched-items tested-list1 tested-list2 )
+    ;;end mvb, my-equal-nested-lists
+    ))
+;;TEST
+;; SEE BELOW TEST-NESTED-LISTS
+
+
+
+
+;;TEST-NESTED-LISTS
+;;2019
+;;ddd
+(defun test-nested-lists (list1 list2  &key (test 'my-equal) )
+  " U-lists  RETURNS (values result unmatched-items tested-list1 tested-list2 )   INPUT: Any degree of nested lists can be tested eg. for inequality as well."
+  (let
+      ((tested-list1)
+       (tested-list2)
+       (result)
+       (unmatched-items)
+       )
+    (loop
+     for item1 in list1
+     for item2 in list2
+     do
+        ;;(afout 'out (format nil "BEGIN item1= ~A item2= ~A" item1 item2))
+     (let*
+         ((cur-result)
+          )
+       (cond
+        ((and (listp item1)(listp item2))
+         (cond
+          ((= (list-length item1)(list-length item2))
+           (multiple-value-bind (recurse-result unmatched-items1)
+               (test-nested-lists item1 item2 :test test )
+             ;;(afout 'out (format nil "RECURSE item1= ~A item2= ~A recurse-result= ~A" item1 item2 recurse-result))
+             (setf cur-result recurse-result
+                   unmatched-items unmatched-items1)))
+          (t (setf cur-result NIL
+                   unmatched-items (list item1 item2))))
+         )
+        (t (setf cur-result (funcall test item1 item2))
+           (when (null cur-result (setf unmatched-items (list item1 item2))))
+   ;;(afout 'out (format nil "NON-RECURSE item1= ~A item2= ~A CUR-result= ~A" item1 item2 cur-result))
+           ))
+       ;;summary
+       (setf tested-list1 (append tested-list1 (list item1))
+             tested-list2 (append tested-list2 (list item2)))
+          ;;(afout 'out (format nil "item1= ~A item2= ~A" item1 item2))
+       (cond
+        (cur-result
+         (setf result T))
+        (t
+         (setf result nil)
+         (return)))
+     ;;end let,loop
+     ))
+    (values result unmatched-items tested-list1 tested-list2 )
+    ;;end let, test-nested-lists
+    ))
+;;TEST
+;; (test-nested-lists '(a (1 2 (3 4 (6 6 7) 8) 9 10) c (x y (z) w)) '(a (1 2 (3 4 (6 6 7) 8) 9 10) c (x y (z) w)))
+;; works= T    NIL   (A (1 2 (3 4 (6 6 7) 8) 9 10) C (X Y (Z) W))    (A (1 2 (3 4 (6 6 7) 8) 9 10) C (X Y (Z) W))
+;; ;; (test-nested-lists '(a (1 2 (3 4 (6 6 7) 8) 9 10) c (x y (z) w)) '(a (1 2 (3 4 (6 6 7) 8) 9 10) c (x y (z NO-MATCH) w)))
+;; works= NIL   ((Z) (Z NO-MATCH))     (A (1 2 (3 4 (6 6 7) 8) 9 10) C (X Y (Z) W))  (A (1 2 (3 4 (6 6 7) 8) 9 10) C (X Y (Z NO-MATCH) W))
+;; ;; (test-nested-lists '(a (1 2 (3 4 (6 999 7) 8) 9 10) c (x y (z) w)) '(a (1 2 (3 4 (6 6 7) 8) 9 10) c (x y (z) w)))
+;; works= NIL  (999 6)    (A (1 2 (3 4 (6 999 7) 8) 9 10))   (A (1 2 (3 4 (6 6 7) 8) 9 10))
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7664,7 +9671,7 @@ NIL|#
 ;;
 ;;ddd
 (defun my-member (item list &key (ignore-case-p T))
-   "In U-lists.lisp, REPLACE MEMBER,  tests item whether it is a string, number, symbols, or list to see if it is a member of list. Good for UNKNOWN items. Matches strings with symbols if same (eg \"TO\" = TO)."
+   "In U-lists.lisp, REPLACES MEMBER,  tests item whether it is a string, number, symbols, or list to see if it is a member of list. Good for UNKNOWN items. Matches strings with symbols if same (eg \"TO\" = TO)."
    (let
        ((result)
         (str1)
@@ -7791,7 +9798,7 @@ NIL|#
     all-result-lists
     ))
 ;;TEST
-;;  (setf  xx '(x1 x2) x1 '(xx1 xx2) xx1 '(xxx1 xxx2) xx2 '(xxx3 xxx4))
+;;  (setf  xx '(x1 x2)    x1 '(xx1 xx2)    xx1 '(xxx1 xxx2)   xx2 '(xxx3 xxx4))
 ;; (progn (setf  *cycle-n 0) (simple-recurse 'xx))
 ;; works=  ((XX ((X1 ((XX1 (XXX1)) (XX1 (XXX2)))) (X1 ((XX2 (XXX3)) (XX2 (XXX4)))))) (XX (X2)))
            
@@ -7867,7 +9874,8 @@ NIL|#
 ;;TEST
 ;; (flatten-1-level '((A B) C (((D E F))) (G H)((1 2 3))))
 ;; works= (A B C ((D E F)) G H (1 2 3))
-
+;; (flatten-1-level '((A B) C (('(D E F))) '(G H)((1 2 3))))
+;; WORKS W SOME QUOTES = (A B C ((QUOTE (D E F))) QUOTE (G H) (1 2 3))
 
 ;;MY-LIST-LENGTH
 ;;
@@ -7895,6 +9903,73 @@ NIL|#
 ;;TEST
 ;;  (my-list-length '(a 7 "this"(a b) 9 (d) "that"))
 ;; works= 7  2  1  2  2
+
+
+;;GET-NESTED-LIST-LEVELN-ITEMS
+;;2019
+;;ddd
+(defun get-nested-list-leveln-items (list &key (nest-level-n 1)(cur-level 0)
+                (n-higher-level-items 0) non-list-items-only-p)
+  "U-lists Counts all items in list that are at NEST-LEVEL-N ONLY.  RETURNS    (values leveln-items n-leveln-items higher-level-items) where HIGHER-LEVEL-ITEMS is a list of items at each preceding level."
+  (let*
+      ((leveln-items)
+       (n-leveln-items 0)
+       (higher-level-items)
+       )
+    (cond
+     ;;listp list
+     ((and list (listp list))
+      (loop
+       for item in list
+       do
+       ;;(afout 'out (format nil "LOOP BEGIN item= ~A cur-level= ~A" item cur-level))
+       (cond
+        ;;if nest-level-n, then count/add if list or not
+        ((= cur-level nest-level-n)
+         (unless (and non-list-items-only-p (listp item))
+           (incf n-leveln-items)
+           (setf leveln-items (append leveln-items (list item)))  ))
+        ;;if not right level, and is list recurse
+        ((and (listp item)(< cur-level nest-level-n))
+         (multiple-value-bind (leveln-items1 n-leveln-items1 higher-level-items1)
+             ;;n-higher-level-items1)
+             (get-nested-list-leveln-items item :nest-level-n nest-level-n
+                                           :cur-level  (+ cur-level 1) 
+                                           :non-list-items-only-p  non-list-items-only-p)
+           (setf leveln-items (append leveln-items leveln-items1)
+                 n-leveln-items (+ n-leveln-items n-leveln-items1)
+                 higher-level-items (append higher-level-items 
+                                            (list higher-level-items1)))
+           ;;n-higher-level-items (+ n-higher-level-items n-higher-level-items1))
+           ;;(afout 'out (format nil "MVB,  leveln-items= ~A cur-level=" leveln-items cur-level))
+           ;;end mvb, listp
+           ))
+        ;;if less than right level, and NOT list, add to other
+        (t (setf higher-level-items (append higher-level-items (list item)))))
+       ;;end let,loop
+       )
+     ;;end and list listp
+     )
+    ;;not list, but at level-n, add to leveln-items
+    ((= cur-level nest-level-n)
+     (incf n-leveln-items)
+     (setf leveln-items (append leveln-items (list list))))
+    ;;not list, but not at level-n, incf n-higher-level-items 
+    (t  (incf n-higher-level-items)))
+
+  (values leveln-items n-leveln-items higher-level-items)
+  ;;end let,get-nested-list-leveln-items
+  ))
+;;TEST
+;; (get-nested-list-leveln-items '(a (aa bb) c (cc (ddd (ffff) ddd) ee) g))
+;; works= (AA BB CC (DDD (FFFF) DDD) EE)  5   (A NIL C NIL G)
+;; (get-nested-list-leveln-items '(a (aa bb) c (cc (ddd (ffff) ddd) ee) g) :nest-level-n 2)
+;; works= (DDD (FFFF) DDD)   3  (A (AA BB) C (CC NIL EE) G)
+;; (get-nested-list-leveln-items '(a (aa bb) c (cc (ddd (ffff) ddd) ee) g) :nest-level-n 0)
+;; works = (A (AA BB) C (CC (DDD (FFFF) DDD) EE) G)   5  NIL
+;;for NON-LIST-ITEMS-ONLY-P
+;; (get-nested-list-leveln-items '(a (aa bb) c (cc (ddd (ffff) ddd) ee) g) :NON-LIST-ITEMS-ONLY-P T)
+;; works= (AA BB CC EE)   4  (A NIL C NIL G)
 
 
 
@@ -8131,7 +10206,7 @@ NIL|#
 ;;ddd
 (defun make-hierarchy-2-list-combos (topdims dimspecs1 dimspecs2 
                                              &key (separator-sym *art-node-separator))
-  "In U-lists. Each item on topdims is a symbol (eg (I L F M) representing a different level (last level is highest).  dimspecs = ((n-items begin-index incr) for each level).  RETURNS (values all-combos-by-level flat-all-combos ). Used to make ART path names (eg WUPI-L-FTOI-L-F). Topdims divided by separator-sym"
+  "In U-lists. Each item on topdims is a symbol (eg (M F L I) representing a different level (last level is highest).  dimspecs = ((n-items begin-index incr) for each level).  RETURNS (values all-combos-by-level flat-all-combos ). Used to make ART path names (eg WUP-F-L-I-TO-F-L-I). Topdims divided by separator-sym"
   (let
       ((x)
        (level)
@@ -8319,28 +10394,37 @@ NIL|#
 
 
 ;;INSERT-AT-N
-;;
+;;modified 2020
 ;;added 2016-04
 ;;ddd
 (defun insert-at-n (item nth list)
   "In U-lists, in list, inserts item at nth place. nth begins with 0."
   (let
       ((newlist)
+       (list-n (list-length list))
        )
-    (loop
-     for n from 0 to (list-length list)
-     for elem in list
-     do
-     (cond
-      ((= n nth)
-       (setf newlist (append newlist (list item elem))))
-      (t (setf newlist (append newlist (list  elem)))))
-     )
+    (cond
+     ;;if nth >= list length, append it to end
+     ((>= nth list-n)
+      (setf newlist (append list (list item))))
+     ;;otherwise
+     (T
+      (loop
+       for n from 0 to list-n
+       for elem in list
+       do
+       (cond
+        ((= n nth)
+         (setf newlist (append newlist (list item elem))))
+        (t (setf newlist (append newlist (list  elem)))))
+       )))
     newlist
     ;;end let, insert-at-n
     ))
 ;;TEST
 ;; (insert-at-n 'b 1 '(a c d e)) = (A B C D E)
+;; (insert-at-n 'this 2 '(a b)) = (A B THIS)
+;; (insert-at-n 'x 0 '(a c d e)) = (X A C D E)
 
 
 
@@ -8375,7 +10459,7 @@ NIL|#
                            random-sample-percent
                           randomize-p  return-all-combos-p
                           (prefix "")(postfix "")
-                          global-combos-sym
+                          global-combos-sym 
                           (randomize-min-combo-n 20))
   "In U-LISTS, creates combo-lists of items-per-combo elements and can return a randomized sample of random-sample-percent of the total. RETURNS  If return-all-combos-p, (values global-combos-sym return-combos all-combos) otherwise, (values  return-combos  n-combos new-global-combos-sym all-combos). "
   (let
@@ -8384,6 +10468,7 @@ NIL|#
        (qnames)
        (nested-combos)
        (all-combos)
+       (return-combos)
        (n-all-combos)
        (new-cat-combo-global-sym)
        (new-global-combos-sym)
@@ -8419,7 +10504,7 @@ NIL|#
       (cond
        ((or (not (equal prefix ""))(not (equal postfix ""))(stringp global-combos-sym))
         (setf new-global-combos-sym (my-make-symbol 
-                                     (format nil "~A~A~A" prefix  cat-combo-global-sym postfix))))
+                                     (format nil "~A~A~A" prefix  global-combos-sym postfix))))
        ((symbolp global-combos-sym)
         (setf new-global-combos-sym global-combos-sym)
         (set new-global-combos-sym return-combos))
@@ -8468,6 +10553,7 @@ NIL|#
        (list)
        (num-lists (list-length lists))
        (max-n-combos)
+       (max-len-combos)
        (remainder)
        (remainders)
        )
@@ -8646,7 +10732,6 @@ NIL|#
        (sublist)
        (restlist)
        )
-
     ;;CONVERT PERCENTS and NUMBERS TO A LIST OF SUBLIST Ns
     (cond
      ((and equal-parts-p (null  group-n-list)(null percent-part-list))
@@ -8727,6 +10812,45 @@ NIL|#
 ;; (divide-list '(1 2 3 4 5 6 7 8 9 10) nil :percent-part-list '(33 25 50))
 ;; works= ((1 2 3 4) (5 6 7) (8 9 10))  NIL
 
+
+;;DIVIDE-LIST-INTO-PARTS
+;;2020
+;;ddd
+(defun divide-list-into-parts (n-items-list list)
+  "U-lists   RETURNS  (values  divided-list rest)  INPUT: N-ITEMS-LIST Eg, (1 3 2 REST) If REST included, returns rest of list.  If not extra items included in REST value. "
+  (let*
+      ((divided-list)
+       (rest list)
+       (rest-n (list-length rest))
+       )
+    (loop 
+     for n-items in n-items-list
+     do
+     (cond
+      ((equal n-items 'rest)
+       (setf divided-list (append divided-list (list rest))
+             rest nil))
+      ((< n-items rest-n)
+       (let*
+           ((part (subseq rest 0 n-items))
+            )
+         (setf rest-n (- rest-n  n-items)
+               divided-list (append divided-list  (list part)))
+         (when (> rest-n 0)
+           (setf rest (subseq rest n-items)))
+         ;;end let, >
+         ))
+      (t nil))
+     ;;end ,loop
+     )
+     (values  divided-list rest)
+     ;;end let, divide-list-into-parts
+     ))
+;;TEST
+;; (divide-list-into-parts '(2 1 rest) '(a b c d e f g h))
+;;works= ((A B) (C) (D E F G H))  NIL
+;;  (divide-list-into-parts '(2 1 3) '(a b c d e f g h))
+;;works = ((A B) (C) (D E F))   (G H)
 
 
 
@@ -9044,9 +11168,6 @@ NIL|#
 
 
 
-
-
-
 ;;MY-LISTP
 ;;2016
 ;;ddd
@@ -9078,18 +11199,21 @@ NIL|#
       ((listp  ,item)
        (setf result (list-length ,item)))
       (t nil))
-
+     (when (and (equal result 0)
+                (not (= ,min-length 0)))
+       (setf result nil))
      (values result (quote ,item))
     ;;end let, my-listp
     ))
 ;;TEST
+;; (my-listp (third '(EXTERNALCONT))) = NIL  (THIRD (QUOTE (EXTERNALCONT)))
 ;;  (my-listp 'axx) = NIL (QUOTE AXX)
 ;;  (my-listp 22) = NIL  22
 ;;  (my-listp "axx") = NIL  "axx"
 ;;  (my-listp NIL) = NIL NIL
 ;; (my-listp NIL :min-length 0)  = 0
 ;;  (my-listp '(a b c)) = 3   (QUOTE (A B C))
-;;  mother = ("MOTHER" "mother" ELM2-1-1-99 NIL NIL :BIPATHS (((MOTHER NIL (TALL3 (POLE2) NIL))) ((MOTHER NIL (GREEN (POLE2) NIL)))))
+;;  mother = ("MOTHER" "mother" ELM2-1-1-99 NIL NIL :BIPATH (((MOTHER NIL (TALL3 (POLE2) NIL))) ((MOTHER NIL (GREEN (POLE2) NIL)))))
 ;; (my-listp 'mother) = nil (QUOTE MOTHER)
 ;; (my-listp mother) = 7  MOTHER
 ;; (setf  short-list '(1))
@@ -9134,7 +11258,7 @@ NIL|#
      ;;end let, symbol-listp
      ))
 ;;TEST
-;; (symbol-listp 'mother) = 7   ("MOTHER" "mother" ELM2-1-1-99 NIL NIL :BIPATHS (((MOTHER NIL (TALL3 (POLE2) NIL))) ((MOTHER NIL (GREEN (POLE2) NIL)))))
+;; (symbol-listp 'mother) = 7   ("MOTHER" "mother" ELM2-1-1-99 NIL NIL :BIPATH (((MOTHER NIL (TALL3 (POLE2) NIL))) ((MOTHER NIL (GREEN (POLE2) NIL)))))
 ;; (symbol-listp mother) = nil nil
 
 
@@ -9177,6 +11301,39 @@ NIL|#
 ;; (find-symbols-for-names '("mom" "dad" "best-m-friend")) 
 ;;works = (MOM DAD BEST-M-FRIEND)
      
+
+
+;;FIND-SYMBOLS-IN-LIST
+;;2020
+;;ddd
+(defun find-symbols-in-list (list &key (omit-nils-p T) omit-keywords-p)
+  "In U-lists, uses my-make-symbol to return a list of symbols from a list of strings/names."
+  (let*
+      ((symbol-list)
+       )
+        (loop
+         for item in list
+         do
+         (let
+             ((omit-item-p)
+              )
+         (when (and omit-nils-p (equal item NIL))
+           (setf omit-item-p T))
+         (when (and omit-keywords-p (keywordp item))
+           (setf omit-item-p T))
+         (when (and (symbolp item) (not omit-item-p))
+           (setf symbol-list (append symbol-list (list item))))
+         ))
+        symbol-list
+    ;;end find-symbols-in-list
+    ))
+;;TEST
+;; (find-symbols-in-list '(A "this" that 99 nil :key (list)))  = (A THAT :KEY)
+;; (find-symbols-in-list '(A "this" that 99 nil :key (list)) :omit-nils-p NIL)
+;;  = (A THAT NIL :KEY)
+;; (find-symbols-in-list '(A "this" that 99 nil :key (list)) :omit-keywords-p T)
+;; = (A THAT)
+
 
 
 ;;SET-CATSYM-TO-NESTED-NAMES
@@ -9242,33 +11399,58 @@ NIL|#
 ;;GET-KEYVALUE-IN-NESTED-LIST
 ;;2016-08
 (defun get-keyvalue-in-nested-list (key-spec-lists  nested-lists 
-                                                    &key  return-list-p (test 'my-equal) (max-list-length 1000))
-  "In U-lists, RETURNS (values return-value return-keylist new-keylist return-nested-lists  last-key-found-p ) unless RETURN-LIST-P then (values return-keylist return-value new-keylist return-nested-lists  last-key-found-p) .
-    In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) Can have exact loc of all keys, keyloc-n as a number OR can be NIL or T [In which case will check entire list at that level for key]. Also, if the KEY = T, searches entire list.  DOES NOT check for keys in any other location than keyloc-n (unless T, NIL);   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
+                                                    &key  return-list-p return-value&keylist-p
+                                                    (test 'my-equal) (max-list-length 1000))
+  "In U-lists, NEW: Can use KEY for key-spec-lists [searches all). RETURNS (values return-value return-keylist new-keylist return-nested-lists  last-key-found-p ) unless RETURN-LIST-P then (values return-keylist return-value new-keylist return-nested-lists  last-key-found-p) .
+    In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) Can have exact loc of all keys, keyloc-n as a number OR can be NIL or T [In which case will check entire list at that level for key]. 
+   If the KEY = T, searches entire list.  DOES NOT check for keys in any other location than keyloc-n (unless T, NIL);   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
    If  :NEXT-KEY-IN-VALUE is a member of  spec-list,  searches the VALUE LIST for list with next key. See doc for main function, get-set-append-delete-keyvalue-in-nested-list Eg, ((:key3 T 2)(:key4 0))"
+  ;;2020
+  (when (symbolp key-spec-lists)
+    (setf key-spec-lists (list (list key-spec-lists T))))
   (multiple-value-bind (return-keylist return-nested-lists new-keylist
                                        return-value old-keylist last-key-found-p )
       (get-set-append-delete-keyvalue-in-nested-list :get  key-spec-lists  nested-lists 
                                               :return-list-p return-list-p :test test
-                                              :append-value-p nil
+                                              :append-value-p nil 
                                               :max-list-length max-list-length)
   
     (cond
      ;;when return-list-p, switch return-value and return-keylist
      (return-list-p (values return-keylist return-value new-keylist return-nested-lists  last-key-found-p))
+     (return-value&keylist-p
+      (values return-value return-keylist))
      (t
       (values return-value return-keylist new-keylist return-nested-lists  last-key-found-p )))
     ;;end mvb, get-keyvalue-in-nested-list
     ))
 ;;TEST
+;; (get-keyvalue-in-nested-list "Sex" '(("sID" :TEXT-DATA ("Name" " " :SINGLE " ")("UserID" "222222" :SINGLE "222222") ("Sex" "Male" :SINGLE "Male" 1) ("Age" 22 :SINGLE 22 22) ("Email" "" :SINGLE "") ("USA?" "USA" :SINGLE "USA" 1) ("Nation" "USA" :SINGLE "USA") ("ZipCode" 44444 :SINGLE 44444) ("HrsWork" 22 :SINGLE 22 22))))
+;; works= "Male"  ("Sex" "Male" :SINGLE "Male" 1)  ("Sex" "Male" :SINGLE "Male" 1)  (("sID" :TEXT-DATA ("Name" " " :SINGLE " ") ("UserID" "222222" :SINGLE "222222") ("Sex" "Male" :SINGLE "Male" 1) ("Age" 22 :SINGLE 22 22) ("Email" "" :SINGLE "") ("USA?" "USA" :SINGLE "USA" 1) ("Nation" "USA" :SINGLE "USA") ("ZipCode" 44444 :SINGLE 44444) ("HrsWork" 22 :SINGLE 22 22)))  T
+;;
+;; (get-keyvalue-in-nested-list 'utype *all-csq-qvars :return-value&keylist-p T)
+;; works=
+;;return-value= 
+#|("utype" "UserType" NIL NIL (:TITLE ("SHAQ CARES:
+ Selection of Your Questionnaires-Part 1") :QUEST ("  ==> FIND YOUR HAPPINESS QUOTIENT (HQ). 
+         Research shows that 75% of people's overall happiness score is accounted for by the SHAQ HQ score (Stevens, 2009). Your HQ values, beliefs, and life skills may be powerful influences on your past, current, and future happiness. 
+         HQ factors are CONTROLLABLE factors: you can choose to be happy by improving them. 
+         ==> Why are you taking SHAQ?")) (:HELP NIL NIL) NIL :MULTI-ITEM)|#
+;;return-keylist=
+  #|(UTYPE ("utype" "UserType" NIL NIL (:TITLE ("SHAQ CARES:
+ Selection of Your Questionnaires-Part 1") :QUEST ("  ==> FIND YOUR HAPPINESS QUOTIENT (HQ). 
+         Research shows that 75% of people's overall happiness score is accounted for by the SHAQ HQ score (Stevens, 2009). Your HQ values, beliefs, and life skills may be powerful influences on your past, current, and future happiness. 
+         HQ factors are CONTROLLABLE factors: you can choose to be happy by improving them. 
+         ==> Why are you taking SHAQ?")) (:HELP NIL NIL) NIL :MULTI-ITEM) ("twanttho" "t-Want thorough assessment" "spss-match" NIL ("Want a thorough assessment and/or my Happiness Quotient (HQ) Score.") (:HELP NIL NIL) :MULTI-ITEM (:XDATA :SCALES (HQ)))   ETC ETC
+|#
 ;; (get-keyvalue-in-nested-list  '((:key3 T 2)(:key4 0)) '("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33)  (:KEY2 (0.55)) :KEY3 (44) (:KEY4 0.95) :key5 (xxx))  )  
 ;; works= 0.95    (:KEY4 0.95)   (:KEY4 0.95)   ("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33) (:KEY2 (0.55)) :KEY3 (44) (:KEY4 0.95) :KEY5 (XXX))    T
 ;;
 ;;return-list-p
 ;;  (get-keyvalue-in-nested-list  '((:key3 T 2)(:key4 0)) '("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33)  (:KEY2 (0.55)) :KEY3 (44) (:KEY4 0.95 rest of list) :key5 (xxx))  :return-list-p T )
 ;; works= 0.95    (:KEY4 0.95 REST OF LIST)    (:KEY4 0.95)   ("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33) (:KEY2 (0.55)) :KEY3 (44) (:KEY4 0.95 REST OF LIST) :KEY5 (XXX))   T
-;;USE OF T and lists inside list with no key
-;;  (progn (setf out nil) (get-keyvalue-in-nested-list  (list (list T  0) (list 'motherq  0)) '(PCE-PEOPLE (PCE-PEOPLE-INSTR (People Important To You *INSTR-NAME-ELEMENT)) (MOTHERQ (Your Mother [or person most like a mother to you]) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (FATHERQ (Your Father [or person most like a father to you]) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (BEST-M-FRIENDQ (A best male friend) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (BEST-F-FRIENDQ (A best female friend) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) ) :return-list-p T))
+;;USE OF T AND LISTS INSIDE LIST WITH NO KEY
+;;  (progn (setf out nil) (GET-KEYVALUE-IN-NESTED-LIST  (list (list T  0) (list 'motherq  0)) '(PCE-PEOPLE (PCE-PEOPLE-INSTR (People Important To You *INSTR-NAME-ELEMENT)) (MOTHERQ (Your Mother [or person most like a mother to you]) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (FATHERQ (Your Father [or person most like a father to you]) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (BEST-M-FRIENDQ (A best male friend) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) (BEST-F-FRIENDQ (A best female friend) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS) ) :return-list-p T))
 ;;works= 
 #|(MOTHERQ (YOUR MOTHER [OR PERSON MOST LIKE A MOTHER TO YOU]) PCE-PEOPLE-INSTR *INPUT-BOX-INSTRS)
 (YOUR MOTHER [OR PERSON MOST LIKE A MOTHER TO YOU])
@@ -9279,10 +11461,53 @@ T|#
   
 
 
-
-
-
-
+;;GET-LISTS-W-KEYVALUE
+;;2019
+;;ddd
+(defun get-lists-w-keyvalue (key value nested-lists &key (test 'equal) (chk-main-list-p t))
+  "U-lists   RETURNS (values found-keyval-lists found-values)    INPUT: keylists. For nested lists. or non-nested lists. Finds every instance of key in nested lists.  If value= :get, returns ALL lists with key. Otherwise only returns those whose value matches value.  CHK-MAIN-LIST-P returns main list if it has key and? value."
+  (let
+      ((found-keyval-lists)
+       (main-return-value)
+       (found-values)
+       )  
+    ;;CHECK MAIN LIST?
+    (when (and chk-main-list-p
+               (setf main-return-value (get-key-value key nested-lists :test test)))
+      (when (or (equal value :get)
+                (funcall test value main-return-value))
+        (setf found-values (append found-values (list main-return-value))
+               found-keyval-lists (list nested-lists))))
+    ;;CHECK NESTED LISTS
+    (loop
+     for list in nested-lists
+     do
+     (let*
+         ((return-value  (get-keyvalue-in-nested-list (list (list key T)) list))
+          )
+       ;;PROBLEM HERE RETURN-VALUE = NIL
+       (cond
+        ((equal value :get)
+         (setf found-keyval-lists (append found-keyval-lists (list list))
+               found-values (append found-values (list return-value))))
+        ((funcall test value return-value)
+         (setf found-keyval-lists (append found-keyval-lists (list list))
+               found-values (append found-values (list return-value)))))
+     ;;end let,loop
+     ))
+    (values found-keyval-lists found-values)
+    ;;end let, get-lists-w-keyvalue
+    ))
+;;TEST
+;; keys in sublists
+;; (get-lists-w-keyvalue :k2  'C  '((this (a (1 2 :k2 C))) (x y :k2 B 3)(3 4 :k2 c)))
+;; works= ((THIS (A (1 2 :K2 C))) (3 4 :K2 C))  (C C)
+;; key in main list
+;; (get-lists-w-keyvalue :lntp :isa   '((POLE1 CAREFOROTHERS :KEY22 DATA22) :LNTP :ISA :KEY1 DATA1))
+;; works= (((POLE1 CAREFOROTHERS :KEY22 DATA22) :LNTP :ISA :KEY1 DATA1))   (:ISA)
+;; Using :get to get lists with same key and any value
+;; (get-lists-w-keyvalue :k2  :get '((this (a (1 2 :k2 C))) (x y :k2 B 3)(3 4 :k2 c)))
+;; works= ((THIS (A (1 2 :K2 C))) (X Y :K2 B 3) (3 4 :K2 C))   (C B C)
 
     
 ;;GET-SET-APPEND-DELETE-KEYVALUE-IN-NESTED-LIST--MAIN FUNCTION
@@ -9328,76 +11553,131 @@ T|#
 
 
 ;;GET-MULTI-KEYVALUES-IN-NESTED-LISTS
-;;2017
+;;2017, 2019 added add-flat-keylist-p, if-val-nil; added found-lists
 ;;ddd
-(defun get-multi-keyvalues-in-nested-lists (keys nested-list)
-  "In U-lists RETURNS (values  keyvalue-lists  n-found-keys).  Works in multi-level lists, with key anyplace in list.  Value must be next to key. EFFICIENT way to get values for several keys at once in a complex list structure."
+(defun get-multi-keyvalues-in-nested-lists (keys nested-list 
+                                                 &key add-flat-keylist-p (if-val-nil 'omit)
+                                                 (return-found-lists-p T))
+  "In U-lists RETURNS (values  keyvalue-lists  n-found-keys rest-keys flat-keylist found-lists).  Works in multi-level lists, with key anyplace in list.  Value must be next to key. EFFICIENT way to get values for several keys at once in a complex list structure. If ADD-FLAT-KEYLIST-P, adds a flat key-value list. 
+   IF-VAL-NIL use 'OMIT, NIL, or any value."
   (let
       ((key)
        (value)
        (keyvalue-list)
        (keyvalue-lists)
        (n-found-keys 0)
-       (n-1nested-list (list-length 1nested-list))
+       (n-nested-list (list-length nested-list))
        (rest-keys keys)
+       (flat-keylist)
+       (found-lists)
        )
     (loop
-     for item in 1nested-list
-     for n from 0 to n-1nested-list
+     for item in nested-list
+     for n from 0 to n-nested-list
      do
      (cond
       ((listp item)
-       (multiple-value-bind (keyvalue-lists1  n-found-keys1 rest-keys1)
-           (get-multi-keyvalues-in-nested-lists rest-keys item)
+       (multiple-value-bind (keyvalue-lists1  n-found-keys1 rest-keys1 flat-keylist found-lists1)
+           (get-multi-keyvalues-in-nested-lists rest-keys item :return-found-lists-p
+                                                return-found-lists-p)
          (setf keyvalue-lists (append keyvalue-lists keyvalue-lists1)
                n-found-keys (+ n-found-keys n-found-keys1)
                rest-keys rest-keys1)  ;;is this right??
+         (when (not (empty-list-p found-lists1))
+           (setf found-lists (append found-lists (list found-lists1))))
          (when (null rest-keys)
            (return))
          ;;end mvb, listp
          ))
       ((member item rest-keys :test 'my-equal)
-       (incf n-found-keys)
-       (setf key item
-             rest-keys (delete key rest-keys :test 'my-equal)
-             value (nth (+ n 1) 1nested-list)
-             keyvalue-list (list key value)
-             keyvalue-lists (append keyvalue-lists (list keyvalue-list)))
-       (when (null rest-keys)
-         (return)))
+       (setf value (nth (+ n 1) nested-list))
+       (cond
+        ((and (null value) (equal if-val-nil 'omit))
+         NIL)
+        ;;otherwise use key and value
+        (T
+         ;;when value=NIL, set it to if-val-nil value and proceed
+         (when (and (null value) (not (equal if-val-nil 'omit)))
+           (setf value if-val-nil))
+         (incf n-found-keys)
+         (setf key item
+               rest-keys (delete key rest-keys :test 'my-equal)
+               keyvalue-list (list key value)
+               ;;added 2019               
+               keyvalue-lists (append keyvalue-lists (list keyvalue-list)))
+         (when (not (empty-list-p nested-list))
+           (setf found-lists (append found-lists (list nested-list))))
+         (when (null rest-keys)
+           (return))))
+       ;;end member
+       )
       (t nil))
      ;;end loop
      )
-    (values  keyvalue-lists  n-found-keys rest-keys)
-    ;;end let, get-multi-keyvalues
+    (when add-flat-keylist-p
+      (setf flat-keylist (flatten-list-tree keyvalue-lists)))
+    (values  keyvalue-lists  n-found-keys rest-keys flat-keylist found-lists)
+    ;;end let, get-multi-keyvalues-in-nested-lists
     ))
 ;;TEST
-;; non-nested list
-;; (get-multi-keyvalues '(key1 key3) '(a b key1 val1 c d key2 val2 e f g key3 val3  l m key4 val4 x y z))
+;; NON-NESTED LIST
+;; also :add-flat-keylist-p = T
+;; (get-multi-keyvalues-in-nested-lists '(key1 key3) '(a b key1 val1 c d key2 val2 e f g key3 val3  l m key4 val4 x y z) :add-flat-keylist-p T)
+;; works= ((KEY1 VAL1) (KEY3 VAL3))  2  NIL  (KEY1 VAL1 KEY3 VAL3)
+;; added found-lists= ((A B KEY1 VAL1 C D KEY2 VAL2 E F G KEY3 VAL3 L M KEY4 VAL4 X Y Z) (A B KEY1 VAL1 C D KEY2 VAL2 E F G KEY3 VAL3 L M KEY4 VAL4 X Y Z))
+;; (get-multi-keyvalues-in-nested-lists '(key1 key3) '(a b key1 val1 c d key2 val2 e f g key3 val3  l m key4 val4 x y z))
 ;; works= ((KEY1 VAL1) (KEY3 VAL3))  2  NIL
-;; 1nested-list
-;;  (get-multi-keyvalues '(key1 key3) '(a b key1 val1 c d key2 val2 e f g (1 2 key3 val3 3 4) l m key4 val4 x y z))
+;; nested-list
+;;  (get-multi-keyvalues-in-nested-lists '(key1 key3) '(a b key1 val1 c d key2 val2 e f g (1 2 key3 val3 3 4) l m key4 val4 x y z))
 ;; works= ((KEY1 VAL1) (KEY3 VAL3))   2 NIL
-;; 2-nested list
-;; (get-multi-keyvalues '(key1 key2 key3) '(a b key1 val1 ( c d key2 val2 e f g (1 2 key3 val3 3 4) l) m key4 val4 x y z))
-;; works= ((KEY1 VAL1) (KEY2 VAL2) (KEY3 VAL3))   3   NIL
+;; 2-nested list w/ :add-flat-keylist-p
+;; (get-multi-keyvalues-in-nested-lists '(key1 key2 key3) '(a b key1 val1 ( c d key2 val2 e f g (1 2 key3 val3 3 4) l) m key4 val4 x y z) :add-flat-keylist-p T)
+;; works= ((KEY1 VAL1) (KEY2 VAL2) (KEY3 VAL3))   3   NIL  (KEY1 VAL1 KEY2 VAL2 KEY3 VAL3)
+;;USE OF IF-VAL-NIL  if-val-nil= 'omit
+;; (get-multi-keyvalues-in-nested-lists '(key1 key2 key3) '(a b key1 NIL ( c d key2 val2 e f g (1 2 key3 val3 3 4) l) m key4 val4 x y z) :add-flat-keylist-p T)
+;; works, omits key1 and its nil value (by default if-val-nil= 'omit
+;; if-val-nil = NIL
+;; (get-multi-keyvalues-in-nested-lists '(key1 key2 key3) '(a b key1 NIL ( c d key2 val2 e f g (1 2 key3 val3 3 4) l) m key4 val4 x y z) :add-flat-keylist-p T :if-val-nil NIL)
+;; works ((KEY1 NIL) (KEY2 VAL2) (KEY3 VAL3))   3  NIL  (KEY1 KEY2 VAL2 KEY3 VAL3)
+;; if-val-nil = 'THIS
+;;(get-multi-keyvalues-in-nested-lists '(key1 key2 key3) '(a b key1 NIL ( c d key2 val2 e f g (1 2 key3 val3 3 4) l) m key4 val4 x y z) :add-flat-keylist-p T :if-val-nil 'THIS)
+;; works= ((KEY1 THIS) (KEY2 VAL2) (KEY3 VAL3))  3   NIL  (KEY1 THIS KEY2 VAL2 KEY3 VAL3)
+;;NAME
+;;2019
+;;ddd
 
 
 
+;;EMPTY-LIST-P
+;;2019
+;;ddd
+(defun empty-list-p (list )
+  "U-lists   RETURNS T or NIL "
+  (not (find-if-not #'null list))
+  ;;end let, empty-list-p
+  )
+;;TEST
+;; (empty-list-p nil) = T
+;; (empty-list-p '(nil nil b)) = NIL
+;; (empty-list-p '(nil nil NIL)) = T
+;; (empty-list-p '()) = T
 
+;; (find-if-not #'null nil)
 
 
 
 
 ;;
-;;GET-SET-APPEND-DELETE-KEYVALUE-IN-NESTED-LIST--MAIN FUNCTION
+;;GET-SET-APPEND-DELETE-KEYVALUE-IN-NESTED-LIST
+;;--MAIN FUNCTION
+;;2020 modified to add :DELETE-LIST
 ;; NOTE: FOR LOGIC/STEPS/DOCS for this funct to to this file end in help
-;;2018-01-20
 ;;ddd
-;;2018-01-20 VERSION--FIXED ADD LAST KEY TO FLAT PREVIOIUS KEYLIST
-(defun get-set-append-delete-keyvalue-in-nested-list (new-value  key-spec-lists  nested-lists                                                           &key append-value-p 
+(defun get-set-append-delete-keyvalue-in-nested-list (new-value  key-spec-lists  nested-lists                                                           &key use-simple-key-p append-value-p 
                                                                  list-first-item-in-append-p
                                                                  add-value-p
+                                                                 ;;added 2020
+                                                                 simple-splice-key-value-in-keylist-p
                                                                  splice-newvalue-at-nth-p 
                                                                  ;;added 2018-01
                                                                  KEY-IN-PREV-KEYLIST-P
@@ -9411,8 +11691,12 @@ T|#
                                                                  splice-old-new-values-p
                                                                  parens-after-begin-items-p
                                                                  (return-nested-list-p T) ;;was return-orig-nested-list-p
+                                                                 ;;added 2019-07
+                                                                 (simple-keylist-ok T)
                                                                  (max-list-length 1000)  
                                                                  (if-not-found-append-key-value-p T)
+                                                                 ;;splice takes presidence
+                                                                 if-not-found-splice-keyvalue-list-p 
                                                                  if-not-found-append-keyvalue-list-p 
                                                                  ;;doesn't work well unless finds lower keys
                                                                  if-not-found-add-item-in-last-nested-list-p 
@@ -9420,8 +11704,13 @@ T|#
                                                                  (recurse-for-key-p T)
                                                                  (bottom-level-p T)
                                                                  (if-get-no-return-old-keylist-p T)
-                                                                 last-key-found-p oldkey)
-  "In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) KEYLOC-N NOT USED--searches entire list at that level  for key (as before if keyloc-n = T) [In which case will check entire list at that level for key].  Use depreciated old function for that.
+                                                                 last-key-found-p oldkey
+                                                                 ;;added 2019-10
+                                                                 not-duplicate-p
+                                                                 )
+  "In U-lists. RETURNS: (values return-keylist return-nested-lists new-keylist return-value return-old-keylist last-key-found-p old-value new-key-spec-lists old-key&value)
+  New KEY-SPEC-LISTS can be a simple KEY or LIST OF KEYS (from outer to inner lists) eg. (:k1 key 6) and searches as if each is a (key T) sublist. If use-simple-key-p, key an be a list. Use :GET :SET-KEYLIST=NIL :DELETE-VALUE :DELETE-KEY&VALUE :DELETE-LIST keyword for new-value for those options.
+  KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) KEYLOC-N NOT USED--searches entire list at that level  for key (as before if keyloc-n = T) [In which case will check entire list at that level for key].  Use depreciated old function for that. Note: to search ALL NESTED LISTS for key at Nth position (including DIMLIST KEYS,  use eg '(((CS HS 2 1) 0 0))
    (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
    If in  NOT LAST KEYSPEC VAL-NTH is a NUMBER  searches that location [can be VALUE LIST] for the nested list with next key.  IF VAL-NTH not a number (eg aT), searches ALL NESTED LISTS for the NEXT KEY.
    To APPEND KEY & VALUE TO TOP LIST, set :IF-NOT-FOUND-APPEND-KEYVALUE-LIST-P to NIL. (To append whole list, set to T)
@@ -9433,7 +11722,8 @@ T|#
      IF-NOT-FOUND-APPEND-KEY-VALUE-P adds a key and keyvalue to innermost list if not found (but preceding key must be found). If last keyloc-n = 0, puts old previous keyvalue at end of new keylist. If last keyloc-n > 0, puts it first, then fills in nils before new key in last list which is new value of previous key. 
      IF KEY = :NTH, then gets, sets, or appends number in KEYLOC-N PLACE. Note: If second item in spec-list isn't number, uses default keyloc-n.  
      PUT-KEY-AFTER-ITEMS is a list of items which is used if keyloc-n > 0 to fill in items between key and value [done automatically if old items are there]. splice-key-value-in-list-p does similar except includes items after the value. 
-    If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.  
+    If :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P (use MOST), If value listp,  appends list contents, if value not list, appends value.
+    If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.   
    ADD-VALUE-P just adds new-value after old-value.   Only with add-value-p, SPLICE-NEWVALUE-AT-NTH-P, Also use :NTH and :KEYLOC-N for location (:NTH 99) = eg (:k1 1 :k2 2 :newkey newval) instead of (:k1 1 :k2 2  (:newkey newval))
    LAST-KEY-FOUND-P must be NIL (set only in recursive calls), or keeps from adding new values sometimes.          
    NOTE: IF KEYS NOT FOUND, Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
@@ -9441,14 +11731,22 @@ T|#
    LIST-FIRST-ITEM-IN-APPEND-P to set keylist to key (newitem) not key newitem.
    * This version DOES NOT USE THE KEYLOC-N to search lists
   * THIS CAN BE USED AS A GENERAL SEARCH FUNCTION"
+
+  ;;Added 2019-07
+  (when (or (symbolp key-spec-lists) (stringp key-spec-lists)
+            (and simple-keylist-ok (not (listp (car key-spec-lists)))))
+    (setf key-spec-lists  (make-get-set-delete-keylist-from-keys key-spec-lists)))
+    ;;note:  simple-keylist-ok = NIL in recursive calls, so this new key-spec-lists will be used
   (let*
       ((return-nested-lists)
        (return-old-keylist)
        (new-return-nested-lists)
        (match-item)
-       (spec-list (car key-spec-lists))
-       (KEY (first spec-list))
-       (keyloc-n (second spec-list))
+       (spec-list  (car key-spec-lists))
+       (KEY  (cond ((listp spec-list)(first spec-list))
+                   (t key-spec-lists)))
+       (keyloc-n (cond ((listp spec-list) (second spec-list))
+                       (t T)))
        (val-nth )
        (new-nested-lists)
        (new-key-spec-lists)
@@ -9468,6 +11766,8 @@ T|#
        (found-keylist)
        (found-top-n)
        (oldkeylocn)(oldvalnth)
+       (old-key&value) ;;2020
+       (old-value1) ;;for return of get-set- ;not sure needed, check?
        ;;(keyloc-n2)(val-nth2)
        )
     (when (listp key)
@@ -9513,9 +11813,7 @@ T|#
       (when  (third spec-list)
         (setf val-nth (third spec-list)))
       (when (null val-nth)
-        (setf val-nth 1))
-      
-
+        (setf val-nth 1))   
       ;;(afout 'out (format nil ">>>>>>>> 1-NESTED-LISTS= ~A~%SPEC-LIST= ~A~%KEYLOC-N= ~a  VAL-NTH= ~a~% recurse-for-key-p= ~A"  nested-lists spec-list keyloc-n  val-nth    recurse-for-key-p))
 
       ;;TOPLEVEL LOOP  AAA
@@ -9523,6 +11821,9 @@ T|#
        for topitem in nested-lists
        for top-n from 0 to length-nnl
        do
+       (let
+           ((key-spec-list)
+            )
        ;;(afout 'out  (format nil "***** TOPLEVEL LOOP, TOPITEM= ~A~% TOP-N=~a~%SPEC-LIST= ~A" TOPITEM TOP-N spec-list))
 
        ;;TOP LEVEL COND: Is item a list or not?
@@ -9543,12 +11844,15 @@ T|#
             (t (setf key-spec-lists1 key-spec-lists)))|#
          (multiple-value-setq (return-keylist new-return-nested-lists
                                               new-keylist return-value    
-              return-old-keylist last-key-found-p1 old-value new-key-spec-lists)
+              return-old-keylist last-key-found-p1 old-value new-key-spec-lists 
+              old-key&value) ;;old-key&value 2020
              (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists  
                                                             TOPITEM 
                                                             :return-list-p return-list-p :test test
                                                             :append-value-p append-value-p
                                                             :add-value-p add-value-p
+                                                            :simple-splice-key-value-in-keylist-p
+                                                                       simple-splice-key-value-in-keylist-p
                                                             :splice-newvalue-at-nth-p splice-newvalue-at-nth-p
                                                             :new-begin-items new-begin-items 
                                                             :new-end-items new-end-items
@@ -9570,6 +11874,7 @@ T|#
                                                             :list-first-item-in-append-p list-first-item-in-append-p
                                                             ;;  :return-keylist return-keylist
                                                             :oldkey oldkey
+                                                            :not-duplicate-p not-duplicate-p
                                                             ))
          (setf  return-nested-lists (append list-head 
                                             put-key-after-items  ;; (list key)  ;;list key added
@@ -9663,7 +11968,7 @@ T|#
               ;;(break "after mvs (key keyloc-n val-nth)")
                ;;END KEY-IN-PREV-KEYLIST-P
                )
-              ;; (find-item-n :csval '("KIND" "kind vs ukind" CS2-1-1-99 NIL NIL :PC ("kind" "ukind" 1 NIL) :POLE1 "kind" :POLE2 "ukind" :BESTPOLE 1 :BIPATHS ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917"))
+              ;; (find-item-n :csval '("KIND" "kind vs ukind" CS2-1-1-99 NIL NIL :PC ("kind" "ukind" 1 NIL) :POLE1 "kind" :POLE2 "ukind" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917"))
 
               ;;IF NOT KEY-IN-PREV-KEYLIST-P (original code)
               (T
@@ -9681,13 +11986,17 @@ T|#
              ;;LAST KEY FOUND, SO USE get-set-append-delete-keyvalue
              ;;
              ;;USE GET-SET-APPEND-DELETE-KEYVALUE 
-             (multiple-value-setq (return-keylist new-keylist return-value) ;;NOS old-value)
+             (multiple-value-setq (return-keylist new-keylist return-value
+                                                  old-value1 old-key&value)
+                 ;;NOS old-value) ;;2020 old-value1 old-key&value added above
                  (get-set-append-delete-keyvalue key  new-value
                                                  :keyloc-n keyloc-n :val-nth val-nth :test test
                                                  :old-keylist old-keylist
                                                  :append-value-p append-value-p
                                                  :list-first-item-in-append-p list-first-item-in-append-p
                                                  :add-value-p add-value-p
+                                                 :simple-splice-key-value-in-keylist-p
+                                                                       simple-splice-key-value-in-keylist-p
                                                  :splice-newvalue-at-nth-p splice-newvalue-at-nth-p
                                                  :put-key-after-items put-key-after-items
                                                  :put-value-after-items put-value-after-items
@@ -9695,17 +12004,30 @@ T|#
                                                  :new-end-items new-end-items
                                                  :splice-key-value-in-list-p splice-key-value-in-list-p
                                                  :splice-old-new-values-p splice-old-new-values-p                 
-                                                 :parens-after-begin-items-p parens-after-begin-items-p))
-
+                                                 :parens-after-begin-items-p parens-after-begin-items-p
+                                                 :not-duplicate-p not-duplicate-p
+                                                 ))
              ;; (get-set-append-delete-keyvalue :csval "newval" :old-keylist '("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :CSVAL "0.917") :keyloc-n 7 :val-nth 1)
              ;;(break "after get-set-append-delete-keyvalue")
              ;;modified 2017-07
-             
+             ;;RETURN-OLD-KEYLIST
              (setf return-old-keylist old-keylist)
+
+             ;;RETURN-KEYLIST, RETURN-VALUE, RETURN-NESTED-LISTS
              (cond
-              ;;to splice new value into list, not add as a list
-              ((and (or add-value-p splice-key-value-in-list-p splice-old-new-values-p)
-                    (listp return-value))  ;;not add-value-p
+              ;;2020 added simple-splice-key-value-in-keylist-p & :delete-list
+              ((equal new-value :delete-list)
+               (setf return-keylist :LIST-DELETED
+                     return-nested-lists :LIST-DELETED-HERE))
+              ((OR simple-splice-key-value-in-keylist-p
+                   (member new-value '(:delete :delete-key&value ) :test 'equal))  ;;hereAA
+               ;;(break "in simple-splice-key-value-in-keylist-p")
+               (setf  return-nested-lists return-keylist)
+               )
+              ;;to splice new value into list, not add as a list              
+              ((and (listp return-value)
+                    (or add-value-p splice-key-value-in-list-p))              
+                     ;;not add-value-p
                (cond
                 (key-in-prev-keylist-p
                  (setf  return-nested-lists (append list-head list-tail
@@ -9715,7 +12037,7 @@ T|#
                                                      return-value   ;;was return-keylist
                                                      list-tail))))
                )
-              ;;TO APPEND AS A LIST
+              ;;TO APPEND AS A LIST eg splice-old-new-values-p
               (t
                (cond
                 (key-in-prev-keylist-p
@@ -9766,14 +12088,17 @@ T|#
                       (null (find-item-n key  nested-lists))))
              (multiple-value-setq (return-keylist new-return-nested-lists new-keylist 
                                                   return-value  return-old-keylist last-key-found-p1
-                                                  old-value new-key-spec-lists)
+                                                  old-value new-key-spec-lists old-key&value)
                  (get-set-append-delete-keyvalue-in-nested-list new-value  
                                                                 NEW-KEY-SPEC-LISTS  
                                                                 NEW-NESTED-LISTS ;;same as nested-lists
                                                                 :return-list-p return-list-p :test test
                                                                 :append-value-p append-value-p
                                                                 :add-value-p add-value-p
-                                                                :splice-newvalue-at-nth-p splice-newvalue-at-nth-p
+                                                                :simple-splice-key-value-in-keylist-p
+                                                                simple-splice-key-value-in-keylist-p
+                                                                :splice-newvalue-at-nth-p 
+                                                                splice-newvalue-at-nth-p
                                                                 :new-begin-items new-begin-items
                                                                 :new-end-items new-end-items
                                                                 :max-list-length max-list-length
@@ -9781,8 +12106,8 @@ T|#
                                                                 ;;      :new-keylist new-keylist
                                                                 ;;     :old-keylist old-keylist
                                                                 ;;      :return-value return-value
-                                                            :KEY-IN-PREV-KEYLIST-P 
-                                                            KEY-IN-PREV-KEYLIST-P
+                                                                :KEY-IN-PREV-KEYLIST-P 
+                                                                KEY-IN-PREV-KEYLIST-P
                                                                 :if-not-found-append-key-value-p NIL
                                                                 :bottom-level-p nil
                                                                 :list-first-item-in-append-p 
@@ -9798,8 +12123,7 @@ T|#
              ;;caused error sometimes (setf return-old-keylist old-keylist)
              (when last-key-found-p1
                (setf last-key-found-p T))
-             
-             ;;(afout 'out (format nil "IN LOOP, TOPITEM=KEY (NOT A LIST),, AFTER RECURSE, TOPITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a~%old-keylist= ~A last-key-found-p= ~A" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items old-keylist last-key-found-p))
+                          ;;(afout 'out (format nil "IN LOOP, TOPITEM=KEY (NOT A LIST),, AFTER RECURSE, TOPITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a~%old-keylist= ~A last-key-found-p= ~A" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items old-keylist last-key-found-p))
              )
             ;;MUST BE ABLE TO CONTINUE PROCESSING
             (t 
@@ -9835,7 +12159,7 @@ T|#
          )  )
 
        ;;END TOPLEVEL LOOP
-       )
+       ))
       ;;END LISTP NESTED-LISTS
       )
      ;;NESTED-LISTS NOT A LIST
@@ -9862,16 +12186,25 @@ T|#
     ;;NOTE: Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
     (when (and bottom-level-p
                (or if-not-found-append-key-value-p
+                   if-not-found-splice-keyvalue-list-p
                    if-not-found-append-keyvalue-list-p)  
                (null if-not-found-add-item-in-last-nested-list-p)
                (null last-key-found-p) (null new-keylist) 
-               (not (member new-value '(:get :delete-keylist :delete-value :delete-key&value))))
+               (not (member new-value
+                            '(:get :set-keylist=nil :delete-value :delete-key&value
+                              :delete-list))))
       (setf  added-key-value T
              key (caar (last key-spec-lists))
              new-keylist (list key new-value)
              return-keylist new-keylist
              return-value new-value)
       (cond
+       (if-not-found-splice-keyvalue-list-p
+        (break "if-not-found-splice-keyvalue-list-p")
+        (cond  ;;added cond 2020
+               ((and (listp new-keylist)(listp (car new-keylist)))
+                (setf return-nested-lists (append nested-lists (car new-keylist))))
+               (t (setf return-nested-lists (append nested-lists new-keylist)))))
        (if-not-found-append-keyvalue-list-p
         (setf return-nested-lists (append nested-lists 
                                           (list new-keylist))))
@@ -9888,6 +12221,13 @@ T|#
     ;;(afout 'out (format nil "END RETURN-VALUES  return-keylist= ~A~% return-nested-lists= ~A~%                new-keylist= ~A~%  return-value= ~A~% return-old-keylist= ~A~%  last-key-found-p new-key-spec-lists= ~A" return-keylist return-nested-lists new-keylist return-value    return-old-keylist last-key-found-p new-key-spec-lists ))
 
     ;;(BREAK "AT END")
+
+    ;;WHEN :DELETE LIST remove identified list
+    (when :DELETE-LIST
+      (unless (equal return-nested-lists :list-deleted-here)
+        (member :LIST-DELETED-HERE return-nested-lists :test 'equal)
+        (setf return-nested-lists 
+              (delete-items-from-list '(:list-deleted-here) return-nested-lists))))
     
     (cond
      ;;to reduce extra output for long return-old-keylist
@@ -9895,16 +12235,90 @@ T|#
            (equal new-value :get))
       (values return-keylist return-nested-lists new-keylist 
               return-value 'SEE-RETURN-NESTED-LISTS-FOR-GET   
-              last-key-found-p old-value new-key-spec-lists ))
-     (t
+              last-key-found-p old-value new-key-spec-lists old-key&value ))
+     (T
       #|(when (and KEY-IN-PREV-KEYLIST-P (null return-list-p))
-        (setf return-keylist (list (caar (last key-spec-lists)) (second return-keylist))))|#
+        (setf return-keylist (list (caar (last key-spec-lists)) (second return-keylist))))|# 
       (values return-keylist return-nested-lists new-keylist return-value    
-              return-old-keylist last-key-found-p old-value new-key-spec-lists)))
-      
+              return-old-keylist last-key-found-p old-value new-key-spec-lists 
+              old-key&value)))     ;;2020 old-key&value added
     ;;end let, get-set-append-delete-keyvalue-in-nested-list
     ))
-;;;;NEW TEST 
+;;NEW TESTS
+;; on multi-nested key-specs
+;; (get-set-append-delete-keyvalue-IN-NESTED-LIST :GET '((k2 0)(k3 0))  '((k1 a)(k2 c d (k3 oldval 2 3))(k4 5 6)))
+;; works= (K3 OLDVAL 2 3)   ((K1 A) ((K2 C D (K3 OLDVAL 2 3))) (K4 5 6))   (K3 OLDVAL 2 3)   OLDVAL
+;; (get-set-append-delete-keyvalue-IN-NESTED-LIST :GET '(k2 k3)  '((k1 a)(k2 c d (k3 oldval 2 3))(k4 5 6)) :use-simple-key-p T)
+;; works= (K3 OLDVAL 2 3)  ((K1 A) (K2 C D (K3 OLDVAL 2 3)) (K4 5 6))  (K3 OLDVAL 2 3)  OLDVAL
+;; (get-set-append-delete-keyvalue-IN-NESTED-LIST :GET '(k1 k3)  '((k1 a b c (k2 1 2 3) d e (k3 oldval  (l)(m)(n) o p) (k5  2 3))(k4 5 6)) :use-simple-key-p T)
+;; works= (K3 OLDVAL (L) (M) (N) O P)    ((K1 A B C (K2 1 2 3) D E (K3 OLDVAL (L) (M) (N) O P) (K5 2 3)) (K4 5 6))   (K3 OLDVAL (L) (M) (N) O P)  OLDVAL
+;; WORKS 
+;;  (nth-value 6  (get-set-append-delete-keyvalue-IN-NESTED-LIST :GET '(("UTYPE" T 1)) *SHAQ-ALL-DATA-LIST :RETURN-NESTED-LIST-P NIL))
+;; works= ("UTYPE" :MULTI "utype" "UserType" 1 ("twanttho" "1" 1 T 1 1 (:XDATA :SCALES (HQ))) ("tknowmor" "2" 1 NIL 0 1 (:XDATA :SCALES (HQ))) ("twanthel" "3" 1 NIL 0 1 (:XDATA :SCALES (HQ))) ("twantspe" "4" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("texperie" "5" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("tprevshaq" "6" 1 NIL 0 1 (:XDATA :SCALES (PREVIOUS-USER))) ("wantspq" "7" 1 NIL 0 1 (:XDATA :SCALES (SPECIFIC-QUESTS))) ("tu100stu" "8" 1 NIL 0 1 (:XDATA :SCALES (HQ ACAD-LEARNING))) ("tcsulbst" "9" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("tcolstu" "10" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("totherst" "11" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("tressub" "12" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("tcolfaca" "13" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("u-none" "14" 1 NIL 0 1 (:XDATA :SCALES NIL)))
+
+;;NOTE:
+;; (get-key-value "utype" (car *SHAQ-ALL-DATA-LIST) :nth-item 1)
+;; this works = :MULTI    "utype"  ("UTYPE" :MULTI "utype" "UserType" 1 ("twanttho" "1" 1 T 1 1 (:XDATA :SCALES (HQ))) ("tknowmor" "2" 1 NIL 0 1 (:XDATA :SCALES (HQ))) ("twanthel" "3" 1 NIL 0 1 (:XDATA :SCALES (HQ))) ("twantspe" "4" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("texperie" "5" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("tprevshaq" "6" 1 NIL 0 1 (:XDATA :SCALES (PREVIOUS-USER))) ("wantspq" "7" 1 NIL 0 1 (:XDATA :SCALES (SPECIFIC-QUESTS))) ("tu100stu" "8" 1 NIL 0 1 (:XDATA :SCALES (HQ ACAD-LEARNING))) ("tcsulbst" "9" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("tcolstu" "10" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("totherst" "11" 1 NIL 0 1 (:XDATA :SCALES (ACAD-LEARNING))) ("tressub" "12" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("tcolfaca" "13" 1 NIL 0 1 (:XDATA :SCALES NIL)) ("u-none" "14" 1 NIL 0 1 (:XDATA :SCALES NIL)))
+
+
+
+;; ;; (get-set-append-delete-keyvalue-IN-NESTED-LIST  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p T :not-duplicate-p T)
+;; works= (:KEY2 (OLD VALUE 1 "NEW VALUE") 2 3)
+;; (A B (:KEY1 X Y) C (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3) D E :KEY3 11 12 :KEY4 (L M))
+;; (:KEY2 (OLD VALUE 1 "NEW VALUE") 2 3)   (OLD VALUE 1 "NEW VALUE")   :KEY2 1 (OLD VALUE 1) 2 3)  T  (OLD VALUE 1)  NIL  (:KEY2 (OLD VALUE 1))
+;;NOT-DUPLICATE-P when IS duplicate.
+;; (get-set-append-delete-keyvalue-IN-NESTED-LIST  "NEW VALUE" '((:key2 0 2)) '(A B (:KEY1 X Y) C (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3) D E :KEY3 11 12 :KEY4 (L M))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p T :not-duplicate-p T)
+;;works=  (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)
+;; (A B (:KEY1 X Y) C (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3) D E :KEY3 11 12 :KEY4 (L M))
+;; (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)  (OLD VALUE 1 "NEW VALUE")   (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)   T  (OLD VALUE 1 "NEW VALUE")  NIL  (:KEY2 (OLD VALUE 1 "NEW VALUE"))
+
+;; DELETE-LIST
+;; (get-set-append-delete-keyvalue-in-nested-list :delete-list '(("2MK")) '(("1MK" A B C)("2MK" D E F)("3MK" G H I)))
+;; works=
+;; (("1MK" A B C) ("3MK" G H I));
+;; ("2MK" :DELETE-LIST E F)
+;; :DELETE-LIST   ("2MK" D E F)  T  D  NIL  ("2MK" D)
+
+;;NEW-TEST
+;; ;; (get-set-append-delete-keyvalue-in-nested-list 'test  ':s '("$KNW" "Knowledge" NIL NIL NIL :S ($NSC $SSC $BSC $ART $BUS $SPT $REC) :CLEV 1 )  :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P T  :not-duplicate-p T)
+;;NOT WORKING = ("$KNW" "Knowledge" NIL NIL NIL :S ($NSC $SSC $BSC $ART $BUS $SPT $REC) :CLEV 1 TEST)
+
+
+;; (get-set-append-delete-keyvalue-in-nested-list :delete-key&value '(( :CSVAL)) '(CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :CSVAL "0.917" :RNK 3))
+;;works= 
+;;return-keylist= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :RNK 3)
+;;return-nested-lists= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :RNK 3)
+;;new-keylist= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :RNK 3)
+      
+                  
+              
+;;return-value= NIL
+;;return-old-keylist= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :CSVAL "0.917" :RNK 3)
+;;last-key-found-p= T  old-value= "0.917" new-key-spec-lists= NIL 
+;;old-key&valu=  (:CSVAL "0.917")
+
+
+;; KEY-SPEC-LIST for searching for dimslist (only 1st item searched): works
+;; (get-set-append-delete-keyvalue-in-nested-list :GET '(((CS HS 2 2) 0 0))    '(((CS HS) "CS.HS" :S (((CS HS 1) "CS.HS.1" :S (((CS HS 1 1) "CS.HS.1.1") ((CS HS 1 2) "CS.HS.1.2"))) ((CS HS 2) "CS.HS.2" :S (((CS HS 2 1) "CS.HS.2.1") ((CS HS 2 2) "CS.HS.2.2") ((CS HS 2 3) "CS.HS.2.3"))) ((CS HS 3) "CS.HS.3"))) ((CS MS) "CS.MS" :S (((CS MS MS1) "CS.MS.MS1" :S (((CS MS MS1 1) "CS.MS.MS1.1") ((CS MS MS1 2) "CS.MS.MS1.2")))))))
+;;WORKS= ((CS HS 2 2) "CS.HS.2.2")    (((CS HS) "CS.HS" :S (((CS HS 1) "CS.HS.1" :S (((CS HS 1 1) "CS.HS.1.1") ((CS HS 1 2) "CS.HS.1.2"))) ((CS HS 2) "CS.HS.2" :S (((CS HS 2 1) "CS.HS.2.1") ((CS HS 2 2) "CS.HS.2.2") ((CS HS 2 3) "CS.HS.2.3"))) ((CS HS 3) "CS.HS.3"))) ((CS MS) "CS.MS" :S (((CS MS MS1) "CS.MS.MS1" :S (((CS MS MS1 1) "CS.MS.MS1.1") ((CS MS MS1 2) "CS.MS.MS1.2"))))))      ((CS HS 2 2) "CS.HS.2.2")     (CS HS 2 2)
+;; (get-set-append-delete-keyvalue-in-nested-list  "newval" '((:key3 T 1))  '(A B :KEY1 (:KEY2 X Y) :KEY3 (THIS) :KEY4 (1 2 3) :KEY5 M) :append-value-p T)
+;; works= (A B :KEY1 (:KEY2 X Y) :KEY3 (THIS "newval") :KEY4 (1 2 3) :KEY5 M)
+;;;; ;; (get-set-append-delete-keyvalue-in-nested-list  "newval2" '((:key3 T 1))    '(A B :KEY1 (:KEY2 X Y) :KEY3 (THIS "newval") :KEY4 (1 2 3) :KEY5 M) :append-value-p T)
+;;works= (A B :KEY1 (:KEY2 X Y) :KEY3 (THIS "newval" "newval2") :KEY4 (1 2 3) :KEY5 M)
+;; (get-set-append-delete-keyvalue-in-nested-list  '(newval2) '((:key3 T 1))    '(A B :KEY1 (:KEY2 X Y) :KEY3 (THIS "newval") :KEY4 (1 2 3) :KEY5 M) :append-value-p T)
+;;works= (A B :KEY1 (:KEY2 X Y) :KEY3 (THIS "newval" (NEWVAL2)) :KEY4 (1 2 3) :KEY5 M)
+
+;;FOR FINDING A LEAF IN A TREE
+;; (setf *testorgdimslist '(:ORGDIMS (CS (1 (1 (1 2 3))(2 1 1) etc (HS (1 (1 (1 2 3)(2 (1(2 1 1))))(2 (3)(4 (1)(5)))))    (PS (1 (1 2))(2 (1 2 3)) etc) etc))  (NONCS etc)))
+;;using new simple speckeylists 2019-07
+;; (get-set-append-delete-keyvalue-in-nested-list '(NEW 1 2 3) '(CS HS 2 4 5 ) *testorgdimslist )
+;; works= (5 (NEW 1 2 3))     (:ORGDIMS (CS (1 (1 (1 2 3)) (2 1 1) ETC (HS (1 (1 (1 2 3) (2 (1 (2 1 1)))) (2 (3) (4 (1) (5 (NEW 1 2 3)))))) (PS (1 (1 2)) (2 (1 2 3)) ETC) ETC)) (NONCS ETC))   (5 (NEW 1 2 3))  (NEW 1 2 3)  (5)  T NIL NIL
+;;using old style speckeylists
+;; (get-set-append-delete-keyvalue-in-nested-list '(NEW 1 2 3) '((CS T)(HS T)(2 T)(4 T) (5 T)) *testorgdimslist :APPEND-VALUE-P T)
+;; works= (5 ((NEW 1 2 3)))    (:ORGDIMS (CS (1 (1 (1 2 3)) (2 1 1) ETC (HS (1 (1 (1 2 3) (2 (1 (2 1 1)))) (2 (3) (4 (1) (5 ((NEW 1 2 3))))))) (PS (1 (1 2)) (2 (1 2 3)) ETC) ETC)) (NONCS ETC))  omitted rest values
+;; (get-set-append-delete-keyvalue-in-nested-list '(NEW 1 2 3) '((CS T)(HS T)(2 T)(4 T) (5 T)) *testorgdimslist)
+;; works= (5 (NEW 1 2 3))     (:ORGDIMS (CS (1 (1 (1 2 3)) (2 1 1) ETC (HS (1 (1 (1 2 3) (2 (1 (2 1 1)))) (2 (3) (4 (1) (5 (NEW 1 2 3)))))) (PS (1 (1 2)) (2 (1 2 3)) ETC) ETC)) (NONCS ETC))  omitted rest values
+
 ;; FOR ADDITIONAL KEYS IN LAST NESTED LIST --------------------
 ;;;FOR :KEY-IN-PREV-KEYLIST-P
 ;; (get-set-append-delete-keyvalue-in-nested-list  "newval" '((:key3 T)("kind" T)(:csval 99)) '(a b c (:key1 d e (:key2 2 2 2) (:key3 ("KIND" "kind vs ukind" :BESTPOLE 1 (pole1 x x ) :CSVAL "0.917" ) 11 22) 333 444) end)  :KEY-IN-PREV-KEYLIST-P t)
@@ -9914,7 +12328,7 @@ T|#
 ;;"newval"
 ;;("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :CSVAL "0.917")
 ;; T   "0.917"  ((:CSVAL 99))  
-;; with double nested lists
+;; WITH DOUBLE NESTED LISTS
 ;; (get-set-append-delete-keyvalue-in-nested-list ' NEWVAL '((:K2  T)(:NEWKEY 99))   '(A B (C D E (F)) (:K1 ((:K2 VAL2  1 2 3 4) 77) X Y) END1 END2) :ADD-VALUE-P T :splice-newvalue-at-nth-p T :KEY-IN-PREV-KEYLIST-P T :if-not-found-append-key-value-p nil)
 ;;works= (:K2 VAL2 1 2 3 4 :NEWKEY NEWVAL)   (A B (C D E (F)) (:K1 ((:K2 VAL2 1 2 3 4 NEWVAL :NEWKEY) 77 77) X Y X Y) END1 END2 END1 END2)    (:K2 VAL2 1 2 3 4 :NEWKEY NEWVAL)    NEWVAL    (:K2 VAL2 1 2 3 4)   T   NIL   ((:NEWKEY 99))
 ;;  :KEY-IN-PREV-KEYLIST-P, APPEND-VALUE-T (adds value as a list)
@@ -9948,15 +12362,56 @@ T|#
 ;; (get-set-append-delete-keyvalue-in-nested-list :GET '(("F:/LISP PROJECTS TS\\" T) ) F02-128 :return-list-p T :TEST 'MY-EQUAL-PATH)
 ;;  (multiple-value-setq (tst-retkl tst-retnls tst-newkl retval    )(get-set-append-delete-keyvalue-in-nested-list :GET '(("F:/LISP PROJECTS TS\\" T) (:DIRS T)) F02-128 :return-list-p T :TEST 'MY-EQUAL-PATH))
 ;; works = (:DIRS (:DIR "AI-NLP" "02/08/2017; 07:39 PM") (:DIR "AndyCares" "02/08/2017; 05:43 PM") (:DIR "ART-LW" "02/09/2017; 10:48 AM") (:DIR "ART-preNestSymBU" "02/08/2017; 06:25 PM") (:DIR "ART-Utilities" "02/23/2017; 07:58 PM") (:DIR "ART2-Output Data" "02/09/2017; 03:38 PM") (:DIR "ART3" "02/08/2017; 06:00 PM") (:DIR "ART3-BU" "02/08/2017; 06:25 PM") (:DIR "ART3-output-data" "02/09/2017; 07:07 AM") (:DIR "ARTMAP-JavaVersion" "02/08/2017; 07:47 PM") (:DIR "CL-Utilities" "02/08/2017; 07:50 PM") (:DIR "CogSys-Model" "02/11/2017; 11:05 PM") (:DIR "CogSysOutputs" "02/08/2017; 08:26 PM") (:DIR "H-Capi" "04/13/2017; 03:50 PM") (:DIR "H-CapiExamples" "02/20/2017; 03:56 PM") (:DIR "H-HELP" "04/21/2017; 08:44 AM") (:DIR "LW6-examples" "02/08/2017; 06:20 PM") (:DIR "LW7-EXAMPLES" "02/08/2017; 06:20 PM") (:DIR "LwStart" "02/08/2017; 05:04 PM")  ETC ETC
-;;(:DRIVE F02-128 (:NAME "F02-128" :HOST "F:/" :LOCATION "C:/3-TS/MyDrives/TomXPS/" :TYPE "??" :BRAND "??" :SIZE "??" :USED "16428451" :FREE "122851950592" :SERIAL-NUM "B78B-E44F" :DATE "Date: 5.7.2017  Time: 18:46" :LAST-LEVELN 2 :DATA ((:LEVEL 1 :NAME "F02-128" :DIRPATH "F:/" (:DIRS (:DIR "SanDiskSecureAccess" "02/24/2015; 10:35 AM") (:DIR "LISP PROJECTS TS" "04/13/2017; 09:49 AM") (:DIR "1 LW CUMMULATIVE BUS" "04/28/2017; 05:33 PM") (:DIR "Acronis Backups" "05/02/2017; 08:20 PM") ETC ETC
+;;(:DRIVE F02-128 (:NAME "F02-128" :HOST "F:/" :LOCATION "C:/3-TS/MyDrives/TomPC/" :TYPE "??" :BRAND "??" :SIZE "??" :USED "16428451" :FREE "122851950592" :SERIAL-NUM "B78B-E44F" :DATE "Date: 5.7.2017  Time: 18:46" :LAST-LEVELN 2 :DATA ((:LEVEL 1 :NAME "F02-128" :DIRPATH "F:/" (:DIRS (:DIR "SanDiskSecureAccess" "02/24/2015; 10:35 AM") (:DIR "LISP PROJECTS TS" "04/13/2017; 09:49 AM") (:DIR "1 LW CUMMULATIVE BUS" "04/28/2017; 05:33 PM") (:DIR "Acronis Backups" "05/02/2017; 08:20 PM") ETC ETC
 ;;
 ;; (get-set-append-delete-keyvalue-in-nested-list :GET '(("F:/LISP PROJECTS TS\\") (:LEVEL t)) F02-128 :return-list-p T :TEST 'MY-EQUAL-PATH)
 ;; worked  return-value was the correct leveln = 2
 
 
+;;2020  WHEN KEY VALUE IS A LIST (and want to change value or append it)
+;; ALL NULL: :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL)
+;;RESULT: REPLACES OLD VALUE LIST with "NEW VALUE"
+;; (:KEY2 1 "NEW VALUE" 2 3) 
+;; (A B (:KEY1 X Y) C (:KEY2 1 "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M));; (:KEY2 1 "NEW VALUE" 2 3)  "NEW VALUE"  (:KEY2 1 (OLD VALUE 1) 2 3)T (OLD VALUE 1)  NIL  (:KEY2 (OLD VALUE 1))
+;; ONLY :APPEND-VALUE-P = T
+;;
+;;ONLY :SPLICE-OLD-NEW-VALUES-P = T  ;;HERENOW 1
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p T)
+;;WORKS= (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)
+;; (A B (:KEY1 X Y) C (:KEY2 1 OLD VALUE 1 "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M))  
+;; (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3) (OLD VALUE 1 "NEW VALUE")  (:KEY2 1 (OLD VALUE 1) 2 3)  T  (OLD VALUE 1)  NIL  (:KEY2 (OLD VALUE 1))
+;;
+;; ONLY :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P = T
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P T)
+;;WORKS= (:KEY2 1 (OLD VALUE 1) 2 3 "NEW VALUE")
+;;(A B (:KEY1 X Y) C (:KEY2 1 (OLD VALUE 1) 2 3 "NEW VALUE") D E :KEY3 11 12 :KEY4 (L M))
+;; (:KEY2 1 (OLD VALUE 1) 2 3 "NEW VALUE")   "NEW VALUE"    :KEY2 1 (OLD VALUE 1) 2 3)  T  (OLD VALUE 1)  NIL   (:KEY2 (OLD VALUE 1))
+
+;;SSSSS FIX THIS PROBLEM -- USE either of :splice-old-new-values-p or :simple-splice-key-value-in-keylist-p INSTEAD?
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p T :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL)
+;;ERROR: DOT CONS WITHIN DOUBLE LIST  --- SSSS FIX??
+;; (:KEY2 1 ((OLD VALUE 1 . "NEW VALUE")) 2 3)
+;;(A B (:KEY1 X Y) C (:KEY2 1 ((OLD VALUE 1 . "NEW VALUE")) 2 3) D E :KEY3 11 12 :KEY4 (L M))   
+;; (:KEY2 1 ((OLD VALUE 1 . "NEW VALUE")) 2 3)    ((OLD VALUE 1 . "NEW VALUE"))   (:KEY2 1 (OLD VALUE 1) 2 3)   T  (OLD VALUE 1)  NIL  (:KEY2 (OLD VALUE 1))
+;;ONLY :ADD-VALUE-P = T
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p T  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL)
+;; ADDS "NEW VALUE" AFTER old value list 
+;; (:KEY2 1 (OLD VALUE 1) "NEW VALUE" 2 3)
+;; (A B (:KEY1 X Y) C (:KEY2 1 (OLD VALUE 1) "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M))
+;; (:KEY2 1 (OLD VALUE 1) "NEW VALUE" 2 3)   ((OLD VALUE 1) "NEW VALUE")  (:KEY2 1 (OLD VALUE 1) 2 3)   T  (OLD VALUE 1)  NIL  (:KEY2 (OLD VALUE 1))
+;; ONLY :SPLICE-KEY-VALUE-IN-LIST-P = T
+;; (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1  (OLD VALUE 1) 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p T :splice-old-new-values-p NIL)
+;; ERROR?  REMOVES PARENS, REPLACES OLD VALUE but keeps first item ini list. SSSS FIX???
+;;(:KEY2 1 "NEW VALUE" 2 3)
+;;(A B (:KEY1 X Y) C (:KEY2 1 "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M))
+;; (:KEY2 1 "NEW VALUE" 2 3)     "NEW VALUE"  (:KEY2 1 (OLD VALUE 1) 2 3)   T  (OLD VALUE 1)   NIL  (:KEY2 (OLD VALUE 1))
+
+
+
 ;;TESTING APPEND, ADD, SPLICE, ETC ------------------------------------------------
 ;; GOAL= (A B (:KEY1 X Y) C (:KEY2 1 "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M))  :KEY2  1  (:KEY2 1 "NEW VALUE")
-;; VARIATIONSF
+;; VARIATIONS
 ;; 1. All NILs, FOR VALUE= "OLD-VALUE"
 ;;  (get-set-append-delete-keyvalue-in-nested-list  "NEW VALUE" '((:key2 0 2)) '(a b (:key1 x y) c (:key2 1 "OLD VALUE" 2 3) d e :key3 11 12  :key4 (l m))  :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p NIL)
 ;; works= (:KEY2 1 "NEW VALUE" 2 3)   (A B (:KEY1 X Y) C (:KEY2 1 "NEW VALUE" 2 3) D E :KEY3 11 12 :KEY4 (L M))   (:KEY2 1 "NEW VALUE" 2 3)   "NEW VALUE"   (:KEY2 1 "OLD VALUE" 2 3)   T   NIL   "OLD VALUE"
@@ -10066,8 +12521,152 @@ NIL|#
 
 
 
+
+
+;;EDIT-MULTI-LIST-LIST- MOVE TO U-LISTS
+;;2020
+;;ddd
+(defun edit-multi-list-list (list-of-lists &key match-elm
+                               new-item edited-item new-list-items new-item-elm
+                              append-new-item  item-n item-elm-n delete-item-n
+                              (if-new-item-replace-p T) (default-match-item 'first)
+                              (delete-item-w/elm) (null-elm "")
+                              (delete-elm-if "DEL")) 
+  "U-lists. For EDITING multi-column-list-panels & similar lists 2-nested lists.   RETURNS (values new-list-items new-item1 new-item-elm1  matched-elm matched-item-elm)  If NEW-ITEM = OR (:DELETE-ITEM :delete-list), deletes list/item"
+  (let*
+      ((n-items (list-length list-of-lists))
+        (matched-item)
+       (matched-elm)
+       (matched-item-elm)
+       (new-item-elm1)
+       (new-item1)
+       )
+    ;;(break "new-item")
+    (cond
+     ;;REPLACE ALL PANE ITEMS?
+     (new-list-items NIL)
+#|      (when (null match-elm) (setf match-item 
+                                    (eval `(,default-match-item ,new-list-items)))))|#
+     ;;APPEND NEW ITEM
+     (append-new-item
+      (setf new-list-items (append list-of-lists (list append-new-item))
+            new-item1 append-new-item)
+      ;;(break "new-list-items")
+      )
+     ;;DELETE NTH ITEM
+     (delete-item-n 
+      (setf new-list-items (delete-nth new-list-items delete-item-n)))
+     ;;EDITor DELETE ITEM OR ITEM-ELM
+     ((or new-item-elm new-item edited-item match-elm)
+      (loop
+       for item in list-of-lists
+       for n from 1 to n-items
+       do
+       ;;Does ITEM contain MATCHED-ELM?
+          ;;matched match-elm (substr in any elm in item) 
+       (setf matched-item (find-list-item-by-substrings match-elm item))
+       ;;(break "matched-item")
+         ;;MAKE THE NEW ITEM (if found)
+         (cond
+          ;;EDIT elm at ITEM-ELM-N in item list.
+          ((and matched-item match-elm  item-elm-n)
+                ;; (setf matched-item (find-list-item-by-substrings match-elm item)))
+           (setf matched-elm (nth item-elm-n matched-item))
+           (cond
+            (new-item
+             (setf new-item1 new-item))
+            (new-item-elm
+             (setf new-item1 (replace-nth item item-elm-n new-item-elm)))
+           )
+           (setf new-list-items (append new-list-items (list new-item1)))
+           )
+          ;;USE ITEM-N instead of matched-elm to find right item.
+          ((and item-n (= n item-n))
+           (setf matched-item item)
+           (cond
+            (item-elm-n
+             (setf matched-item-elm (nth item-elm-n item)
+                   new-item1 (replace-nth item item-elm-n new-item-elm)))
+            (t (setf new-item1 new-item)))
+           (setf new-list-items (append new-list-items (list new-item1)))
+           )
+          ;;FOR EDITING EXISTING ITEMS
+          ;;For new-item= :delete-list or :delete-item; don't add item to new-list-items
+          ((and matched-item 
+                 (member new-item '(:delete-list :delete-item) :test 'equal))
+           NIL)
+          ;;COMPARE MATCHED-LIST [old list] with NEW-LIST-ITEMS
+          ((and matched-item edited-item if-new-item-replace-p)
+           ;;set new to old item, then modify with edited-item
+           (unless (my-equal item edited-item)
+             (setf new-item1 item)
+             (loop
+              for elm1 in edited-item
+              for n from 0 to (list-length edited-item)
+              do
+              (cond
+               ;;when elm = "", keep old item.
+               ((my-equal elm1 null-elm) NIL)
+               ;;delete old item? (replace with null-item)
+               ((or (my-equal elm1 delete-elm-if) (null elm1))
+                (setf new-item1 (replace-nth new-item1 n "")))
+               ;;otherwise replace old with new
+               (T
+                (setf new-item1 (replace-nth new-item1 n elm1))))
+             ;;end loop
+             )
+           ;;(setf new-list-items (append new-list-items (list new-item1)))
+           
+           ;;REPLACE MATCHED-ITEM WITH NEW-ITEM1?
+           (when (and new-item1 matched-item)
+            (setf new-list-items (nth-value 1
+                  (get-set-append-delete-keyvalue-in-nested-list :delete-list 
+                                                                 (list (list match-elm)) list-of-lists))
+                  new-list-items (append new-list-items (list new-item1))))
+           ;;end unless, editing existing items
+           ))         
+          ;;OTHERWISE if item, ADD ITEM TO LIST
+         (item
+          (setf new-list-items (append new-list-items (list item))))
+         (T NIL))
+         ;;end list-of-listsloop
+         )
+      ;;end (edit or delete new-item or new-item-elm )
+      )
+     (t nil))   
+    (values new-list-items new-item1 new-item-elm1  matched-elm 
+            matched-item-elm)
+    ;;end let, edit-multi-list-list
+    ))
+;;TEST
+;;EDITED ITEM
+;; (edit-multi-list-list **test-mll :MATCH-ELM  "1MK" :edited-item '("7MK" "DEL" ""  "MODIFIED-ELM  " "ADDED " ""))
+;;works= (("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  3MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("7MK" "" "   U-BUFFER-TEST-1.lisp       " "MODIFIED-ELM  " "ADDED " "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists") ("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  3MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   "))        ("7MK" "" "   U-BUFFER-TEST-1.lisp       " "MODIFIED-ELM  " "ADDED " "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists")  NIL NIL NIL
+
+;; (SETF **TEST-MLL '((" 1MK  " " SS? " "   U-BUFFER-TEST-1.lisp       " "  my    notes   here   "    "CogSys-Model"    "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists"  ) ("  2MK  " "      " "    buffer              " "     notes   "   " dir  "  "  info   ")  ("  3MK  " "      " "    buffer              " "     notes   "  " dir  "  "  info   ") ("  4MK  " "      " "    buffer              "  "     notes   " " dir  "  "  info   ")))
+;;
+;; (edit-multi-list-list **test-mll :match-elm "2MK" :item-elm-n 3 :new-item-elm " NEW ITEM ELM 1  ")
+;; works= ((" 1MK  " " SS? " "   U-BUFFER-TEST-1.lisp       " "  my    notes   here   " "CogSys-Model" "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists") ("  2MK  " "      " "    buffer              " " NEW ITEM ELM 1  " " dir  " "  info   ") ("  3MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   "))
+;;("  2MK  " "      " "    buffer              " " NEW ITEM ELM 1  " " dir  " "  info   ")  NIL  NIL  NIL
+;;
+;; (edit-multi-list-list **test-mll :item-n 1 :item-elm-n 3 :new-item-elm " NEW ITEM ELM 1  ")
+;;works= ((" 1MK  " " SS? " "   U-BUFFER-TEST-1.lisp       " " NEW ITEM ELM 1  " "CogSys-Model" "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists") ("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  3MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   "))
+;;(" 1MK  " " SS? " "   U-BUFFER-TEST-1.lisp       " " NEW ITEM ELM 1  " "CogSys-Model" "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists")  NIL  NIL    "  my    notes   here   "
+;;FOR APPEND-NEW-ITEM
+;; ;; (edit-multi-list-list '(("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ")) :item-n nil :item-elm-n nil :new-item-elm NIL :append-new-item '("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ")  )
+;;works= (("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   "))("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") NIL NIL NIL
+;;DELETE ELM
+;;EDITED ITEM
+;; (edit-multi-list-list **test-mll :MATCH-ELM  "1MK" :edited-item '("7MK" "DEL" ""  "MODIFIED-ELM  " "ADDED "))
+
+
+
+
+
+
+
 ;;ORIGINAL 2017 VERSION
-(defun get-set-append-delete-keyvalue-in-nested-list-OLD (new-value  key-spec-lists  nested-lists                                                           &key append-value-p  add-value-p (test 'my-equal)
+#|(defun get-set-append-delete-keyvalue-in-nested-list-OLD (new-value  key-spec-lists  nested-lists                                                           &key append-value-p  add-value-p (test 'my-equal)
                                                           return-list-p (test 'my-equal)
                                                           put-key-after-items
                                                           put-value-after-items
@@ -10606,7 +13205,8 @@ NIL|#
                    if-not-found-append-keyvalue-list-p)  
                (null if-not-found-add-item-in-last-nested-list-p)
                (null last-key-found-p) (null new-keylist) 
-               (not (member new-value '(:get :delete-keylist :delete-value :delete-key&value))))
+               (not (member new-value
+                            '(:get :set-keylist=nil :delete-value :delete-key&value))))
       (setf  added-key-value T
              key (caar (last key-spec-lists))
              new-keylist (list key new-value)
@@ -10631,7 +13231,7 @@ NIL|#
     (values return-keylist return-nested-lists new-keylist return-value    
             return-old-keylist last-key-found-p )
     ;;end let, get-set-append-delete-keyvalue-in-nested-list
-    ))
+    ))|#
 ;;TEST
 ;; SIMPLE, NON-NESTED CASES
 ;; (get-set-append-delete-keyvalue-in-nested-list 'NEWVAL '((K3 T)) '(K3 33 K5 55 K1 11 K7 77 K8 88))
@@ -10880,20 +13480,84 @@ NIL|#
 ;; (progn (setf out nil) (get-set-append-delete-keyvalue-in-nested-list "NEW LOCATION"  '((:key1 0)(:key2 1 2)(:location T)) *test-yyylist      :append-value-p t   :add-value-p NIL     :return-list-p  T     :return-nested-list-p T          :max-list-length 1000   :if-not-found-add-item-in-last-nested-list-p T     :if-not-found-append-key-value-p T       :if-not-found-append-keyvalue-list-p nil      :bottom-level-p t    :put-key-after-items NIL         :put-value-after-items NIL      :new-begin-items NIL    :new-end-items NIL            :splice-key-value-in-list-p NIL     :splice-old-new-values-p T     :recurse-for-key-p NIL      :last-key-found-p nil))
 
 
- 
+;;MAKE-ROOTNS-KEY-FROM-ARTDIMS
+;;2019
+;;ddd
+(defun make-rootns-key-from-artdims (artdims+pre)
+  "U-lists  RETURNS get-set-rootns   INPUT: a list of keys to search L-R = TOP-BOTTOM. Converts each to a (key T) sublist for get-set-keylists"
+  (let
+      ((get-set-rootn-keys)
+       (keysn (list-length artdims+pre))
+       ;;for old (new-artdims+pre (append (list (first artdims+pre)) (reverse (cdr artdims+pre))))
+       )
+    (loop
+     for n from (- keysn 1) downto 0
+     do
+     (let*
+         ((keylist (list (butlast artdims+pre n) T))
+          )
+       (setf get-set-rootn-keys (append get-set-rootn-keys (list keylist)))     
+       ;;end let,loop
+       ))
+     get-set-rootn-keys
+    ;;end let, make-rootns-key-from-artdims
+    ))
+;;TEST
+;; (make-rootns-key-from-artdims '(CS HS 1 2 3 4 ))
+;;works= (((CS) T) ((CS HS) T) ((CS HS 1) T) ((CS HS 1 2) T) ((CS HS 1 2 3) T) ((CS HS 1 2 3 4) T))
+
+
+
+;;MAKE-GET-SET-DELETE-KEYLIST-FROM-KEYS
+;;2019
+;;ddd
+(defun make-get-set-delete-keylist-from-keys (keys &key prefix
+                                                   reverse-keys-p)
+  "U-lists  RETURNS get-set-keylist   INPUT: a list of keys to search L-R = TOP-BOTTOM. Converts each to a (key T) sublist for get-set-keylists"
+  (let
+      ((get-set-keylists)
+       )
+    (cond
+     ((or (symbolp keys) (stringp keys))
+      (setf get-set-keylists (list (list keys))))
+     (T
+      (when  prefix
+        (setf keys (append (list prefix) keys)) )
+      (when reverse-keys-p (setf keys (reverse keys)))
+      (loop
+       for key in keys
+       do
+       (let*
+           ((keylist (list key T))
+            )
+         (setf get-set-keylists (append get-set-keylists (list keylist)))     
+         ;;end let,loop
+         ))))    
+     get-set-keylists
+    ;;end let, make-get-set-delete-keylist-from-keys
+    ))
+;;TEST
+;; (make-get-set-delete-keylist-from-keys '(k1  k2  1 2 3))
+;; works= ((K1 T) (K2 T) (1 T) (2 T) (3 T))
+;; (make-get-set-delete-keylist-from-keys '( HS 1 2 3 4 ) :prefix 'CS)
+;; works= ((CS T) (HS T) (1 T) (2 T) (3 T) (4 T))
+;; (make-get-set-delete-keylist-from-keys '(1 2 3 4 5) :reverse-keys-p T)
+;; works= ((5 T) (4 T) (3 T) (2 T) (1 T))
 
 
 
 
 ;;GET-SET-APPEND-DELETE-KEYVALUE
-;;2018-01-26
+;;2018-01-26, 2019-07
 ;;ddd
 (defun get-set-append-delete-keyvalue (key  new-value   ;;second was old-value
-                                       &key (keyloc-n 0) (val-nth 1) (test 'my-equal)
+                                       &key (keyloc-n T) ;;2019-06 changed from 0 
+                                       (val-nth 1) (test 'my-equal)
                                        old-keylist
-                                       append-value-p
+                                       append-value-p  
                                        list-first-item-in-append-p ;;NEW
-                                       add-value-p
+                                       add-value-p       (delete-old-nil-p T) ;;added 2020
+                                       simple-splice-key-value-in-keylist-p
                                        splice-newvalue-at-nth-p ;;used with add-value--p
                                        put-key-after-items
                                        add-nils-p ;;use to fill space before key with nils if needed
@@ -10903,20 +13567,23 @@ NIL|#
                                        parens-after-begin-items-p
                                        splice-key-value-in-list-p
                                        break-if-keys-not-match-p
-                                       splice-old-new-values-p)
-  "In U-lists, if new-value = :get, just returns old-value. Otherwise replaces or appends old value.  If listp old:- value, appends list; if not sets value to (list old-value new-value). RETURNS (values return-keylist new-keylist return-value old-value). 
+                                       splice-old-new-values-p
+                                       not-duplicate-p ;;added 2019-10
+                                       old-key&value  
+                                       )
+  "In U-lists, if new-value = :get, just returns old-value. Otherwise replaces or appends old value.  If listp old:- value, appends list; if not sets value to (list old-value new-value). RETURNS (values return-keylist new-keylist return-value old-value old-key&value). 
   When KEYLOC-N=T or NIL or > old-keylist length, finds keyloc-n if key present or sets to list length if not.
   When KEYLOC-N > 0, If  PUT-KEY-AFTER-ITEMS is a list, puts put-key-after-items  before key. If a single object, puts keyloc-n objects key in keylist. If SPLICE-KEY-VALUE-IN-LIST-P, splices key and new-value at keyloc-n in that list which becomes the new-keylist. If SPLICE-OLD-NEW-VALUES-P, then makes a keylist that contains the old and new value(s) in same list even if the new value is list (it then appends the list to the old-value list (eg (old-value 1 2 new-value x y) instead of adding it to the old-value list as a list eg (old-value 1 2 (new-value x y)),.  RETURN-KEYLIST is the list possibly modified by outside items. The NEW-KEYLIST is the innermost keylist.
    If splice-key-value-in-list-p length < prev-valloc-n, then fills places with  put-key-after-items object to make new-keylist. If KEY = :NTH (keyloc-n becomes the number for nth and val-nth=0, then just ignores all keys and operates on old-value--otherwise like above. NOTE: Used by nesting functions to get, set, or append values in FINAL NESTED LIST. If want filled with NIL, put :NIL in put-... 
   ADD-VALUE-P adds new-value after old-value without being in a list. 
   only with add-value-p, SPLICE-NEWVALUE-AT-NTH-P = eg (:k1 1 :k2 2 :newkey newval) instead of (:k1 1 :k2 2  (:newkey newval))
-  APPEND-VALUE-P LEAVES OLD-VALUE, if = NIL,  
-  REPLACES OLD VALUE.  Puts new-value in a list with old-value (even if old-value wasn't a list). [Note: IF OLD-KEYLIST, then don't need key or old-value.]  USE OLD-KEYLIST WITH NO-KEY .  With append-value-p & LIST-FIRST-ITEM-IN-APPEND-P causes ((1)(2)(3)..) instead of (1 (2)(3)) if 1 was 1 or (1).
+ TO APPEND OLD-VALUE LIST WITH NEW-VALUE LIST, MUST USE BOTH  :APPEND-VALUE-P  and :SPLICE-OLD-NEW-VALUES-P
+  APPEND-VALUE-P LEAVES OLD-VALUE (unless old-value= NIL)   Puts new-value in AS A LIST with old-value (even if old-value wasn't a list). [Note: IF OLD-KEYLIST, then don't need key or old-value.]  USE OLD-KEYLIST WITH NO-KEY .  With append-value-p & LIST-FIRST-ITEM-IN-APPEND-P causes ((1)(2)(3)..) instead of (1 (2)(3)) if 1 was 1 or (1).
   The arg BEGIN-ITEMS only works if there are no items before the key and END-ITEMS only works if there are no items after the value (in the old-keylist).  
   PUT-KEY-AFTER-ITEMS is a list of items to put before key.   ADD-NILS-P used to fill space before key with nils if needed.
 Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and value in the old-keylist.
    NOTE: re IF KEY NOT EQUAL item at keyloc-n in old-keylist, normally INSERTS the arg key for the item at that location.UNLESS BREAK-IF-KEYS-NOT-MATCH-P, then creates a warning or break.
-   When new-value= :delete-keylist, deletes entire old-]keylist. When new-value= :delete-value, deletes old-value. When new-value= :delete-key&value, deletes both."  
+   When new-value= :SET-KEYLIST=NIL,RETURNS :SET-KEYLIST=NIL :DELETE-VALUE, sets old-value to NIL?. When new-value= :DELETE-KEY&VALUE, deletes both."  
   (let
       ((new-keylist)
        (return-keylist)
@@ -10927,9 +13594,11 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
        (key+val-n  0) 
        (old-key )
        (old-value)
-       (len-old-keylist (list-length old-keylist))
+       (len-old-keylist (cond (old-keylist (list-length old-keylist))
+                              (t (break "old-keylist"))))
        (begin-items)
        (end-items)
+       (new=old-val-do-not-add-p)
        )
     ;;PRE-PROCESSING
     ;;WHEN KEYLOC-N = T OR GREATER THAN OLD-KEYLIST LENGTH
@@ -10938,6 +13607,11 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
       (setf  keyloc-n  (find-item-n key old-keylist))
       (when (null keyloc-n)
         (setf keyloc-n  len-old-keylist)))
+
+    ;;for splice-old-new-values-p to work
+    (when splice-old-new-values-p 
+      (setf append-value-p T))
+
      ;;(BREAK "get-set-append-delete-keyvalue")
 
     ;;WHEN :NTH
@@ -10995,20 +13669,27 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
                  (or (not (listp old-value))
                      (= (list-length old-value) 1)))
         (setf old-value (list (list old-value))))|#
+      ;;(break "old-value")
+      ;;CHECK FOR NEW-VALUE DUPLICATES?
+      (when (and old-value not-duplicate-p)
+        (when (or (my-equal new-value old-value)
+                  (and (listp old-value)(member new-value old-value :test 'my-equal)))
+          (setf new=old-val-do-not-add-p T)))
         
       ;;(BREAK "OLD-VALUE")
-      (when  (and (> keyloc-n 0)(< keyloc-n len-old-keylist))
-        (setf begin-items (subseq old-keylist 0  keyloc-n )))  ;;was keyloc-n)))
-      (when (and (> val-nth 1) (not (equal key :nth)))
-        (setf put-value-after-items (subseq old-keylist  (+ keyloc-n 1)  key+val-n)))
-      (when (and (>  len-old-keylist (+ key+val-n 1)) (not (equal key :nth))) ;;added nth    
-        (setf end-items (subseq old-keylist  (+ key+val-n 1))))
-      ;;(break "old-value2")    
-      ;;was -caused error if no old key (setf end-items (subseq old-keylist (+ key+val-n 1) len-old-keylist)))
-      ;;was below, but leave old-value = nil if there is none
-      #|      (when (null old-value) 
+      (unless new=old-val-do-not-add-p
+        (when  (and (> keyloc-n 0)(< keyloc-n len-old-keylist))
+          (setf begin-items (subseq old-keylist 0  keyloc-n )))  ;;was keyloc-n)))
+        (when (and (> val-nth 1) (not (equal key :nth)))
+          (setf put-value-after-items (subseq old-keylist  (+ keyloc-n 1)  key+val-n)))
+        (when (and (>  len-old-keylist (+ key+val-n 1)) (not (equal key :nth))) ;;added nth    
+          (setf end-items (subseq old-keylist  (+ key+val-n 1))))
+        ;;(break "old-value2")    
+        ;;was -caused error if no old key (setf end-items (subseq old-keylist (+ key+val-n 1) len-old-keylist)))
+        ;;was below, but leave old-value = nil if there is none
+        #|      (when (null old-value) 
         (setf old-value (nth  (+ keyloc-n val-nth) old-keylist)))|#
-      )
+        ))
      ;;OLD-KEYLIST = NIL, therefore CREATES ENTIRELY NEW KEYLIST
      ;;If no old-keylist, no old-value
      (t
@@ -11019,24 +13700,30 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
     ;;STEP 1: MAKE NEW-KEYLIST
     (cond
-     ;; FOR DELETES
-     ((equal new-value :delete-keylist)
-      (setf new-keylist nil
+     ;;1. FOR DELETES
+     ((equal new-value :set-keylist=nil)
+      (setf new-keylist :set-keylist=nil
             begin-items nil  end-items nil))
      ((equal new-value :delete-value)
       (cond
-       ((equal key :nth)
+       ((equal key :NTH)
         (setf new-keylist nil))
        (t (setf new-keylist (list key))))
       (when (< (+ keyloc-n 1) key+val-n)
         put-value-after-items (subseq old-keylist (+ keyloc-n 1) key+val-n)) ;;was (butlast old-keylist (- len-old-keylist key+val-n)))
       ;;(break "new-keylist")
       ) ;;WAS (delete-nth old-keylist key+val-n )))
-     ((equal new-value :delete-key&value)
-      (setf new-keylist nil)) ;; (butlast old-keylist (- len-old-keylist key+val-n))
+     ((equal new-value :DELETE-KEY&VALUE) ;;2020 
+      ;;(break ":delete-key&value")
+      (setf new-keylist (append begin-items end-items)
+            ;;not work? new-keylist NIL
+            old-key&value (list old-key old-value)) )
+      ;;      (setf new-keylist (delete-nth (+ keyloc-n 1) old-keylist)
+       ;;  new-keylist  (delete-nth keyloc-n new-keylist)       
+     ;; (butlast old-keylist (- len-old-keylist key+val-n))
      ;;was new-keylist (delete-nth keyloc-n new-keylist )))
-     ;;FOR GET
-     ((equal new-value :get)
+     ;;2. FOR GET
+     ((equal new-value :GET)
       (setf  new-keylist old-keylist)
       #|       (when (and (equal key :NTH) old-value)
           (setf  new-keylist (list old-value)))|#
@@ -11044,117 +13731,181 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
       (setf return-value  old-value)
       ;;end get
       )
-     ;;FOR APPEND-VALUE-P  
+     ;;3. WHEN OLD=NEW VAL & NOT-DUPLICATE-P, DO NOTHING ELSE
+     (new=old-val-do-not-add-p
+      (setf return-value old-value
+            new-keylist old-keylist)
+      ;;(break "new=old-val-do-not-add-p")
+      )
+     ;;4. SPLICE-OLD-NEW-VALUES-P
+     (SPLICE-OLD-NEW-VALUES-P        
+        (cond
+         (old-value
+          ;;added
+          (cond
+           ((and  (listp old-value) (listp new-value))
+            (setf  return-value (append  old-value  new-value)
+                   new-keylist (append  (list key)  (list return-value))))
+           ((listp new-value)
+            (setf  return-value (append  (list old-value)  new-value)
+                   new-keylist (append  (list key)  (list return-value))))
+           ((listp old-value) ;;2020
+            (setf  return-value (append  old-value (list new-value))
+                   new-keylist (append  (list key)  (list return-value)))
+            ;;(break "1-new-keylist")
+            )
+           (t
+            (setf  return-value (list old-value  new-value)
+                   new-keylist (append  (list key)  put-value-after-items
+                                        return-value))))
+          ;;end old-value
+          )
+         (t (setf return-value (list  new-value)
+                  new-keylist (append  (list key)  put-value-after-items  return-value))))
+        ;;(break "end splice-old-new-values-p")
+        ;;end splice-old-new-values-p
+        )
+     ;;4. FOR APPEND-VALUE-P  
      ;;ALSO HERE list-first-item-in-append-p
      (append-value-p  ;;was (and append-value-p (not (equal key :NTH)))
                       (cond
-                       ;;OLD-VALUE IS LIST OR NIL
+                       ;;OLD-VALUE IS LIST OR NIL 
                        ((listp old-value) 
-                        ;;OLD-VALUE IS A NON-NIL LIST
-                        #|    old   ((and old-value (listp old-value)) ;;was just (listp old-value)
+                        (cond
+                         ((or (null not-duplicate-p)
+                              (null (my-equal-item-list-or-member new-value old-value
+                                                                  :test test)))
+                          ;;(break "new vs old")
+            ;OLD-VALUE IS A NON-NIL LIST
+                          #|    old   ((and old-value (listp old-value)) ;;was just (listp old-value)
         ;;list-first-item-in-append-p  added 2018 
         (when (and list-first-item-in-append-p
           (= (list-length old-value) 1))
           (setf old-value (list old-value)))|#
-                        (cond
-                         (put-value-after-items
                           (cond
-                           ((equal key :NTH)
-                            (setf  return-value (append old-value  (list new-value))
-                                   new-keylist (append  put-value-after-items return-value )))
-                           ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
-                           (splice-old-new-values-p
-                            ;;(break "splice-old-new-values-p")
+                           (put-value-after-items
                             (cond
-                             ;;NEW-VALUE IS A LIST
-                             ((listp new-value)
-                              (setf  return-value (append old-value  new-value)
-                                     new-keylist (append  (list key)  put-value-after-items (list return-value))))
-                             ;;new-value not a list
-                             (t (setf  return-value (append old-value  (list new-value))
-                                       new-keylist (append  (list key)  put-value-after-items
-                                                            (list return-value)))))
-                            ;;(break "splice-old-new-values-p, LIST")
+                             ((equal key :NTH)                            
+                              (setf  return-value (append old-value  (list new-value))
+                                     new-keylist (append  put-value-after-items return-value )))
+                             ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
+                             (splice-old-new-values-p
+                              ;;(break "splice-old-new-values-p")
+                              (cond
+                               ;;NEW-VALUE IS A LIST
+                               ((listp new-value)
+                                (setf  return-value (append old-value  new-value)
+                                       new-keylist (append  (list key)  put-value-after-items (list return-value))))
+                               ;;new-value not a list
+                               (t (setf  return-value (append old-value  (list new-value))
+                                         new-keylist (append  (list key)  put-value-after-items
+                                                              (list return-value)))))
+                              ;;(break "splice-old-new-values-p, LIST")
+                              )
+                             ;;splice-old-new-values-p = NIL
+                             ;;make key plist value(s) not in a list
+                             (t (setf  return-value (list (append  old-value new-value))
+                                       new-keylist (append  (list key)  put-value-after-items (list return-value))))) ;;2017-07      
+                            ;;end put-value-after-items
                             )
-                           ;;splice-old-new-values-p = NIL
-                           ;;make key plist value(s) not in a list
-                           (t (setf  return-value (list (append  old-value new-value))
-                                     new-keylist (append  (list key)  put-value-after-items (list return-value))))) ;;2017-07      
-                          ;;end put-value-after-items
-                          )
-                         ;; put-value-after-items = NIL
-                         (t
-                          (cond
-                           ((equal key :NTH)
-                            (setf  return-value (append old-value  (list new-value))
-                                   new-keylist (append  put-value-after-items return-value)))
-                           ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
-                           (splice-old-new-values-p
+                           ;; put-value-after-items = NIL
+                           (t
                             (cond
-                             ;;NEW-VALUE IS A LIST
-                             ((listp new-value)
-                              (setf  return-value (list (append old-value  new-value))
-                                     new-keylist (append  (list key)  return-value )) )
-                             ;;new-value not a list
-                             (t (setf  return-value (list (append old-value  (list new-value)))
-                                       new-keylist (append  (list key) return-value)))))
-                           ;;splice-old-new-values-p = NIL
-                           ;;make key plust value(s) not in a list
-                           (t (setf  return-value (append  old-value (list new-value))
-                                     new-keylist (append  (list key)  (list return-value )))))));;2018 added (list
-                        ;;(break "end old-value is a list")
-                        ;;end  old-value is a list
+                             ;;KEY= :NTH
+                             ((equal key :NTH)
+                              (setf  return-value (append old-value  (list new-value))
+                                     new-keylist (append  put-value-after-items return-value)))
+                             ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
+                             ;;SPLICE-OLD-NEW-VALUES-P
+                             (splice-old-new-values-p                            
+                              (cond
+                               ;;NEW-VALUE IS A LIST
+                               ((listp new-value)
+                                (setf  return-value (list (append old-value  new-value))
+                                       new-keylist (append  (list key) (list return-value )) ))
+                               ;;new-value not a list
+                               (t (setf  return-value (list (append old-value  (list new-value)))
+                                         new-keylist (append  (list key) return-value)))))
+                             ;;SPLICE-OLD-NEW-VALUES-P = NIL
+                             ;;make key plust value(s) not in a list
+                             (t (setf  return-value (list  old-value new-value)
+                                       new-keylist (append  (list key)  (list return-value )))))))
+                          ;;END NO PROBLEM WITH DUPLICATE
+                          )                         
+                         ;;IF DUPLICATE AND NOT-DUPLICATE-P
+                         ;;I THINK I FIXED IT
+                         ;;PROBLEM = (setf $KNW (get-set-append-delete-keyvalue-in-nested-list 'test  '(:S) $KNW :splice-old-new-values-p T  :not-duplicate-p T)) =
+                         ;;WRONG= ("$KNW" "Knowledge" NIL NIL NIL :S $NSC $SSC $BSC $ART $BUS $SPT $REC TEST :CLEV 1 1)
+                         ;;SHOULD BE= ("$KNW" "Knowledge" NIL NIL NIL :S ($NSC $SSC $BSC $ART $BUS $SPT $REC TEST) :CLEV 1 1)
+                         (T
+                          (setf  return-value old-value
+                                 new-keylist (append  (list key)  old-value))))
+                        ;;2018 added (list
+                        (break "end old-value is a list")
+                        ;;end  OLD-VALUE IS A LIST
                         )
                        ;;OLD VALUE NOT A LIST
-                       (t
+                       (T
                         ;;added 2018
                         (when  list-first-item-in-append-p                     
                           (setf old-value (list old-value)))
+                        ;;NOT DUPLICATE or null not-duplicate-p
                         (cond
-                         (put-value-after-items
-                          ;;(break "old-value= nil, put-value-after-items=")
-                          ;;(afout 'out (format NIL "old-value= ~A put-value-after-items= ~A" old-value put-value-after-items))
+                         ((or (null not-duplicate-p)
+                              (null (my-equal-item-list-or-member old-value new-value
+                                                                  :test test)))
                           (cond
-                           ((equal key :NTH)
-                            (cond 
-                             (old-value
-                              (setf  return-value (list old-value new-value)
-                                     new-keylist (append  put-value-after-items  return-value)))
-                             (t (setf  return-value  new-value
-                                       new-keylist (append  put-value-after-items  (list return-value))))))
-                           ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
-                           ((null splice-old-new-values-p)
-                            (cond 
-                             (old-value
-                              (setf  return-value  (list old-value  new-value)
-                                     new-keylist (append (list key)  put-value-after-items (list return-value))))
-                             (t (setf  return-value  (list   new-value)
-                                       new-keylist (append (list key)  put-value-after-items (list return-value))))))
-                           ;;splice-old-new-values-p
-                           ;;make key plust value(s) not in a list
-                           (t
-                            (cond 
-                             (old-value
-                              (setf  return-value (list old-value  new-value)
-                                     new-keylist (append (list key)  put-value-after-items  return-value)))
-                             (t (setf  return-value (list   new-value)
-                                       new-keylist (append (list key)  put-value-after-items  return-value))))))
-                          ;;(break "splice-old-new-values-p, NOT-LIST")
-                          ;;end put-value-after-items
+                           (put-value-after-items
+                            ;;(break "old-value= nil, put-value-after-items=")
+                            ;;(afout 'out (format NIL "old-value= ~A put-value-after-items= ~A" old-value put-value-after-items))
+                            (cond
+                             ((equal key :NTH)
+                              (cond 
+                               (old-value
+                                (setf  return-value (list old-value new-value)
+                                       new-keylist (append  put-value-after-items  return-value)))
+                               (t (setf  return-value  new-value
+                                         new-keylist (append  put-value-after-items  (list return-value))))))
+                             ;;make key plus  a list of value(s) eg.  key  (old-value new-value)
+                             ((null splice-old-new-values-p)
+                              (cond 
+                               (old-value
+                                (setf  return-value  (list old-value  new-value)
+                                       new-keylist (append (list key)  put-value-after-items (list return-value))))
+                               (t (setf  return-value  (list   new-value)
+                                         new-keylist (append (list key)  put-value-after-items (list return-value))))))
+                             ;;splice-old-new-values-p
+                             ;;make key plust value(s) not in a list
+                             (T
+                              (cond 
+                               (old-value
+                                (setf  return-value (list old-value  new-value)
+                                       new-keylist (append (list key)  put-value-after-items  return-value)))
+                               (t (setf  return-value (list new-value)
+                                         new-keylist (append (list key)  put-value-after-items  return-value))))))
+                            ;;(break "splice-old-new-values-p, NOT-LIST")
+                            ;;end put-value-after-items
+                            )
+                           ;;NOT 
+                           (T
+                            (cond
+                             ((or old-value (null delete-old-nil-p))  ;;HERENOW
+                              (setf return-value  (list old-value  new-value)
+                                    new-keylist (list key  return-value)))
+                             (t (setf return-value  new-value
+                                      new-keylist (list key return-value) )))))
+                          ;;end NO DUPLICATE PROBLEM
                           )
-                         (t 
-                          (cond
-                           (old-value
-                            (setf return-value  (list old-value  new-value)
-                                  new-keylist (list key  return-value)))
-                           (t (setf return-value  new-value
-                                    new-keylist (list key return-value) )))))))
-                      ;;later??(when begin-items (setf new-keylist (append begin-items new-keylist)))
-                      ;;end append-value-p
+                         ;;DUPLICATE PROBLEM
+                         (T (setf return-value  old-value
+                                  new-keylist (list key return-value) )))))
+                      ;;END APPEND-VALUE-P
                       )
-     ;;FOR ADD-VALUE-P
+                      ;;later??(when begin-items (setf new-keylist (append begin-items new-keylist)
+     ;;5. FOR ADD-VALUE-P
      (add-value-p 
       (cond
+       ;;4.1. KEY= NTH
        ((equal key :NTH)
         (cond
          (splice-newvalue-at-nth-p  ;;here now
@@ -11173,17 +13924,18 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
          ;;for non-splice add-value-p     
          (t (setf return-value (list new-value)
                   new-keylist (append-nth new-value keyloc-n old-keylist :splice-list-p NIL))))
-          ;;was new-keylist return-value)))
+        ;;was new-keylist return-value)))
         (when put-value-after-items
           (setf new-keylist (append put-value-after-items new-keylist)))
         ;;end key nth
         )
-       (put-value-after-items             
+       ;;4.2 PUT-VALUE-AFTER-ITEMS
+       (PUT-VALUE-AFTER-ITEMS             
         (cond
          (old-value
           ;;added
           (cond
-           ((and splice-old-new-values-p (listp old-value) (listp new-value))
+           ((and SPLICE-OLD-NEW-VALUES-P (listp old-value) (listp new-value))
             (setf  return-value (append  old-value  new-value)
                    new-keylist (append  (list key)  put-value-after-items
                                         return-value)))
@@ -11201,17 +13953,21 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
                   new-keylist (append  (list key)  put-value-after-items  return-value))))
         ;;end put-value-after-items
         )
-       (splice-old-new-values-p             
+       ;;4.3 SPLICE-OLD-NEW-VALUES-P
+       #|(SPLICE-OLD-NEW-VALUES-P             
         (cond
          (old-value
           ;;added
           (cond
            ((and  (listp old-value) (listp new-value))
             (setf  return-value (append  old-value  new-value)
-                   new-keylist (append  (list key)  return-value)))
+                   new-keylist (append  (list key)  (list return-value))))
            ((listp new-value)
             (setf  return-value (append  (list old-value)  new-value)
-                   new-keylist (append  (list key)  return-value)))
+                   new-keylist (append  (list key)  (list return-value))))
+           ((listp old-value) ;;2020
+            (setf  return-value (append  old-value (list new-value))
+                   new-keylist (append  (list key)  (list return-value))))
            (t
             (setf  return-value (list old-value  new-value)
                    new-keylist (append  (list key)  put-value-after-items
@@ -11220,8 +13976,11 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
           )
          (t (setf return-value (list  new-value)
                   new-keylist (append  (list key)  put-value-after-items  return-value))))
+        (when not-duplicate-p
+          (setf return-value (delete-duplicates return-value)
+                new-keylist (delete-duplicates new-keylist)))
         ;;end splice-old-new-values-p
-        )
+        )|#
        (t 
         (cond
          (old-value
@@ -11230,12 +13989,11 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
          (t (setf return-value  new-value
                   new-keylist (list key new-value))))))
 
-
       ;;later? (when begin-items (setf new-keylist (append begin-items new-keylist)))
       ;;end add-value-p
       )
-     ;;FOR SET/REPLACE OLD VALUE
-     (t
+     ;;6. FOR SET/REPLACE OLD VALUE
+     (T
       #|    above  (when (numberp keyloc-n)
         (setf old-value (nth key+val-n old-keylist)))|#
       (cond
@@ -11269,10 +14027,11 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
     ;;STEP 2: FINAL CHANGES TO KEYLIST?
     ;;was (unless (equal key :NTH)
-    (unless (equal new-value :get)
+    (unless (or  (member new-value '( :get :delete-key&value) :test 'equal)                
+                 (equal new-keylist :set-keylist=nil))
       ;;when delete
       (when (and put-value-after-items
-                 (member new-value  '(:delete-value  :delete-key&value)))
+                 (member new-value  '(:delete-value))) ;; :delete-key&value)))
         (cond
          (new-keylist
           (setf new-keylist (append new-keylist put-value-after-items)))
@@ -11291,8 +14050,8 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
           ;;use this?(setf return-keylist (append begin-items new-keylist)))))
           (setf new-keylist (append begin-items new-keylist)))))
       ;;(break "before end-items")
-      ;;HERE4  SSS
-      (when           
+      ;;END-ITEMS
+      (when end-items         
           (cond
            ;;if listp old-value, keep list in tact for append
            ((listp old-value)
@@ -11304,28 +14063,46 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
              (t (setf  new-keylist (append (list new-keylist)  end-items))))
             )
            (t (setf  new-keylist (append new-keylist  end-items)))))
+      ;;NEW-BEGIN-ITEMS or NEW-END-ITEMS
       ;;for new ones from args
       (when new-begin-items
         (setf new-keylist (append new-begin-items new-keylist)))
       (when new-end-items
         (setf  new-keylist (append new-keylist  new-end-items)))
-      ;;end unless        
+      ;;END UNLESS  DELETE, :DELETE-KEY&VALUE, ETC      
       )
     ;;(afout 'out (format nil "AFTER STEP 2 new-keylist= ~A~% return-keylist= ~A" new-keylist return-keylist))
     ;;(break "AFTER STEP 2")
+
     ;;STEP 3: INSERT NEW-KEYLIST IN A LIST?
     (cond
+     ;;3.1. If NILS [added 2019-04 bec :set-keylist=nil put NIL in its place instead of EMPTY]
+     ((or (equal new-value :set-keylist=nil)(equal new-keylist :set-keylist=nils))
+      NIL ;;??
+      )
+     ;;3.2. SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P      ;;added 2020
+     (simple-splice-key-value-in-keylist-p
+      (cond 
+       ((listp new-value)
+          (setf return-keylist (append old-keylist new-value)
+                new-keylist return-keylist))
+       ((listp old-keylist)
+        (setf return-keylist (append old-keylist (list new-value))
+                new-keylist return-keylist))))
+     ;;3.3. SPLICE-KEY-VALUE-IN-LIST-P
      (splice-key-value-in-list-p 
       ;;is splice-list-n > keyloc-n?
-      (cond
-       ((>=  (setf splice-list-n (list-length splice-key-value-in-list-p)) keyloc-n)
+      (cond 
+       ((and old-keylist)
+        (>=  (setf splice-list-n (list-length old-keylist))    keyloc-n)
         NIL )
        ;;if not, must modify new-keylist by putting in new elments 
        (t (setf return-keylist (append (make-list (- keyloc-n splice-list-n)  :initial-element put-key-after-items)  new-keylist))))
       ;;In either case, make new-keylist
-      (cond
+      (cond ;;HERE1
        (splice-old-new-values-p  ;;here now
-        (setf return-keylist (append-nth (list new-keylist) keyloc-n splice-key-value-in-list-p :splice-list-p T)) 
+                                 (setf return-keylist (append-nth (list new-keylist)
+                                                           keyloc-n splice-key-value-in-list-p :splice-list-p T)) 
         ;;(append-nth '(:key value) 1 '(1 2  3 4 5 6) :splice-list-p T) = (1 2 :KEY VALUE 3 4 5 6)
         )
        (t  
@@ -11333,7 +14110,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
       ;;(break "END splice-key-value-in-list-p")
       ;;end splice-key-value-in-list-p clause
       )
-     ;;IF PUT-KEY-AFTER-ITEMS and NULL SPLICE-KEY-VALUE-IN-LIST-P
+     ;;3.4. IF PUT-KEY-AFTER-ITEMS and NULL SPLICE-KEY-VALUE-IN-LIST-P
      (put-key-after-items
       (when (> keyloc-n 0)
         ;;if not a list, use put-key-after-items to fill a new list; IF :NIL fills with NIL
@@ -11380,16 +14157,78 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
       )
      ;;end cond
      (t nil))
-    ;; IF ALL OF ABOVE ARE NIL OR THEY SET RETURN-KEYLIST TO NIL
-    ;;OFTEN THE RETURN-KEYLIST = NEW-KEYLIST
+
+    ;;4.  IF ALL OF ABOVE ARE NIL OR THEY SET RETURN-KEYLIST TO NIL
+    (unless old-key&value
+      (setf old-key&value (list old-key old-value)))
+    ;;4.1. OFTEN THE RETURN-KEYLIST = NEW-KEYLIST
     ;;(break "END return-keylist")
+    (when (and (null return-keylist) (equal new-keylist :set-keylist=nil))
+      (setf new-keylist NIL)) ;;1st and term was (null return-set-keylist=nilp)=>error
     (when (null return-keylist)
       (setf return-keylist new-keylist))
-
-    (values return-keylist new-keylist return-value old-value)
+    
+    (values return-keylist new-keylist return-value old-value old-key&value)
     ;;end let, get-set-append-delete-keyvalue
     ))
 ;;TEST
+;;2020
+;; (get-set-append-delete-keyvalue :key2 "NEW VALUE"  :keyloc-n t :val-nth 1 :old-keylist'(:key2 1  (OLD VALUE 1) 2 3) :append-value-p NIL :list-first-item-in-append-p NIL :add-value-p NIL :delete-old-nil-p T :simple-splice-key-value-in-keylist-p NIL :splice-newvalue-at-nth-p NIL :put-key-after-items NIL :add-nils-p NIL :put-value-after-items NIL :new-begin-items NIL :new-end-items NIL :parens-after-begin-items-p NIL :splice-key-value-in-list-p NIL :break-if-keys-not-match-p NIL :splice-old-new-values-p T :not-duplicate-p T :old-key&value  NIL)
+;;works= (:KEY2 (OLD VALUE 1 "NEW VALUE") 2 3)
+;; (:KEY2 (OLD VALUE 1 "NEW VALUE") 2 3)    (OLD VALUE 1 "NEW VALUE")  (OLD VALUE 1)   (:KEY2 (OLD VALUE 1))
+;;For NOT-DUPLICATE-P 
+;; (get-set-append-delete-keyvalue :key2 "NEW VALUE"  :keyloc-n t :val-nth 2 :old-keylist'(:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3) :append-value-p NIL :list-first-item-in-append-p NIL :add-value-p NIL :delete-old-nil-p T :simple-splice-key-value-in-keylist-p NIL :splice-newvalue-at-nth-p NIL :put-key-after-items NIL :add-nils-p NIL :put-value-after-items NIL :new-begin-items NIL :new-end-items NIL :parens-after-begin-items-p NIL :splice-key-value-in-list-p NIL :break-if-keys-not-match-p NIL :splice-old-new-values-p T :not-duplicate-p T :old-key&value  NIL)
+;; (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)   (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)    (OLD VALUE 1 "NEW VALUE")   (OLD VALUE 1 "NEW VALUE")    (:KEY2 (OLD VALUE 1 "NEW VALUE"))
+;;
+
+;;:SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P
+;; (get-set-append-delete-keyvalue  :key2  "NEW VALUE" :old-keylist '(:key2 1  (OLD VALUE 1) 2 3) :val-nth 2 :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :splice-old-new-values-p nil :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P T)
+;;WORKS= (:KEY2 1 (OLD VALUE 1) 2 3 "NEW VALUE")
+;; (:KEY2 1 (OLD VALUE 1) 2 3 "NEW VALUE")
+;; "NEW VALUE"  "OLD VALUE 1)  (:KEY2 (OLD VALUE 1))
+;; :SPLICE-OLD-NEW-VALUES-P
+;; (get-set-append-delete-keyvalue  :key2  "NEW VALUE" :old-keylist '(:key2 1  (OLD VALUE 1) 2 3) :val-nth 2 :append-value-p NIL :add-value-p NIL  :splice-key-value-in-list-p NIL :SPLICE-OLD-NEW-VALUES-P T)   
+;; works = (:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)
+;;(:KEY2 1 (OLD VALUE 1 "NEW VALUE") 2 3)
+;; (OLD VALUE 1 "NEW VALUE") (OLD VALUE 1)  (:KEY2 (OLD VALUE 1))
+;;TEST
+;; :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P
+;; (get-set-append-delete-keyvalue  ':PC '(:CSVAL "0.917")  :OLD-KEYLIST  '("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)))  :SIMPLE-SPLICE-KEY-VALUE-IN-KEYLIST-P  T)
+;;works= ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917")
+;; ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC (:CSVAL "0.917") :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)))
+;; (:CSVAL "0.917")   ("CARE FOR OTHERS" "SELFISH" 1 NIL)   (:CSVAL "0.917")
+;;:DELETE-KEY&VALUE
+;; (get-set-append-delete-keyvalue  ':CSVAL :DELETE-KEY&VALUE  :OLD-KEYLIST  '(CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :CSVAL "0.917" :RNK 3))
+;;works= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :RNK 3)
+;; (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :RNK 3)     NIL    "0.917"
+
+
+
+
+;; IF NO :APPEND-VALUE-P, REPLACES OLD VALUE
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 NIL d e f))
+;; result=   (A B C :KEY1 (1 2 3) D E F) etc
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 OLD-VAL d e f))
+;; result= (A B C :KEY1 (1 2 3) D E F)
+;;
+;; IF :APPEND-VALUE-P, lists (old-value (LIST new-value))
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 NIL d e f) :append-value-p T)) = (A B C :KEY1 ((1 2 3)) D E F)
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 OLD-VAL  d e f) :append-value-p T)
+;; result= (A B C :KEY1 (OLD-VAL (1 2 3)) D E F)
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 (OLD1 OLD2)  d e f) :append-value-p T)
+;; result= (A B C :KEY1 (OLD1 OLD2 (1 2 3)) D E F)
+;; TO APPEND OLD-VALUE LIST WITH NEW-VALUE LIST
+;; MUST USE BOTH  :APPEND-VALUE-P T  :SPLICE-OLD-NEW-VALUES-P T)
+;; ;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1(OLD1 OLD2)  d e f) :append-value-p T  :splice-old-new-values-p T)
+;; result= (A B C :KEY1 (OLD1 OLD2 1 2 3) D E F)
+;;USE OF NOT-DUPLICATE-P
+;; (get-set-append-delete-keyvalue :key1 'OLD-VAL :old-keylist '(a b c :key1 (11 22 OLD-VAL 33 44)  d e f) :append-value-p T  :NOT-DUPLICATE-P T)
+;; works - (A B C :KEY1 11 22 OLD-VAL 33 44 D E F)    (A B C :KEY1 11 22 OLD-VAL 33 44 D E F)    (11 22 OLD-VAL 33 44)    (11 22 OLD-VAL 33 44)
+
+;; (get-set-append-delete-keyvalue :key1 '(1 2 3) :old-keylist '(a b c :key1 NIL d e f) :append-value-p T)
+;; (get-set-append-delete-keyvalue` :BIPATH '(new-path info) :old-keylist '("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917") :APPEND-VALUE-P T)
+;;works=> ("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL) (NEW-PATH INFO)) :CSVAL "0.917")
+
 ;;(get-set-append-delete-keyvalue :csval "newval" :old-keylist '("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :CSVAL "0.917") :keyloc-n 7 :val-nth 1)
 ;; works = ("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :CSVAL "newval")   ("KIND" "kind vs ukind" :BESTPOLE 1 (POLE1 X X) :CSVAL "newval")   "newval"   "0.917"
 ;;(get-set-append-delete-keyvalue :csval "newval" :old-keylist  '(:K2 VAL2 1 2 3 4) :add-value-p T :keyloc-n 6 :val-nth 1)
@@ -11460,6 +14299,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 ;;  (get-set-append-delete-keyvalue :key4  :get :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4 old-value  a b c d e) :append-value-p T :splice-old-new-values-p NIL )
 ;;  works=  (:KEY4 OLD-VALUE A B C D E)    (:KEY4 OLD-VALUE A B C D E)     OLD-VALUE    OLD-VALUE
 ;;
+;;
 ;; OLD-VALUE, :APPEND-VALUE-P T
 ;; (get-set-append-delete-keyvalue :key4  'new-value :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  old-value a b c d e) :append-value-p T :splice-old-new-values-p NIL )
 ;;works=  (:KEY4 (OLD-VALUE NEW-VALUE) A B C D E)    (:KEY4 (OLD-VALUE NEW-VALUE) A B C D E)    (OLD-VALUE NEW-VALUE)  OLD-VALUE
@@ -11491,7 +14331,8 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 ;; :append-value-p T :splice-old-new-values-p NIL   
 ;;(get-set-append-delete-keyvalue :key4  '(NEW-VALUE X Y) :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  (OLD-VALUE 1 2) a b c d e) :append-value-p T :splice-old-new-values-p NIL )
 ;; works= (:KEY4 (OLD-VALUE 1 2 (NEW-VALUE X Y)) A B C D E)   (:KEY4 (OLD-VALUE 1 2 (NEW-VALUE X Y)) A B C D E)   (OLD-VALUE 1 2 (NEW-VALUE X Y))   (OLD-VALUE 1 2)
-;; :append-value-p T :splice-old-new-values-p T 
+
+;; :APPEND-VALUE-P T     :SPLICE-OLD-NEW-VALUES-P T 
 ;; (get-set-append-delete-keyvalue :key4  '(NEW-VALUE X Y) :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  (OLD-VALUE 1 2) a b c d e) :append-value-p T :splice-old-new-values-p T )
 ;; works= (:KEY4 (OLD-VALUE 1 2 NEW-VALUE X Y) A B C D E)   (:KEY4 (OLD-VALUE 1 2 NEW-VALUE X Y) A B C D E)  ((OLD-VALUE 1 2 NEW-VALUE X Y))  OLD-VALUE 1 2)
 ;;
@@ -11537,19 +14378,23 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 ;;WHEN KEYLOC-N = T, NIL etc [MUST FIND KEY IN KEYLIST]
 ;; (get-set-append-delete-keyvalue :location   "new location" :OLD-KEYLIST '(A B C :LOCATION D OLD-VALUE (1 2 3 4) E F) :KEYLOC-N  T :val-nth 2 :append-value-p T :splice-old-new-values-p nil)
 ;;works=  (A B C :LOCATION D (OLD-VALUE "new location") (1 2 3 4) E F)          (A B C :LOCATION D (OLD-VALUE "new location") (1 2 3 4) E F)           (OLD-VALUE "new location")                 OLD-VALUE
-;;TESTING :DELETE-VALUE AND :DELETE-KEYLIST  TTT
+;;
+;;TESTING :DELETE-VALUE AND :SET-KEYLIST=NIL  TTT
 ;; :DELETE-VALUE
 ;; (get-set-append-delete-keyvalue :key4  :DELETE-VALUE  :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  old-value a b c d e) )
 ;;works= (:KEY4 A B C D E)     (:KEY4 A B C D E)     NIL    OLD-VALUE
-;; (get-set-append-delete-keyvalue :key4  :DELETE-KEYLIST  :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  old-value a b c d e) )
+;; (get-set-append-delete-keyvalue :key4  :SET-KEYLIST=NIL  :KEYLOC-N 0 :VAL-NTH 1 :old-keylist '( :key4  old-value a b c d e) )
+;; (values return-keylist new-keylist return-value old-value). 
+;; NIL NIL NIL OLD-VALUE
+
 ;;NTH, 
 ;; (get-set-append-delete-keyvalue :NTH    :DELETE-VALUE    :OLD-KEYLIST '(1 2 OLD-VALUE 3 4  5 (6 7)  8 9 ) :KEYLOC-N 2 )
 ;; works= (1 2 3 4 5 (6 7) 8 9)   (1 2 3 4 5 (6 7) 8 9)   NIL   OLD-VALUE
 ;;for complex :delete-value
 ;; (get-set-append-delete-keyvalue :key4  :DELETE-VALUE  :KEYLOC-N 2 :VAL-NTH 3 :old-keylist '(x y :key4 m n  old-value a b c d e) )
 ;; works= (X Y :KEY4 M N A B C D E)   (X Y :KEY4 M N A B C D E)   NIL   OLD-VALUE
-;; :DELETE-KEYLIST
-;; (get-set-append-delete-keyvalue :key4  :DELETE-KEYLIST  :KEYLOC-N 2 :VAL-NTH 3 :old-keylist '(x y :key4 m n  old-value a b c d e) )
+;; :SET-KEYLIST=NIL
+;; (get-set-append-delete-keyvalue :key4  :SET-KEYLIST=NIL  :KEYLOC-N 2 :VAL-NTH 3 :old-keylist '(x y :key4 m n  old-value a b c d e) )
 ;;works= NIL  NIL  NIL  OLD-VALUE
 ;; :DELETE-KEY&VALUE
 ;; (get-set-append-delete-keyvalue :key4  :DELETE-KEY&VALUE  :KEYLOC-N 2 :VAL-NTH 3 :old-keylist '(x y :key4 m n  old-value a b c d e) )
@@ -11675,12 +14520,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 ;;works= (BEGIN :KEY1 A :KEY3 NEW-VALUE :KEY2 (QUOTE (X Y)) THIS END)    (BEGIN :KEY1 A :KEY3 NEW-VALUE :KEY2 (QUOTE (X Y)) THIS END)    NEW-VALUE   NIL
 ;; (get-set-append-delete-keyvalue :key3 'new-value :keyloc-n 9  :old-keylist '(begin :key1 a :key2 '(x y) this end) :keyloc-n 3 )
 ;; works, with keyloc-n = 9, puts new key and value at end
-;; (BEGIN :KEY1 A :KEY2 (QUOTE (X Y)) THIS END :KEY3 NIL :KEY3 NEW-VALUE)    (BEGIN :KEY1 A :KEY2 (QUOTE (X Y)) THIS END :KEY3 NIL :KEY3 NEW-VALUE)         NEW-VALUE    NIL
-
-
-
-
-
+;; (BEGIN :KEY1 A :KEY2 (QUOTE (X Y)) THIS END :KEY3 NIL :KEY3 NEW-VALUE)    (BEGIN :KEY1 A :KEY2 (QUOTE (X Y)) THIS END :KEY3 NIL :KEY3 NEW-VALUE)         NEW-VALUE  
 
 ;;GET-SET-APPEND-DELETE-KEYVALUE-IN-ORDERLY-NESTED-LIST
 ;;2016
@@ -11688,9 +14528,14 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 (defun get-set-append-delete-keyvalue-in-orderly-nested-list (new-value  key-spec-lists  
                                                                   nested-lists 
                                                         &key append-keyvalue-p 
-                                                        return-list-p
+                                                        return-list-p add-value-p
+                                                        test return-nested-list-p 
+                                                        if-not-found-append-keyvalue-list-p
+                                                        put-value-after-items 
+                                                        begin-items    end-items 
+                                                        splice-old-new-values-p
                                                         (max-list-length 1000)  
-                                                        if-not-found-append-key-value-p
+                                                        (if-not-found-append-key-value-p T)
                                                         ;;cur-level-list
                                                         (keyloc-n 0)
                                                         (val-loc-n 0)
@@ -11801,7 +14646,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
                ;;(afout 'out (format nil "After RECURSE, new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A~%FINAL: return-nested-lists= ~A" new-keylist  return-value new-return-nested-lists list-head list-tail new-keylist return-nested-lists))
                )
-              (t (BREAK "ERROR: KEY-VALUE  new-nested-lists in recurse set to key-value here] IS NOT A LIST")))
+              (t (BREAK "ERROR-- KEY-VALUE  new-nested-lists in recurse set to key-value here] IS NOT A LIST")))
              ;;end new-spec-lists
              )
             ;;LAST KEY-LIST
@@ -11812,14 +14657,13 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
              (cond 
               ((not (equal key :NTH))
                (setf old-keylist (list key old-value)))
-              (t (setf old-keylist (list old-value)))))
+              (t (setf old-keylist (list old-value))
              ;;(afout 'out (format nil "LAST KEY FOUND= key= ~A  old-keylist= ~A~%old-value= ~A" key old-keylist old-value))
              (multiple-value-setq (new-keylist return-value)
                  (get-set-append-delete-keyvalue key old-value new-value  :keyloc-n keyloc-n
                                           :append-value-p append-keyvalue-p :test test
                                           :put-key-after-items put-key-after-items
                                           :splice-key-value-in-list-p splice-key-value-in-list-p))
-
              (setf return-nested-lists  (append list-head
                                                 new-keylist
                                                 list-tail))
@@ -11827,7 +14671,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
                (setf return-keylist return-nested-lists))
              ;;(afout 'out (format nil "AFTER LAST-KEY-FOUND: list-head= ~A~%new-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A" list-head new-keylist list-tail return-nested-lists))    
              ;;end  cond
-             )
+             ))))  ;;HERENOW
            ;;end key = item
            )
           ;; (( "IS ITEM LIST"))
@@ -11889,8 +14733,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
       )      
 
     (values return-keylist return-nested-lists new-keylist return-value    
-            old-keylist last-key-found-p )
-       
+            old-keylist last-key-found-p )      
     ;;end let, get-set-append-delete-keyvalue-in-orderly-nested-list
     ))
 ;;TEST
@@ -11965,7 +14808,7 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
           (t (setf old-keylist (list item))))
 
          (multiple-value-setq (new-keylist return-value)
-             (get-set-append-delete-keyvalue key old-value new-value
+             (get-set-append-delete-keyvalue key  new-value
                                          :keyloc-n keyloc-n :test test
                                          :append-value-p append-keyvalue-p
                                          :put-key-after-items put-key-after-items
@@ -12017,6 +14860,8 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
     ))
 ;;TEST
 ;; APPEND
+;; (set-singlekey-value-in-nested-lists 'NEW-VAL :KEY '((A B :KEY 11 C D)(D :KEY 22 E)(:KEY 33 E F)) :return-list-p T)
+;; works= (:KEY NEW-VAL)         ((A B :KEY NEW-VAL C D) (D :KEY NEW-VAL E) (:KEY NEW-VAL E F))           (:KEY NEW-VAL)          (:KEY 33)          T
 ;;(progn (setf out nil)(set-singlekey-value-in-nested-lists  'NEW-VALUE ':key2 '("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33)  (:KEY2 (0.55)) :KEY3 (44) (:KEY4 0.95)) :append-keyvalue-p t))
 ;;works=(:KEY2 (0.55 NEW-VALUE))    ("classX1end" 0.22 (:KEY0 0.25) :KEY1 (33) (:KEY2 (0.55 NEW-VALUE)) :KEY3 (44) (:KEY4 0.95))    (:KEY2 (0.55 NEW-VALUE))   (:KEY2 (0.55))    T
 ;;SET
@@ -12377,6 +15222,45 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
 
 
+;;EVAL-SYM
+;;2020
+;;ddd
+(defun eval-sym (sym &key (convert-str-p T) eval-sym-value-p (nums-ok-p T))
+  "In U-lists RETURNS (values  evaled-syms  evaled-values  non-evaled-syms rest-items)"
+  (let
+      ((sym-val)
+       (sym-val-val)
+       )
+    ;;convert to sym??
+    (when (and (stringp sym) convert-str-p)
+      (setf sym (my-make-symbol  sym :if-num-return-num-p nums-ok-p )))
+    (when (and (numberp sym) nums-ok-p )
+      (setf sym sym
+            sym-val sym
+            sym-val-val sym))
+    ;;eval the sym twice if both bound
+    (when (and (symbolp sym)
+           (boundp sym))
+      (setf sym-val (eval sym))
+      (when eval-sym-value-p
+        (setf sym-val-val (eval sym-val)))
+      )
+    (values sym-val  sym-val-val sym) 
+    ;;end let, eval-sym
+    ))
+;;TEST
+;;new for nums
+;; (eval-sym "99"  :eval-sym-value-p T) = 99 99 99
+;; (setf test-val1 '(this)  test-sym1 'test-val1)
+;; (eval-sym 'test-sym1 :eval-sym-value-p T)
+;; works= TEST-VAL1  (THIS)  TEST-SYM1
+;;for string
+;; (eval-sym "test-sym1" :eval-sym-value-p T))
+;; works= TEST-VAL1  (THIS)  TEST-SYM1
+;; for number
+;;  (eval-sym 99  :eval-sym-value-p T))
+;; works= 99  99  99
+;;  (eval-sym "99"  :eval-sym-value-p T))
 
 
 ;;EVAL-SYMS
@@ -12498,26 +15382,370 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
 
 ;;LIST-EVALED-LIST-ITEMS
-;;2018-02
+;;2018-02, modified 2019
 ;;ddd
 (defun list-evaled-list-items (list)
-  "In U-lists, RETURNS a newlist of evaled items in list. "
+  "In U-lists, RETURNS (newlist evaled-items notevaled-items) Newlist= list of appended evaled bound items in list. Use for COMPOSITE LISTS OF LISTS. Reduces memory, keeps composite list updated if sublists have changed."
   (let
       ((newlist)
+       (evaled-items)
+       (not-evaled-items)
        )
     (loop
      for item in list
      do
-     (setf newlist (append newlist (list (eval item))))
+     (cond
+      ((and item (symbolp item)(boundp item))
+       (setf newlist (append newlist (eval item))
+             evaled-items (append evaled-items (list item))))
+      (t (setf not-evaled-items (append not-evaled-items (list  item)))))
+     ;;end loop
      )
-    newlist
+    (values newlist evaled-items not-evaled-items)
     ;;end let, list-evaled-list-items
     ))
 ;;TEST
-;; (setf  a1 1 a2 2 a3 'c)
-;; (list-evaled-list-items '(a1 a2 a3))
-;; works= (1 2 C)
+;; (setf  a1 '(1 2) a2 '(3 4) a3 '(a b c))
+;; (list-evaled-list-items '(a1 nil a2 bb a3 cc))
+;; works= (1 2 3 4 A B C)    (A1 A2 A3)   (NIL BB CC)
                  
+
+
+
+;;NULL-LIST-P
+;;2020
+;;ddd
+(defun null-list-p (list &key (null-strings '("" " " "  ")))
+  "U-lists If a list = (nil) or any number of nils or (nil) with NO NON-NIL elements,  RETURNS T Note: To consider any string non-null, set null-strings to nil."
+  (let*
+      ((result T)
+       (first-non-nil-item)
+       )
+    (loop
+     for item in list
+     do
+     (let*
+         ((item-result)
+          )
+   (cond
+     ((listp item)
+      (multiple-value-setq (item-result first-non-nil-item)
+          (null-list-p item)))
+     ((and (stringp item)(member item null-strings :test 'string-equal))
+      (setf item-result T))      
+     ((null item) 
+      (setf item-result T))
+     (t (setf first-non-nil-item item)))
+      (when (null item-result)
+        (setf result nil)
+        (return))
+     ;;end let,loop
+     ))
+    (values result first-non-nil-item)
+    ;;end let, null-list-p
+    ))
+;;TEST
+;; (null-list-p '(nil (nil (nil (nil (7)))) nil nil))
+;; works= NIL  7
+;; (null-list-p '(nil (nil (nil (nil (nil)))) nil nil))
+;; works = T  NIL
+
+
+;;APPEND-INCL-NIL
+;;2019
+;;ddd
+(defun append-incl-nil (list item &key omit-if-nil-p) 
+  "U-lists Eg.  If list = NIL item= '(1 2), sets new-list = (NIL 1 2), otherwise appends as append does.  RETURNS  new-list  OMIT-IF-NIL-P acts same as append, returns (1 2). 
+ Uses key so can easily change whether or not to include NIL programatically."
+  (let*
+      ((new-list)
+       )
+    (cond
+     ((and (null list) (null omit-if-nil-p))
+      (setf new-list (append (list NIL) item)))
+     (t (setf new-list (append list item))))
+    ;;end let, append-incl-nil
+    ))
+;;TEST
+;; (append-incl-nil '(a b c) '(1 2 3)) = (A B C 1 2 3)
+;; (append-incl-nil NIL '(1 2 3)) = (NIL 1 2 3)
+;; (append-incl-nil NIL '(1 2 3)  :omit-if-nil-p T)  = (1 2 3)
+
+
+
+;;GET-ITEMS-BETW-KEYS
+;;2020
+;;ddd
+(defun get-items-betw-keys (key1-list key2-list nested-list  &key (test 'my-equal) )
+  "U-lists  Gets items between any member of  key1-list and any member of key2-list. RETURNS (values  found-items found-nth) found-nth is in final list, starting with 1. NOTE: Keys should be IN ORDER of PREFERENCE. Uses first found key neach list."
+  (let*
+      ((found-key1-p)
+       (found-items)
+       (found-nth)
+       )
+    (loop
+     for item in nested-list
+     for n from 1 to 1000
+     do
+    (cond
+     ((and (listp item)(null found-key1-p))
+      (multiple-value-setq (found-items found-nth)
+            (get-items-betw-keys key1-list key2-list item))
+      (when found-items
+        (return)))
+     (found-key1-p
+      (cond
+       ((member item key2-list :test test)
+        (return))
+       (t (setf found-items (append found-items (list item)))))
+      )
+     ((member item key1-list  :test test)
+      (setf found-key1-p T
+            found-nth n))
+     (t nil))
+     ;;end loop
+     )
+    (values  found-items found-nth)
+    ;;end let, get-items-betw-keys
+    ))
+;;TEST
+;; (get-items-betw-keys '(k1) '(k2) '(a b k1 1 2 3 4 k2 c d))
+;; works= (1 2 3 4)   3
+;; (get-items-betw-keys '(k1) '(k2)  '(m d o (22 33 44) ((a b k1 1 2 3 4 k2 c d) aa bb) ))
+;; works= (1 2 3 4)  3
+;; (get-items-betw-keys '(k1) '( xx  k2 d)  '(m d o (22 33 44) ((a b k1 1 2 3 4 k2 c d) aa bb) ))
+;; works= (1 2 3 4)  3
+
+
+
+
+
+;;GET-LIST-WITH-MULTI-KEYS
+;;2020
+;;ddd
+(defun get-list-with-multi-keys (keys  nested-list  &key (test 'my-equal) 
+                                           (max-items 1000))
+  "U-lists  Returns a complete LIST that includes ALL KEYS IN ORDER. RETURNS: (values  found-items found-nth) found-nth is in final list, starting with 1. NOTE: Keys should be IN ORDER of PREFERENCE. Uses first found key neach list."
+  (let*
+      ((found-all-keys-p)
+       (n-found-keys 0)
+       (found-list)
+       (n-keys (list-length keys))
+       )
+    ;;SEARCH MAIN LIST FOR ALL KEYS
+    (loop
+     for key in keys
+     for n from 1 to n-keys
+     do
+     (cond
+      ((member key nested-list :test test)
+       (incf n-found-keys))
+      (t (setf n-found-keys 0)))
+     (when  (= n-found-keys n-keys)
+       (setf found-all-keys-p T
+             found-list nested-list)
+       (return))
+     ;;end first loop
+     )
+    ;;IF NOT FOUND IN MAIN LIST, FIND LISTS and RECURSE ON THEM
+    (unless found-all-keys-p
+      (loop
+       for item in nested-list
+       for n from 1 to max-items
+       do
+       (when (listp item)
+         (setf found-list
+               (get-list-with-multi-keys keys item :max-items max-items)))
+       (when found-list
+         (setf found-all-keys-p T)
+         (return))
+       ;;(afout 'out (format nil "FOR item= ~A in nested-list= ~A ~% found-list= ~A" item nested-list found-list))
+       ;;end ,loop,unless
+       ))
+    ;;(break "end funct")
+    (values  found-list )
+    ;;end let, get-list-with-multi-keys
+    ))
+;; one level
+;; (get-list-with-multi-keys '(k1 k2 k3) '(a b k1 d e k2  f  k3  g h i))
+;; works= (A B K1 D E K2 F K3 G H I)
+;; 3 levels
+;; ;; (get-list-with-multi-keys '(k1 k2 k3) '(zz (a b k1 ( d (x (1 2 k1 3 4 k2 5 k3 6) y) e ) xx k2)  f  k3  g h i))
+;; works = (1 2 K1 3 4 K2 5 K3 6)
+
+
+
+
+;;MOVE-NESTED-LIST-ITEMS
+;;2020
+;;ddd
+(defun move-nested-list-items (move-key  to-keylist-key 
+                                        nested-lists-list &key from-keylist-key
+                                        (return-all-return-nested-lists-p T)
+                                        (move-key&value-p T)
+                                        from-keylist to-keylist )
+  "   RETURNS    INPUT:  "
+  (let*
+      ((all-moved-value-lists)
+       (all-return-nested-lists)
+       )
+    (loop
+     for nested-list in nested-lists-list
+     do
+     ;;(break "before")
+     (multiple-value-bind (return-nested-lists  return-keylist  moved-value)
+         (move-nested-list-item move-key  to-keylist-key nested-list 
+                                :from-keylist from-keylist :to-keylist  to-keylist 
+                                :move-key&value-p move-key&value-p 
+                                :from-keylist-key from-keylist-key )
+       (setf all-moved-value-lists (append all-moved-value-lists 
+                                          (list moved-value)))
+       (when return-all-return-nested-lists-p
+         (setf all-return-nested-lists 
+               (append all-return-nested-lists (list return-nested-lists))))
+       ;;end mvb, loop
+       ))
+    (values all-moved-value-lists all-return-nested-lists)
+    ;;end let, move-nested-list-items
+    ))
+;;TEST
+;; (multiple-value-setq (*revised-value-lists *revised-file-pcsymval-lists) (move-nested-list-items  :CSVAL :PC   *file-pcsymval-lists))
+;; (multiple-value-setq (*revised-value-lists *revised-file-pcsymval-lists2) (move-nested-list-items  :RNK :PC   *revised-file-pcsymval-lists))
+;; (setf *file-pcsymval-lists *revised-file-pcsymval-lists2)
+;; (setf *test-pc-lists1 '((CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :CSVAL "0.917" :RNK 3)     (INTIMATE ("INTIMATE" "INTIMATE vs NOT INTIMATE" CS2-1-1-99 NIL NIL :PC ("INTIMATE" "NOT INTIMATE" 1 NIL) :POLE1 "INTIMATE" :POLE2 "NOT INTIMATE" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-F-FRIEND NIL) (POLE2 NIL BEST-M-FRIEND NIL))) :CSVAL "0.750" :RNK 7.5) ))
+;; (move-nested-list-items  :CSVAL :PC   *test-pc-lists1)
+;; works= 
+;;all-moved-value-lists=   ((:CSVAL "0.917") (:CSVAL "0.750"))
+;;all-return-nested-lists= ((CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917") :RNK 3) (INTIMATE ("INTIMATE" "INTIMATE vs NOT INTIMATE" CS2-1-1-99 NIL NIL :PC ("INTIMATE" "NOT INTIMATE" 1 NIL) :POLE1 "INTIMATE" :POLE2 "NOT INTIMATE" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-F-FRIEND NIL) (POLE2 NIL BEST-M-FRIEND NIL)) :CSVAL "0.750") :RNK 7.5))
+
+
+
+;;MOVE-NESTED-LIST-ITEM
+;;2020
+;;ddd
+(defun move-nested-list-item (move-key  to-keylist-key 
+                                        nested-lists &key from-keylist-key
+                                        (move-key&value-p T)
+                                        from-keylist to-keylist  )
+  "U-lists   RETURNS (values return-nested-lists  return-keylist  moved-value)   INPUT:  from-keylist-key finds from-keylist in EVERY list in nested-list that contains it. Within that from-keylist. Then gets MOVE-KEY and IF MOVE-KEY&VALUE-P, its value,  and moves it to  to-keylist (which contains to-keylist-key.
+  If (NULL FROM-KEYLIST-KEY), uses only move-key for finding original key&value"    
+  (let*
+      ((move-value)
+       (new-from-list)
+       (new-to-list)
+       (new-nested-list)
+       (delete-spec-list (cond 
+                          (from-keylist-key (list (list from-keylist-key)(list move-key)))
+                        (t (list move-key))))
+       (append-spec-list  (list (list to-keylist-key)(list move-key)))
+       (new-value1 (cond (move-key&value-p :DELETE-KEY&VALUE)
+                         (t :DELETE)))
+       (moved-value2)       
+       (return-value)
+       )
+    ;;GET AND DELETE THE FROM-KEY&VALUE FROM FROM-KEYLIST
+    (multiple-value-bind ( RETURN-KEYLIST1 return-nested-lists1 new-keylist1
+                                          return-value1 return-old-keylist1 last-key-found-p1 
+                                          old-value1)
+        (get-set-append-delete-keyvalue-in-nested-list :DELETE-KEY&VALUE 
+                                                      delete-spec-list nested-lists)
+       (cond 
+        (move-key&value-p 
+         (setf  moved-value2 (list move-key old-value1)))
+        ((listp return-value)
+         (setf moved-value2 (second old-value1)))
+        ;;is this right??
+        (T moved-value2 old-value1))
+      ;;(break "after delete") ;;HERE99
+
+      ;;APPEND TO-KEYLIST WITH SAME (OLD-VALUE1)
+    (multiple-value-bind (RETURN-KEYLIST return-nested-lists new-keylist
+                                          return-value return-old-keylist last-key-found-p
+                                          old-value append-spec-list MOVED-KEY&VALUE )
+            (get-set-append-delete-keyvalue-in-nested-list moved-value2
+                                                        to-keylist-key  return-nested-lists1
+                                                   :simple-splice-key-value-in-keylist-p T)
+      (values return-nested-lists  return-keylist  moved-value2)
+    ;;end let, mvb,move-nested-list-item
+    ))))
+;;TEST
+;; (move-nested-list-item :CSVAL   :PC    '(CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL))) :CSVAL "0.917" :RNK 3)) 
+;;works= 
+;;return-nested-lists= (CAREFOROTHERS ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917") :RNK 3)
+;;return-keylist= ("CAREFOROTHERS" "CARE FOR OTHERS vs SELFISH" CS2-1-1-99 NIL NIL :PC ("CARE FOR OTHERS" "SELFISH" 1 NIL) :POLE1 "CARE FOR OTHERS" :POLE2 "SELFISH" :BESTPOLE 1 :BIPATH ((POLE1 NIL MOTHER NIL) (POLE1 NIL BEST-M-FRIEND NIL) (POLE2 NIL FATHER NIL)) :CSVAL "0.917")    ;;moved-value=  (:CSVAL "0.917")
+
+
+
+
+;;APPEND-WHEN-BOUNDP-OR-LISTP
+;;2020
+;;ddd
+(defun append-when-boundp-or-listp (list &key incl-symbols-p append-list-list-p)
+  "U-lists [another copy in CSQ-config--later delete it]  Only appends items in list that are either a boundp symbol that evals to a list or is a listp itself. "
+   (let*
+       ((appended-list)
+        (rejected-items)
+        (evaled-symbol-result)
+        )
+  (loop
+   for item in list
+   do
+   (cond
+    ((listp item)
+     (cond
+      (append-list-list-p
+       (setf appended-list (append appended-list (list item))))
+      (t  (setf appended-list (append appended-list  item)))))
+    ((and (symbolp item)(boundp item))
+     (setf evaled-symbol-result (eval item))
+     (cond 
+      ((listp evaled-symbol-result)
+       (cond
+        (append-list-list-p
+         (setf appended-list (append appended-list (list evaled-symbol-result))))
+        (t  (setf appended-list (append appended-list evaled-symbol-result)))))
+      (incl-symbols-p
+       (cond
+        (append-list-list-p
+         (setf appended-list (append appended-list (list (list evaled-symbol-result)))))
+        (t (setf appended-list (append appended-list (list evaled-symbol-result))))))    
+      ;;end incl-symbols-p
+      (t (setf rejected-items (append rejected-items `(,item))))))
+    ;;end bound symbolp item
+    (t (setf rejected-items (append rejected-items `(,item)))))
+   ;;end loop
+   )
+   (values appended-list rejected-items)
+   ;;end let, append-when-boundp-or-listp
+   ))
+;;TEST
+;; (SETF LIST1 '(1 2 3) LIST2 '(4 5 6)  sym1 'not-list)
+;; (append-when-boundp-or-listp '(list1 list3 list2 sym1 (a b c d) ))
+;; works =(1 2 3 4 5 6 A B C D)   (LIST3 SYM1)
+;; :INCL-SYMBOLS-P
+;; (append-when-boundp-or-listp '(list1 list3 list2 sym1 (a b c d) ) :incl-symbols-p T)
+;; works= (1 2 3 4 5 6 NOT-LIST A B C D)    (LIST3)
+;; :append-list-list-p
+;; (append-when-boundp-or-listp '(list1 list3 list2 sym1 (a b c d) ) :incl-symbols-p T :append-list-list-p T)
+;; ((1 2 3) (4 5 6) (NOT-LIST) (A B C D))   (LIST3)
+
+
+
+;;SET-VARS-TO-VALUE
+;;2020
+;;ddd
+(defun set-vars-to-value (value vars &key (func 'setf))
+  "U-lists   RETURNS vars"
+  (dolist (var vars)
+    (eval `(,func ,var ,value)))
+  vars
+  ;;end set-vars-to-value
+  )
+;;TEST
+;; (set-vars-to-value NIL '(testx1 testx2) :func 'defparameter)
+;; works= (TESTX1 TESTX2) 
+;; also: TESTX1 = NIL     TESTX2 = NIL
+
 
 ;;xxx
 ;; hhh ***************************** HELP ****************************8
@@ -12607,2571 +15835,3 @@ Also PUT-VALUE-AFTER-ITEMS only works if there are no items between the key and 
 
 ;;AT END, IF key not found and append-if-not-found-p, add (key value) to overall list
 |#
-#|
-;;DELETE ONCE NEW ONE WORKS
-(defun find-key-value-in-nested-lists (key list-of-lists &key return-list-p
-                                 (find-nth 0) (return-nth 1) find-key-in-nested (find-nth-first 0))
-  "In U-lists.lisp, RETURNS first value that matches key (values value key outer-items). FIND-NTH searches for nth item in the list for the first key. if RETURN-NTH, returns nth instead of second item in list. :FIND-KEY-IN-NESTED looks for the first key in the nth-key of the second order nested lists--not in first list set. It IGNORES keys in the first list order if = T,  otherwise it searchs only the list with the key set to :find-key-in-nested.  If  RETURN-LIST-P, returns entire sublist.  :FIND-NTH-FIRST is used only if :find-key-in-nested is set to a value."
-  (let
-      ((search-list list-of-lists)
-       (list-length (list-length list-of-lists))
-       (result-value)
-       (result-key)
-       (outer-extra-items)
-       (inner-extra-items)
-       )
-    ;;  (afout 'out (format nil "NEW CALL TO FUNCTION key= ~A~% list~A~%" key list-of-lists))
-    ;;finds a list to search in outer/first order set of lists (by key)
-    ;;SSS debug here
-    (cond
-     ;;if  T all first-order lists must be searched
-     ((equal find-key-in-nested t)
-    ;;  (afout 'out (format nil "NEW CALL TO T  key= ~A~% (car of list= ~A~%" key (car list-of-lists)))   
-      (loop
-       for first-order-item  in list-of-lists
-       with inner-extra-items1
-       with outer-extra-items1
-       do
-     ;; (afout 'out (format nil "T OUTER-LOOP key= ~A~% first-order-item= ~A~%" key first-order-item))
-       (cond
-        ((and first-order-item (listp first-order-item))
-         (multiple-value-setq (result-list result-key inner-extra-items1 outer-extra-items1)
-             (find-key-value-in-nested-lists  key  first-order-item :return-list-p t))
-                                           ;;not needed?   :find-nth find-nth 
-         ;;these are the extra items want to return (bec inside of target containing list)
-         (if inner-extra-items1
-             (setf inner-extra-items (append inner-extra-items (list inner-extra-items1))))
-         (if outer-extra-items
-             outer-extra-items (append outer-extra-items (list outer-extra-items1)))
-         (return))
-        ;;may be non-list items such as other keys providing info re: found outer list.
-        (t (setf outer-extra-items (append outer-extra-items (list first-order-item)))))
-       ;;end loop equal
-       ))
-
-     ;;if first-order key is specified by find-key-in-nested, find that sublist first
-     (find-key-in-nested
-      (loop
-       for first-order-item in list-of-lists
-       with match-key1
-       with result-key1
-       with outer-extra-items1
-       with inner-extra-items1
-       do
-      ;;(afout 'out (format nil "OUTER-LOOP #2 first-order-item= ~A~%" first-order-item))
-       (multiple-value-setq 
-           (search-list result-key1 outer-extra-items1 inner-extra-items1)
-           (find-key-value-in-nested-lists  find-key-in-nested  list-of-lists
-                                            :find-nth find-nth-first :return-list-p t))
-       (cond
-        ((and result-key1 inner-extra-items1)
-           (setf  outer-extra-items  (append outer-extra-items (list inner-extra-items1)))
-           (return))
-        (t nil))
-       ;;note needed here?? with inner-extra-items1
-       ;;end loop, find-key-in-nested
-       ))
-      ;;if find-key-in-nested = NIL do nothing here--
-      ;;MAY NOT NEED FIRST CLAUSE ABOVE SSS
-        (t nil))
- 
-    ;;(afout 'out (format nil "MAIN PROCESSING key= ~A~%  (car search-list= ~A~%" key (car search-list)))
-    ;;main work searching final search list (may be outer or nested)
-    (unless (equal find-key-in-nested t)
-      (loop
-       for item in search-list
-       with match-item
-       with item-length
-       do
-       ;;(afout 'out (format nil "SECOND-LOOP item ~A~%" item))   
-       (cond
-        ((listp item)
-         (setf item-length (list-length item))       
-         (unless (>= find-nth  item-length))
-         (setf match-item (nth find-nth item))
-         ;;(afout 'out (format  nil "TESTING key= ~A  match-item= ~A~%  IN find-key-value-in-nested-lists" key match-item))
-         (cond
-          ((or (equal key match-item)(string-equal key match-item))
-           (cond
-            (return-list-p
-             (setf result-value item
-                   result-key match-item))
-            (t
-             (setf result-value (nth return-nth item)
-                   result-key key)))
-           (return))
-          (t nil))
-         ;;end listp item
-         )
-        ;;if item is not a list, then item may be outer keys or info want to keep
-        (t (if  item (setf inner-extra-items (append inner-extra-items (list item))))))
-       ;;end loop, unless
-       ))
-    ;;end find-key-value-in-nested-lists
-    (values result-value  result-key outer-extra-items inner-extra-items)
-    ))|#
-
-
-;;ORIGINAL-ERROR
-#|(defun delete-duplicate-nth (nth list1 list2 &key compare-nth return-lessp )
-  "In U-lists. Compares same nth item in list of lists and deletes lists with duplicates. RETURNS (values new-list duplicate-list duplicatep) new-list is a list of both lists unless nth item is my-equal.  If compare-nth, then the one with the largest value of compare-nth will be returned (unless return-less-p)."
-  (let
-      ((new-list)
-       (result)
-       (duplicate-list)
-       (duplicatep)
-       )
-    (cond
-     ((my-equal (nth nth list1)(nth nth list2))
-      (setf duplicatep t)
-      (cond
-       (compare-nth
-        (setf ordered-list  (my-list-nth-lessp compare-nth list1 list2))
-        (cond
-         (return-lessp
-          (setf new-list (car ordered-list)
-                duplicate-list (second ordered-list)))
-         (t (setf new-list (second ordered-list)
-                  duplicate-list (first ordered-list))))
-        ;;end compare-nth
-        )
-       (t (setf new-list (list list1)
-                duplicate-list (list list2))))
-      ;;ene my-equal
-      )
-     (t (setf new-list (list list1 list2))))
-    (values new-list duplicate-list duplicatep)
-    ;;end let, delete-duplicate-nth
-    ))|#
-
-#|(defun set-key-value-in-nested-lists (new-value key-spec-lists nested-lists 
-                                                &key append-item final-key-inside-keylist-p 
-                                                subst-new-keylist-p no-return-extra-p) 
-  "In U-lists.lisp, SETS key-value . RETURNS (values new-keylist return-nested-lists return-value  final-spec-list) that matches key-spec. The spec-lists is a list of 2 item spec lists. (key set-nth)  If  key = T, searches entire list of lists for key  If set-nth = T, searches entire sublist for the key.. Extra items are extra non-list items on all level lists that might contain important info. Can process infinite? levels of key lists. Can match with equal or string-equal automatically. The spec-lists are arranged from outer-most list to inner-most list. final-key-inside-keylist-p means that the last key is inside a list--so items in ourer list won't cause a false match. append-item is appended to the end of the list containing the final key. NOTE: final keylists should contain a value--even if nil in the set-nth position so it can be replaced UNLESS the new-value is a new keylist and subst-new-keylist-p = t."
-  (let*
-      ((new-keylist)
-       (return-key)
-       (return-value)
-       (return-nested-lists)
-       (old-keylist)
-       (spec-list (car key-spec-lists))
-       (key (first spec-list))
-       (set-nth (second spec-list))
-       (new-spec-lists (cdr key-spec-lists))
-       (final-spec-list)
-       (list-length (list-length nested-lists))
-       (new-value2)
-       (new-nested-lists)
-       (match-item )
-       ( new-value2 )
-       (length-item )
-      ;; (list-length  )
-       ;;with match-item )
-       ;;with new-nested-lists )
-       )
-    (unless  set-nth (setf set-nth 0))
-    (cond
-     ;;SPEC IS TO SEARCH EVERY LIST AT THIS LEVEL
-     ((or (equal key t) (equal set-nth t))
-      ;;(afout 'out (format nil "NEW CALL TO T  key= ~A~% (car of list= ~A~%" key (car nested-lists)))   
-      (loop
-       for item  in nested-lists
-       do
-       ;;(afout 'out (format nil "T OUTER-LOOP key= ~A~%  item= ~A~%" key item))
-       ;;test to see what the spec-list indicates
-       (cond
-        ((and item (listp item))
-
-         ;;note: this may call other recursive calls
-         (multiple-value-setq (new-keylist  new-nested-lists return-value 
-                                            final-spec-list old-keylist)
-             (set-key-value-in-nested-lists new-value new-spec-lists item
-                                            :append-item append-item 
-                                            :final-key-inside-keylist-p final-key-inside-keylist-p 
-                                            :subst-new-keylist-p subst-new-keylist-p
-                                            :no-return-extra-p no-return-extra-p
-                                            ))
-         (setf return-nested-lists (append return-nested-lists (list  new-nested-lists)))
-         )
-        ;;may be non-list items such as other keys providing info re: found outer lis.
-        (t (setf return-nested-lists (append return-nested-lists (list  item))))) 
-       ;;end loop set-nth = t
-       ))
-     ;;AT LOWEST LIST, SEARCH FOR KEY-VALUE
-     ((and (null new-spec-lists) key)
-      (loop
-       for item in nested-lists
-       for n from 0 to list-length
-       do
-       ;;(afout 'out (format  nil "1 LOWEST LEVEL TEST key= ~A  match-item= ~A~% set-nth= ~A~%nested-lists= ~A~% IN find-key-value-in-lists " key match-item set-nth nested-lists))
-       (cond
-        ;;SEARCH INSIDE A NESTED LIST -- NOT IN OUTER LIST FOR KEY
-        ((and (listp item) (null final-key-inside-keylist-p))
-         (setf  length-item (list-length item))       
-         (unless (>= set-nth  length-item))
-         (setf match-item (nth set-nth item))
-         (cond
-          ((my-equal key match-item)
-       ;;was (or (equal key match-item) (if (stringp match-item) (string-equal key match-item)))
-
-           ;;(afout 'out (format  nil "2 LOWEST LEVEL TEST key= ~A  match-item= ~A~% set-nth= ~A~%nested-lists= ~A~% item= ~A~%IN find-key-value-in-lists " key match-item set-nth nested-lists item))
-
-           ;;use RETURN-VALUE because will be NIL IF NO MATCH (and return NIL)
-           ;;  also set old-keylist to item
-           (setf return-value new-value
-                 old-keylist item)
-           ;;PUT NEW-VALUE IN PROPER PLACE AND/OR ADD APPEND-ITEM
-           ;;do I replace an item or just add it.
-           (cond
-            ;;if subst-new-keylist-p subst new-value (a list) for old keylist.
-            ((and subst-new-keylist-p (listp new-value))
-             (setf new-keylist new-value))
-            ;;if  set-nth, replace that item with new-value
-            (set-nth
-             ;;problem with replace modifying item permenantly and therefore old-keylist
-             (setf  new-value2 (list new-value)
-                    new-keylist (replace-list item (+ set-nth 1) new-value2)))
-            (t nil))  ;;was (setf new-keylist nil)))
-           
-           ;;if append-item (= a value) append to the new-keylist
-           (if append-item
-               (setf final-spec-list (append final-spec-list (list append-item)))) 
-           ;;set final return items
-           (setf final-spec-list (list key set-nth)
-                 return-nested-lists (replace-list nested-lists n (list new-keylist)))
-         ;;  (return)
-           )
-          (t nil))
-         ;;end listp item
-         )
-        ;;if not list, search current list for item, just check to see if item = key
-        ;;problem if an item matches key but real key is inside a later list
-        ;;SEARCHES OUTER LIST FOR KEY MATCH--NOT AN INNER LIST
-        (final-key-inside-keylist-p
-         (cond
-          ((my-equal key item)
-           ;;was (or (equal key item) (if (stringp item) (string-equal key item)))
-           ;;PUT NEW-VALUE IN PROPER PLACE AND/OR ADD APPEND-ITEM
-           ;;do I replace an item or just add it.
-           (cond
-            ;;if subst-new-keylist-p subst new-value (a list) for old keylist.
-            ((and subst-new-keylist-p (listp new-value))
-             (setf new-keylist new-value))
-            ;;if  set-nth, replace that item with new-value
-            (set-nth
-             (setf  new-value2 (list new-value)
-                    ;;xxx causes a problem perm changing item value??
-                    new-keylist (replace-list  new-value2   (+ set-nth 1))))
-#|                    (replace item new-value2 :start1
-                                         (+ set-nth 1) :end1 (+ set-nth 2))))|#
-            (t (setf new-keylist nil)))
-
-           ;;if append-item (= a value) append to the new-keylist
-           (if append-item
-               (setf new-keylist (append new-keylist (list append-item))))
-           ;;added
-           (setf return-nested-lists (append return-nested-lists (list  new-keylist)))
-           (return))
-          (t  nil)))    ;; (setf new-nested-list (append new-nested-list (list item))))))
-        (t nil) ;; (setf new-nested-list (append new-nested-list (list item))))
-        ;;end cond, loop, equal null new-spec-lists
-        )))
-     ;;SPEC IS TO SEARCH THIS LEVEL (not last level) BY KEY at SET-NTH
-     ((and  new-spec-lists  key)
-      ;;(afout 'out (format nil "OUTER-LOOP SEARCH new-spec-lists= ~A~%" new-spec-lists))         
-      ;;check each list at this level
-      (loop
-       for item  in nested-lists
-       do
-       ;;for each sublist, check set-nth
-       ;;(afout 'out (format nil "KEY OUTER-LOOP key= ~A~% item= ~A~%new-spec-lists= ~A~%" key item new-spec-lists))
-       (cond
-        ((listp item)
-         (setf  list-length (list-length item))     
-         (unless (>= set-nth  list-length))
-         (setf match-item (nth set-nth item))
-         ;;(afout 'out (format  nil "OUTER LOOP TESTING key= ~A  match-item= ~A~%  IN find-key-value-in-lists" key match-item))
-         (cond
-          ((my-equal key match-item)
-           ;;was (or (equal key match-item) (if (stringp match-item) (string-equal key match-item)))
-           ;;;yyy
-           (multiple-value-setq (new-keylist  new-nested-lists return-value 
-                                              final-spec-list old-keylist)
-               (set-key-value-in-nested-lists new-value new-spec-lists item
-                                              :append-item append-item 
-                                              :final-key-inside-keylist-p final-key-inside-keylist-p 
-                                              :subst-new-keylist-p subst-new-keylist-p
-                                              :no-return-extra-p no-return-extra-p))
-           (setf return-nested-lists (append return-nested-lists (list new-nested-lists)))
-
-           ;;(afout 'out (format nil "ON RECURSE RETURN return-value= ~A~% return-key=~A~%" return-value return-key))
-        ;;was   (return)
-           )
-          (t (setf return-nested-lists (append return-nested-lists (list item)))))
-         ;;end listp item
-         )
-        (t (setf return-nested-lists (append return-nested-lists (list item)))))
-       ;;end loop, equal new-spec-lists
-       ))
-     ;;IF TOP LEVEL NONE-OF-ABOVE
-     (t (setf return-nested-lists (append return-nested-lists (list item)))))
-    ;;end find-key-value-in-lists
-
-;;UNQUOTE THIS AFTER DEBUGGING
-#|    (if (null return-value)
-        (setf new-keylist nil
-              return-nested-lists nil))|#
-    ;;end set-key-value-in-nested-lists
-    (values new-keylist return-nested-lists  return-value  final-spec-list old-keylist) 
-    ))|#
-
-;;DELETE WHEN ABOVE DEBUGGED
-#|(defun set-key-value-in-nested-lists (new-value key-spec-lists nested-lists 
-                                                &key append-item final-key-inside-keylist-p 
-                                                subst-new-keylist-p no-return-extra-p) 
-  "In U-lists.lisp, SETS key-value . RETURNS (values new-keylist return-nested-lists return-value  final-spec-list) that matches key-spec. The spec-lists is a list of 2 item spec lists. (key set-nth)  If  key = T, searches entire list of lists for key  If set-nth = T, searches entire sublist for the key.. Extra items are extra non-list items on all level lists that might contain important info. Can process infinite? levels of key lists. Can match with equal or string-equal automatically. The spec-lists are arranged from outer-most list to inner-most list. final-key-inside-keylist-p means that the last key is inside a list--so items in ourer list won't cause a false match. append-item is appended to the end of the list containing the final key. NOTE: final keylists should contain a value--even if nil in the set-nth position so it can be replaced UNLESS the new-value is a new keylist and subst-new-keylist-p = t. If value is in place, replaces it with new-value."
-  (let*
-      ((new-keylist)
-       (return-key)
-       (return-value)
-       (return-nested-lists)
-       (old-keylist)
-       (spec-list (car key-spec-lists))
-       (key (first spec-list))
-       (set-nth (second spec-list))
-       (new-spec-lists (cdr key-spec-lists))
-       (final-spec-list)
-       (nested-list-length (list-length nested-lists))
-       (new-nested-lists)
-       )
-    (unless  set-nth (setf set-nth 0))
-    (cond
-     ;;SPEC IS TO SEARCH EVERY LIST AT THIS LEVEL
-     ((or (equal key t) (equal set-nth t))
-      ;;(afout 'out (format nil "NEW CALL TO T  key= ~A~% (car of list= ~A~%" key (car nested-lists)))   
-      (loop
-       for item  in nested-lists
-       ;;with new-value2 
-       with new-nested-lists 
-       do
-       ;;(afout 'out (format nil "T OUTER-LOOP key= ~A~%  item= ~A~%" key item))
-       ;;test to see what the spec-list indicates
-       (cond
-        ((and item (listp item))
-
-         ;;note: this may call other recursive calls
-         (multiple-value-setq (new-keylist  new-nested-lists return-value 
-                                            final-spec-list old-keylist)
-             (set-key-value-in-nested-lists new-value new-spec-lists item
-                                            :append-item append-item 
-                                            :final-key-inside-keylist-p final-key-inside-keylist-p 
-                                            :subst-new-keylist-p subst-new-keylist-p
-                                            :no-return-extra-p no-return-extra-p
-                                            ))
-         (setf return-nested-lists (append return-nested-lists (list  new-nested-lists)))
-         )
-        ;;may be non-list items such as other keys providing info re: found outer lis.
-        (t (setf return-nested-lists (append return-nested-lists (list  item))))) 
-       ;;end loop set-nth = t
-       ))
-     ;;AT LOWEST LIST, SEARCH FOR KEY-VALUE
-     ((and (null new-spec-lists) key)
-      (loop
-       for item-lo in nested-lists
-       for n from 0 to nested-list-length
-       with match-item-lo 
-       with new-value-lo  
-       with length-item-lo 
-       do
-       ;;(afout 'out (format  nil "1 LOWEST LEVEL TEST key= ~A  match-item-lo= ~A~% set-nth= ~A~%nested-lists= ~A~% IN find-key-value-in-lists " key match-item-lo set-nth nested-lists))
-       (cond
-        ;;SEARCH INSIDE A NESTED LIST -- NOT IN OUTER LIST FOR KEY
-        ((and (listp item-lo) (null final-key-inside-keylist-p))
-         (setf  length-item-lo (list-length item-lo))       
-         (unless (>= set-nth  length-item-lo))
-         (setf match-item-lo (nth set-nth item-lo))
-         (cond
-          ((my-equal key match-item-lo)
-       ;;was (or (equal key match-item-lo) (if (stringp match-item-lo) (string-equal key match-item-lo)))
-
-           ;;(afout 'out (format  nil "2 LOWEST LEVEL TEST key= ~A  match-item-lo= ~A~% set-nth= ~A~%nested-lists= ~A~% item-lo= ~A~%IN find-key-value-in-lists " key match-item-lo set-nth nested-lists item-lo))
-
-           ;;use RETURN-VALUE because will be NIL IF NO MATCH (and return NIL)
-           ;;  also set old-keylist to item-lo
-           (setf return-value new-value
-                 old-keylist item-lo)
-           ;;PUT NEW-VALUE IN PROPER PLACE AND/OR ADD APPEND-ITEM-LO
-           ;;do I replace an item-lo or just add it.
-           (cond
-            ;;if subst-new-keylist-p subst new-value (a list) for old keylist.
-            ((and subst-new-keylist-p (listp new-value))
-             (setf new-keylist new-value))
-            ;;if  set-nth, replace that item-lo with new-value
-            (set-nth
-             ;;problem with replace modifying item-lo permenantly and therefore old-keylist
-             (setf  new-value-lo (list new-value)
-                    new-keylist (replace-list item-lo (+ set-nth 1) new-value-lo)))
-            (t nil))  ;;was (setf new-keylist nil)))
-           
-           ;;if append-item (= a value) append to the new-keylist
-           (if append-item
-               (setf final-spec-list (append final-spec-list (list append-item)))) 
-           ;;set final return items
-           (setf final-spec-list (list key set-nth)
-                 return-nested-lists (replace-list nested-lists n (list new-keylist)))
-         ;;  (return)
-           )
-          (t nil))
-         ;;end listp item-lo
-         )
-        ;;if not list, search current list for item-lo, just check to see if item-lo = key
-        ;;problem if an item-lo matches key but real key is inside a later list
-        ;;SEARCHES OUTER LIST FOR KEY MATCH--NOT AN INNER LIST
-        (final-key-inside-keylist-p
-         (cond
-          ((my-equal key item-lo)
-           ;;was (or (equal key item-lo) (if (stringp item-lo) (string-equal key item-lo)))
-           ;;PUT NEW-VALUE IN PROPER PLACE AND/OR ADD APPEND-ITEM-LO
-           ;;do I replace an item-lo or just add it.
-           (cond
-            ;;if subst-new-keylist-p subst new-value (a list) for old keylist.
-            ((and subst-new-keylist-p (listp new-value))
-             (setf new-keylist new-value))
-            ;;if  set-nth, replace that item-lo with new-value
-            (set-nth
-             (setf  new-value-lo (list new-value)
-                    ;;xxx causes a problem perm changing item-lo value??
-                    new-keylist (replace-list item-lo    (+ set-nth 1) new-value-lo)))
-#|                    (replace item-lo new-value-lo :start1
-                                         (+ set-nth 1) :end1 (+ set-nth 2))))|#
-            (t (setf new-keylist nil)))
-
-           ;;if append-item (= a value) append to the new-keylist
-           (if append-item
-               (setf new-keylist (append new-keylist (list append-item))))
-           ;;added
-           (setf return-nested-lists (append return-nested-lists (list  new-keylist)))
-           (return))
-          (t  nil)))    ;; (setf new-nested-list (append new-nested-list (list item-lo))))))
-        (t nil) ;; (setf new-nested-list (append new-nested-list (list item-lo))))
-        ;;end cond, lo loop, equal null new-spec-lists
-        )))
-     ;;SPEC IS TO SEARCH THIS LEVEL (not last level) BY KEY at SET-NTH
-     ((and  new-spec-lists  key)
-      ;;(afout 'out (format nil "OUTER-LOOP SEARCH new-spec-lists= ~A~%" new-spec-lists))         
-      ;;check each list at this level
-      (loop
-       for item  in nested-lists
-       with list-length  
-       with match-item 
-       with new-nested-lists 
-       do
-       ;;for each sublist, check set-nth
-       ;;(afout 'out (format nil "KEY OUTER-LOOP key= ~A~% item= ~A~%new-spec-lists= ~A~%" key item new-spec-lists))
-       (cond
-        ((listp item)
-         (setf  list-length (list-length item))     
-         (unless (>= set-nth  list-length))
-         (setf match-item (nth set-nth item))
-         ;;(afout 'out (format  nil "OUTER LOOP TESTING key= ~A  match-item= ~A~%  IN find-key-value-in-lists" key match-item))
-         (cond
-          ((my-equal key match-item)
-           ;;was (or (equal key match-item) (if (stringp match-item) (string-equal key match-item)))
-           ;;;yyy
-           (multiple-value-setq (new-keylist  new-nested-lists return-value 
-                                              final-spec-list old-keylist)
-               (set-key-value-in-nested-lists new-value new-spec-lists item
-                                              :append-item append-item 
-                                              :final-key-inside-keylist-p final-key-inside-keylist-p 
-                                              :subst-new-keylist-p subst-new-keylist-p
-                                              :no-return-extra-p no-return-extra-p))
-           (setf return-nested-lists (append return-nested-lists (list new-nested-lists)))
-
-           ;;(afout 'out (format nil "ON RECURSE RETURN return-value= ~A~% return-key=~A~%" return-value return-key))
-        ;;was   (return)
-           )
-          (t (setf return-nested-lists (append return-nested-lists (list item)))))
-         ;;end listp item
-         )
-        (t (setf return-nested-lists (append return-nested-lists (list item)))))
-       ;;end loop, equal new-spec-lists
-       ))
-     ;;IF TOP LEVEL NONE-OF-ABOVE
-     (t (setf return-nested-lists (append return-nested-lists (list item)))))
-    ;;end find-key-value-in-lists
-
-;;UNQUOTE THIS AFTER DEBUGGING
-#|    (if (null return-value)
-        (setf new-keylist nil
-              return-nested-lists nil))|#
-    ;;end set-key-value-in-nested-lists
-    (values new-keylist return-nested-lists  return-value  final-spec-list old-keylist) 
-    ))|#
-
-;;ORIGINAL-OLDER VERSION
-;;GET-KEY-VALUE
-;;
-;;ddd
-#|(defun get-key-value  (key list)
-  "In U-lists, searches a flat list for a key, RETURNS (values result key) the value following key if found, nil if not. Uses my-equal which will even match symbols and strings. NOTE: Differs from GETF which requires a keyword. Any string or symbol can be used for key in get-key-value."
-  (let
-      ((result)
-       (n 0)
-       (keylist)
-       )
-    (unless (null (listp list))
-    (loop
-     for item in list
-     do
-     (incf n)
-     (cond
-      ((my-equal key item)
-        (setf result (nth n list))
-        (return))
-      (t nil))
-     ;;end loop
-     )
-    (values result key)
-    ;;end unless,let, get-key-value
-    )))|#
-;;TEST
-;;  (get-key-value "this" '(a b c this (1 2 3) d e f))  =  (1 2 3)   "this"
-;;  (getf  '(a b c this (1 2 3) d e f) "this") = NIL
-;;  (getf  '(a b c this (1 2 3) d e f) 'this) = nil
-;;  (getf  '(a b c :this (1 2 3) d e f) :this) = nil
-;;  (getf  '(a b c :this (1 2 3) d e f)  1) = NIL
-
-
-;;MAKE-COMBOS
-;;2016
-;;ddd
-
-#| WORKS, BUT DOESN'T MAKE ALL POSSIBLE COMBOS
-(defun make-combos (items items-per-combo &key (first-n-items 'all)
-                          (return-n-combos-p T))
-  "In U-lists. Creates a list of all combinations of items taken items-per-combo at a time for first num-sets. RETURNS (values all-combos all-rest-items n-combos) .  Only take FIRST-N-ITEMS of the items to create all-combos. RETURN-N-COMBOS-P returns n-combos as last value."
-  (let
-      ((combo)
-       (combos-list)
-       (n-combo)
-       (rest-items)
-       (all-rest-items)
-       (all-combos)
-       (n-combos)
-       )
-
-    (loop
-     for item1 in items
-     for n from 1 to (list-length items)
-     do
-     (when 
-         (or (equal first-n-items 'all)
-             (>= first-n-items n))
-
-       (setf combo (list item1)
-             rest-items (nthcdr n items))
-       (multiple-value-bind (combos rest)
-           (append-items-to-list combo rest-items
-                                 :items-per-append (- items-per-combo 1))
-         (setf all-combos (append all-combos combos)
-               all-rest-items (append all-rest-items (list rest)))
-
-         ;;end when,mvb,loop
-         )))
-
-    (cond
-     (return-n-combos-p 
-      (setf n-combos (list-length all-combos))
-      (values all-combos all-rest-items  n-combos))
-     (t (values all-combos all-rest-items )))
-    ;;end let, make-combos
-    ))|#
-
-
-;;MY-SORT-LISTS- OLD
-;;
-;;ddd
-#|(defun my-sort-lists (nth list &key (remove-duplicates-p T))
-  "In U-lists sorts a list of lists by nth item (in each) and removes duplicate items, keeps the duplicate item with the highest value of the priority-nth item in the list (or first if priority-nth = nil."
-  (let
-      ((sorted-list)
-       
-       )
-    ;;first sort the lists
-    (loop
-     for sublist in list
-     with item
-     with greaterp
-     with rest-sorted-list 
-     with temp-list
-     do
-     ;;(afout 'out (format nil "OUTER-LOOP, sublist=~A~%sorted-list= ~A~%" sublist sorted-list))
-     (setf item (nth nth sublist)
-           rest-sorted-list nil)
-     (cond
-      ((null sorted-list) (setf sorted-list (list sublist)))
-      (t
-       (loop
-        for new-sublist in sorted-list
-        for n from 0 to (list-length sorted-list)
-        with new-item
-        do
-        (setf  new-item (nth nth new-sublist))
-        (setf rest-sorted-list (nthcdr n sorted-list))
-        ;;(afout 'out (format nil "INNER-LOOP, sublist=~A~%new-sublist= ~A~%sorted-list= ~A~% temp-list= ~A" sublist new-sublist sorted-list temp-list))
-        (setf greaterp (my-greaterp item new-item))
-        (cond
-         (greaterp (setf temp-list (append temp-list (list sublist)(list new-sublist))))
-         (t (cond
-             (rest-sorted-list 
-              (setf sorted-list (append temp-list 
-                                        (list new-sublist) (list sublist) rest-sorted-list)))
-             (t (setf sorted-list (append temp-list 
-                                        (list new-sublist) (list sublist)))))
-            (return)))
-        ;;end inner loop, t, cond, outer loop
-        ))))
-    sorted-list
-    ;;end let, my-sort-lists
-    ))|#
-;;TEST
-;;  (my-sort-lists 1 '((a 3  x)(z 9 l)(m 1 mm)(a  5  nn)))
-
-
-
-;;MY-SORT-LISTS-- OLD, UNRELIABLE, INEFFICIENT;;
-;;ddd
-#|OLD, UNRELIABLE, INEFFICIENT
-(defun my-sort-lists (nth lists  &key ascending-p from-end) 
-  "In U-lists.  Sorts by largest item first only.  RETURNS (values descending-lists ascending-lists non-list-items)  ascending-lists = NIL unless ASCENDING-P. If from-end, counts from end and returns both lists."
-  (let
-      ((descending-lists)
-       (ascending-lists)
-       (ordered-list)
-       (temp-list)
-       (non-list-items)
-       (greaterp)
-       (first-lists)
-       (item-deleted-p)
-       (length-list)
-       (last-item)
-       )
-    ;;no (if from-end   (setf lists (reverse lists)))
-
-    (loop
-     for list in lists
-     do
-     ;;ignore  if not a list
-     (cond
-      ((listp list)
-       (setf  length-list (list-length list))
-    
-       (cond
-        (descending-lists
-         (setf first-lists (butlast descending-lists)
-               last-item (car (last descending-lists)))
-         (multiple-value-setq (ordered-list greaterp)
-             (my-list-nth-greaterp nth list last-item :from-end from-end)) 
-         ;;in any case
-         (setf descending-lists (append first-lists ordered-list))
-         (cond
-          ((null greaterp) NIL)
-          (t (setf descending-lists (my-sort-lists nth descending-lists :from-end from-end))))
-         ;;end descending-lists clause
-         )
-        (t (setf descending-lists (list list))))
-       ;;end listp clause
-       )
-      (t (setf non-list-items (append non-list-items (list list)))))
-   ;;(afout '*out (format nil "1 Nth= ~A~%  list= ~A~% descending-lists= ~A~%first-lists= ~A~%last-item= ~A~%" nth list descending-lists first-lists last-item))
-     ;;end loop
-     )
-    (cond
-     (ascending-p
-      (setf ascending-lists (reverse descending-lists)))
-     (t nil))
-
-    (values descending-lists ascending-lists non-list-items)
-    ;;end let, my-sort-lists
-    ))|#
-;;TEST
-
-
-
-
-;; DELETE THE FOLLOWING 
-
-;;TESTS BEFORE OLD-VALUE CHANGES=================
-;; OLD VERSION DIDN'T ACCT FOR CASES WHERE NO OLD-VALUE
-#|(defun get-set-append-delete-keyvalue (key old-value new-value
-                                       &key (keyloc-n 0) (val-nth 1)
-                                       old-keylist
-                                       append-value-p
-                                       add-value-p
-                                       put-key-after-items
-                                       put-value-after-items
-                                       begin-items
-                                       end-items
-                                       splice-key-value-in-list-p
-                                       (splice-old-new-values-p T))
-  "In U-lists, if new-value = :get, just returns old-value. Otherwise replaces or appends old value.  If listp old- value, appends list; if not sets value to (list old-value new-value). RETURNS (values return-keylist new-keylist return-value). When KEYLOC-N > 0, If  PUT-KEY-AFTER-ITEMS is a list, puts put-key-after-items  before key. If a single object, puts keyloc-n objects key in keylist. If SPLICE-KEY-VALUE-IN-LIST-P, splices key and new-value at keyloc-n in that list which becomes the new-keylist. If SPLICE-OLD-NEW-VALUES-P, then puts/splices key-value LIST, if nil, appends key, value. RETURN-KEYLIST is the list possibly modified by outside items. The NEW-KEYLIST is the innermost keylist.
-   If splice-key-value-in-list-p length < prev-valloc-n, then fills places with  put-key-after-items object to make new-keylist. If KEY = :NTH (keyloc-n becomes the number for nth and val-nth=0, then just ignores all keys and operates on old-value--otherwise like above. NOTE: Used by nesting functions to get, set, or append values in FINAL NESTED LIST. If want filled with NIL, put :NIL in put-... ADD-VALUE-P adds new-value after old-value without being in a list. APPEND-VALUE-P puts new-value in a list with old-value (even if old-value wasn't a list). [Note: IF OLD-KEYLIST, the don't need key or old-value.]  USE OLD-KEYLIST WITH NO-KEY."
-  (let
-      ((new-keylist)
-       (return-keylist)
-       (return-value)
-       (splice-list-n)
-       (put-n 0)
-       (add-n 0)
-       (len-old-keylist) 
-       (n-to-val) 
-       )
-    ;;PRE-PROCESSING
-    ;;WHEN :NTH
-    (when (equal key :NTH)
-      (setf val-nth 0))
-
-    (when (and (numberp keyloc-n)(numberp val-nth))
-      (setf  n-to-val  (+ keyloc-n val-nth)))
-
-    ;;WHEN OLD-KEYLIST PROVIDED (overrides begin-items put-value-after-items end-items   
-    (cond
-     (old-keylist 
-      (setf len-old-keylist (list-length old-keylist))    
-      (when  (> keyloc-n 0)
-        (setf begin-items (subseq old-keylist 0 keyloc-n)))
-      (when  (> val-nth 1)
-        (setf put-value-after-items (subseq old-keylist (+ keyloc-n 1) n-to-val)))
-      (when (> len-old-keylist n-to-val)
-        (setf end-items (subseq old-keylist (+ n-to-val 1) len-old-keylist)))
-      (when (null old-value) 
-        (setf old-value (nth  (+ keyloc-n val-nth) old-keylist)))
-        )
-     (t
-      (cond
-       (put-value-after-items
-        (setf  old-keylist (list key put-value-after-items old-value))
-        (when  (equal key :NTH)
-          (setf begin-items (append begin-items put-value-after-items))))
-       (t      
-        (setf old-keylist (list key old-value))))))  
-
-    ;;STEP 1: MAKE NEW-KEYLIST
-    (cond
-     ;;FOR GET
-     ((equal new-value :get)
-        (setf  new-keylist old-keylist)
-       (when (equal key :NTH)
-          (setf  new-keylist (list old-value)))
-      ;;also
-      (setf return-value  old-value)
-      ;;end get
-      )
-     ;;FOR APPEND-VALUE-P
-     (append-value-p  ;;was (and append-value-p (not (equal key :NTH)))
-      (cond
-       ((listp old-value)
-        (cond
-         (put-value-after-items
-          (cond
-           ((equal key :NTH)
-            (setf  new-keylist (append  put-value-after-items
-                                          (append old-value  (list new-value)))))
-           (splice-old-new-values-p
-            (setf  new-keylist (append  (list key)  put-value-after-items
-                                        (list (append old-value  (list new-value))))))
-           (t (setf  new-keylist (append  (list key)  put-value-after-items
-                                          (append old-value  (list new-value))))))
-          ;;(break "splice-old-new-values-p, LIST")
-          ;;end put-value-after-items
-          )
-         (t (setf new-keylist (list key (append  old-value (list new-value))))))
-        ;;in any case
-        (setf return-value (append old-value (list new-value))))
-       ;;OLD VALUE NOT A LIST
-       (t
-        (cond
-         (put-value-after-items
-          (cond
-           ((equal key :NTH)
-            (setf  new-keylist (append  put-value-after-items
-                                          (list old-value new-value))))
-           (splice-old-new-values-p
-            (setf  new-keylist (append (list key)  put-value-after-items
-                                       (list (list old-value  new-value)))))
-           (t (setf  new-keylist (append (list key)  put-value-after-items
-                                         (list old-value  new-value)))))
-          ;;(break "splice-old-new-values-p, NOT-LIST")
-          (setf return-value (list old-value  new-value))
-            ;;end put-value-after-items
-            )
-         (t (setf new-keylist (list key  (list old-value  new-value))
-                  return-value  (list old-value  new-value))))))
-  
-      ;;later??(when begin-items (setf new-keylist (append begin-items new-keylist)))
-      ;;end append-value-p
-      )
-     ;;FOR ADD-VALUE-P
-     (add-value-p 
-      (cond
-       ((equal key :NTH)
-        (setf new-keylist (list old-value new-value)
-               return-value (list  old-value  new-value))
-        (when put-value-after-items
-          (setf new-keylist (append put-value-after-items new-keylist))))
-       (put-value-after-items
-        (setf  new-keylist (append  (list key)  put-value-after-items
-                                    (list old-value)(list new-value))
-               return-value (list old-value  new-value))
-        ;;end put-value-after-items
-        )
-       (t (setf new-keylist (list key old-value  new-value)
-                return-value (list  old-value  new-value))))
-
-      ;;later? (when begin-items (setf new-keylist (append begin-items new-keylist)))
-      ;;end add-value-p
-      )
-     ;;FOR REPLACE OLD VALUE
-     (t
-      (cond
-       ((equal key :NTH)
-        (setf  new-keylist (list new-value)))
-       (t
-        (cond
-         (put-value-after-items
-          (cond
-           ((not (equal key :NTH))
-            (setf  new-keylist
-                   (append (list key) put-value-after-items (list  new-value))))
-           (t (setf  new-keylist
-                 (append  put-value-after-items (list  new-value))))))
-         (t (setf new-keylist (list key new-value))))
-        ;;later? (when begin-items (setf new-keylist (append begin-items new-keylist)))
-        ))
-      ;;in any case of  T
-      (setf return-value  new-value)
-      ))
-
-    ;;STEP 2: FINAL CHANGES TO KEYLIST?
-    ;;was (unless (equal key :NTH)
-      (when begin-items
-        (setf new-keylist (append begin-items new-keylist)))
-      (when end-items
-        (setf  new-keylist (append new-keylist  end-items))) 
-
-  
-    ;;STEP 3: INSERT NEW-KEYLIST IN A LIST?
-    (cond
-     (splice-key-value-in-list-p 
-      ;;is splice-list-n > keyloc-n?
-      (cond
-       ((>=  (setf splice-list-n (list-length splice-key-value-in-list-p)) keyloc-n)
-        NIL )
-       ;;if not, must modify new-keylist by putting in new elments 
-       (t (setf return-keylist (append (make-list (- keyloc-n splice-list-n)  :initial-element put-key-after-items)  new-keylist))))
-
-      ;;In either case, make new-keylist
-      (cond
-       (splice-old-new-values-p
-        (setf return-keylist (append-nth (list new-keylist) keyloc-n splice-key-value-in-list-p :splice-list-p T)))
-       (t  
-        (setf  return-keylist (append-nth new-keylist keyloc-n splice-key-value-in-list-p :splice-list-p T))))       
-      ;;end splice-key-value-in-list-p clause
-      )
-
-     ;;IF PUT-KEY-AFTER-ITEMS and NULL SPLICE-KEY-VALUE-IN-LIST-P
-     (put-key-after-items
-      (when (> keyloc-n 0)
-        ;;if not a list, use put-key-after-items to fill a new list; IF :NIL fills with NIL
-        (cond
-         ((not (listp put-key-after-items))
-          (cond
-           ((equal put-key-after-items :NIL)
-            (setf put-key-after-items (make-list keyloc-n :initial-element  NIL)))
-           (t (make-list keyloc-n :initial-element  put-key-after-items))))
-         ((listp put-key-after-items)
-          ;;keyloc-n is num of items needed to fill in keyloc-n > 0
-          ;;put-n is number of  items put-key-after-items is short
-          (setf put-n (list-length put-key-after-items)
-                add-n (- keyloc-n put-n))
-           
-          ;;cccc
-          (cond
-           ;; if keyloc-n = put-n, use entire list
-           ((= add-n 0) NIL)
-           ;;if put-n is negative, must only use part of list
-           ((< add-n 0)
-            (setf put-key-after-items (butlast put-key-after-items (abs add-n))))
-           ;;keyloc-n > list length, must add elements
-           ((> put-n 0)
-            (setf put-key-after-items (append put-key-after-items 
-                                              (make-list add-n :initial-element  NIL))))))
-         (t nil))
-        ;;(BREAK "AFTER PUT")
-        ;;IN ANY CASE PUT KEYLIST AFTER PUT-KEY-AFTER-ITEMS
-        (when (> (list-length put-key-after-items) 0)
-          (cond
-           (splice-old-new-values-p
-            (setf  return-keylist (append  put-key-after-items  (list new-keylist))))
-           (t (setf  return-keylist (append  put-key-after-items  new-keylist))))
-          ;;end when
-          )
-        ;;end when keyloc-n > 0
-        )
-      ;;end put-key-after-items clause, cond
-      ))   
-     ;;Often the return-keylist = new-keylist
-     (when (null return-keylist)
-       (setf return-keylist new-keylist))
-
-    (values return-keylist new-keylist return-value)
-    ;;end let, get-set-append-delete-keyvalue
-    ))|#
-
-;;2017 VERSION-BUT REPLACE WITH TEST VERSION--LATER DELETE?
-#|(defun get-set-append-delete-keyvalue-in-nested-list (new-value  key-spec-lists  nested-lists                                                           &key append-value-p  add-value-p (test 'my-equal)
-                                                          return-list-p (test 'my-equal)
-                                                          put-key-after-items
-                                                          put-value-after-items
-                                                          new-begin-items  new-end-items
-                                                          splice-key-value-in-list-p 
-                                                          splice-old-new-values-p
-                                                          (return-nested-list-p T) ;;was return-orig-nested-list-p
-                                                          (max-list-length 1000)  
-                                                          (if-not-found-append-key-value-p T)
-                                                          if-not-found-append-keyvalue-list-p 
-                                                          ;;doesn't work well unless finds lower keys
-                                                          if-not-found-add-item-in-last-nested-list-p 
-                                                          orig-list-items-leftn
-                                                          (recurse-for-key-p T)
-                                                          (bottom-level-p T)
-                                                          last-key-found-p )
-  "In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) Can have exact loc of all keys, keyloc-n as a number OR can be NIL or T [In which case will check entire list at that level for key]. Also, if the KEY = T, searches entire list.  DOES NOT check for keys in any other location than keyloc-n (UNLESS T, NIL);   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
-   If in  NOT LAST KEYSPEC VAL-NTH is a NUMBER  searches that location [can be VALUE LIST] for the nested list with next key.  IF VAL-NTH not a number (eg aT), searches ALL NESTED LISTS for the NEXT KEY.
-   To APPEND KEY & VALUE TO TOP LIST, set :IF-NOT-FOUND-APPEND-KEYVALUE-LIST-P to NIL. (To append whole list, set to T)
-    RETURNS (return-keylist new-return-nested-lists new-keylist return-value  old-keylist last-key-found-p ) If return-list-p, return-keylist is the ENTIRE list containing key, otherwise same as new-keylist. KEY-SPEC-LISTS are lists of (key keyloc-n val-n) [val-nth optional, default= 0) from outermost to innermost (last) key. Eg of proper list (:k1 (a) :key1 (k2 (b) :key2 (k3 (c) k4 (d) :key3 (:key5 OLD-VALUE)...)); key-spec-list= ((:key1 2)(:key2  2)(:key3 4)(:key5 0)) .IF-NOT-FOUND-APPEND-KEY-VALUE-P adds a key and keyvalue to innermost list if not found (but preceding key must be found). If last keyloc-n = 0, puts old previous keyvalue at end of new keylist. If last keyloc-n > 0, puts it first, then fills in nils before new key in last list which is new value of previous key. IF KEY = :NTH, then gets, sets, or appends number in KEYLOC-N PLACE. Note: If second item in spec-list isn't number, uses default keyloc-n.  PUT-KEY-AFTER-ITEMS is a list of items which is used if keyloc-n > 0 to fill in items between key and value [done automatically if old items are there]. splice-key-value-in-list-p does similar except includes items after the value. If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.  ADD-VALUE-P just adds new-value after old-value.
-   LAST-KEY-FOUND-P must be NIL (set only in recursive calls), or keeps from adding new values sometimes.          
-   NOTE: IF KEYS NOT FOUND, Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-   return-nested-list-p often makes no difference.
-  THIS CAN BE USED AS A GENERAL SEARCH FUNCTION"
-  (let*
-      ((return-nested-lists)
-       (return-old-keylist)
-       (new-return-nested-lists)
-       (match-item)
-       (spec-list (car key-spec-lists))
-       (KEY (first spec-list))
-       (keyloc-n (second spec-list))
-       (val-nth )
-       (new-spec-lists)
-       (new-nested-list1)
-       (new-nested-lists)
-       (new-key-spec-lists)
-       (key-spec-lists1)
-       (loop-return-list)
-       (add-new-value-p)
-       (cur-level-list)
-       (list-head)
-       (list-tail)
-       (length-nnl) 
-       (old-value)
-       (key-found-p)
-       (added-key-value)
-       (return-keylist)(new-keylist)(old-keylist)( return-value)
-       (testitem)
-       (item)
-       (new-key)
-       (found-keylist)
-       (found-top-n)
-       )
-    
-    ;;LISTP NESTED-LISTS--Function only processes list inputs.
-    (cond           
-     ((listp nested-lists)
-      (setf length-nnl (list-length nested-lists))
-
-      ;;SPEC-LIST VARIABLES ----------------------------
-      (cond
-       ;;KEY = T  (for compatibity with older and is useful)
-       ((or  (equal key 'T)(equal key T))
-        (setf  key-spec-lists  (cdr key-spec-lists)
-               spec-list (car key-spec-lists)
-               key (car spec-list)
-               keyloc-n (second spec-list)
-               val-nth (third spec-lists)
-               recurse-for-key-p T)
-        (when (null keyloc-n) 
-          (setf keyloc-n 1))
-        
-        ;;(afout 'out (format nil ">>KEY= T, THEN KEY= ~A,~% spec-list= ~A keyloc-n= ~A  KEY-SPEC-LISTS= ~A~% recurse-for-key-p= ~A"key  spec-list keyloc-n key-spec-lists     recurse-for-key-p))
-        )
-       ;;FOR KEY = :NTH (to find nth in list without key)
-       ((equal key :NTH)
-        (setf val-nth 0))
-       (t nil) ) 
-      ;;KEYLOC-N (position of the key in nested-lists)
-      (when (not (numberp keyloc-n))
-        (setf  recurse-for-key-p T))
-      ;;VAL-NTH, place for value after key
-      (when  (third spec-list)
-        (setf val-nth (third spec-list)))
-      (when (null val-nth)
-        (setf val-nth 1))
-      ;;SET RECURSE-FOR-KEY-P (Causes search all lists in top list)
-      (cond
-       ((member :R spec-list)
-        (setf  recurse-for-key-p T))
-       ((member :NR spec-list)
-        (setf  recurse-for-key-p NIL)))   
-      ;;(afout 'out (format nil ">>>>>>>> 1-NESTED-LISTS= ~A~%SPEC-LIST= ~A~%KEYLOC-N= ~a  VAL-NTH= ~a~% recurse-for-key-p= ~A"  nested-lists spec-list keyloc-n  val-nth    recurse-for-key-p))
-
-      ;;TOPLEVEL LOOP  AAA
-      (loop
-       for topitem in nested-lists
-       for top-n from 0 to length-nnl
-       do
-       ;;(afout 'out  (format nil "***** TOPLEVEL LOOP, TOPITEM= ~A TOP-N=~a~%SPEC-LIST= ~A" TOPITEM TOP-N spec-list))
-
-       ;;TOP LEVEL COND: Is item a list or not?
-       (cond
-        ((listp topitem)
-         (cond
-          ;;IF (NUMBERP KEYLOC-N), check (nth keyloc-n nested-lists) for key
-          ((and (numberp keyloc-n) (not (equal key :any-key)))
-
-           ;;First test key at this level
-           (setf item (nth keyloc-n topitem))
-           ;;(afout 'out (format nil "NUMBERP KEYLOC-N= ~A, found ITEM= ~A key-spec-lists= ~A~%TOPITEM list= ~A" keyloc-n item  key-spec-lists topitem ))
-
-#|(defun testtesttt (a b &key (test 'equal))
- (eval `(,test a b))
-  ;;(list test a b)
-  )
-  (testtesttt  'this 'this)
-|#
-
-           (cond
-            ;;TOPITEM = KEY
-            ((or (eval `(,test key item)) (equal key :nth)) 
-             ;;was (or (my-equal key item) (equal key :nth))
-             (setf key-found-p T
-                   list-head (butlast nested-lists (- length-nnl top-n ))
-                   list-tail (nthcdr (+ top-n 1) nested-lists)
-                 new-key-spec-lists (cdr key-spec-lists))
-             ;;(afout 'out (format nil ">>>In numberp, HEAD-TAIL:KEY= ~A FOUND-P= ~A keyloc-n ~A top-n= ~A  length-nnl= ~A~% new-nested-lists= ~A~%list-head= ~A ~%list-tail= ~A"key key-found-p keyloc-n top-n  length-nnl new-nested-lists list-head    list-tail))
-             (cond
-              ((null new-key-spec-lists)
-               ;;copied from old
-               (setf old-value (nth (+ keyloc-n  val-nth) topitem)
-                     old-keylist topitem
-                     last-key-found-p T)
-
-               ;;IS KEY= :NTH?
-               (cond 
-                ((not (equal key :NTH)) 
-                 (multiple-value-setq (return-keylist new-keylist return-value)
-                     (get-set-append-delete-keyvalue key  new-value
-                                              :keyloc-n keyloc-n :val-nth val-nth :test test
-                                              :old-keylist TOPITEM
-                                              :append-value-p append-value-p
-                                              :add-value-p add-value-p
-                                              :put-key-after-items put-key-after-items
-                                              :put-value-after-items put-value-after-items
-                                              :new-begin-items new-begin-items 
-                                              :new-end-items new-end-items
-                                              :splice-key-value-in-list-p splice-key-value-in-list-p
-                                              :splice-old-new-values-p splice-old-new-values-p))
-                 (setf return-old-keylist old-keylist)
-
-                 ;;Inserts items betw keyloc-n and val-nth into final returned list
-                 (cond
-                  ((> keyloc-n 0)
-                   (setf  put-key-after-items (subseq topitem 0  keyloc-n) ;; (+ keyloc-n val-nth))
-                          ;;was (+ keyloc-n 1) (+ keyloc-n val-nth))
-                          ;;was splice-old-new-values-p NIL ;;SSS or should be NIL?
-                          splice-key-value-in-list-p nil))
-                  ;;added
-                  (t (setf put-key-after-items NIL)))
-                 ;;copied from old end
-
-                 ;;(afout 'out (format nil "LAST KEY FOUND= key= ~A  old-keylist= ~a~%put-key-after-items= ~a old-value= ~A" key old-keylist put-key-after-items old-value))
-                 (setf return-nested-lists  (append list-head
-                                                    (list return-keylist)
-                                                    list-tail))
-                 ;;(BREAK "before return-list-p")
-                 (when return-list-p
-                   (setf return-keylist return-nested-lists))
-                 ;;(afout 'out (format nil "AFTER LAST-KEY-FOUND: list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A" list-head return-keylist list-tail return-nested-lists))   
-                 (when last-key-found-p
-                   (return)) 
-                 ;;(BREAK "RETURN? if  last-key-found-p")
-                 ;;END (not (equal key :NTH))
-                 )
-                ;;was (setf old-keylist (list key old-value)))
-                (t  nil)) ;;(setf old-keylist (list old-value))))
-               ;;end null spec-list
-               )
-              ;;RECURSE TO NEXT KEY-SPEC
-              ( T 
-                ;;RECURSE ON  new-key-spec-lists new-nested-lists ;;same as nested lists
-                ;; ADD TO RETURN NESTED-LISTS ETC
-                ;;VARS SET ABOVE
-                ;;(afout 'out (format nil "RECURSE TO NEXT KEY-SPEC: list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A next-key-in-value-p= ~a" list-head return-keylist list-tail return-nested-lists next-key-in-value-p))
-                (cond
-                 ;;WHEN VAL-NTH IS A NUMBER
-                 ((numberp val-nth)              ;;was next-key-in-value-p
-                  (setf found-top-n top-n)
-                  ;;set above  list-tail  (nthcdr top-n))
-                  )
-                 ;;OTHERWISE SEARCH ENTIRE CURRENT LIST 
-                 ;; for nested-lists that contain (at next level ONLY) the next key
-                 ;; Set it as the new 
-                 (T
-                  (multiple-value-setq (topitem found-top-n)
-                      (find-list-with-item key nested-lists))
-                  ))
-                ;;in either case
-                (setf topitem (nth (+ val-nth top-n) nested-lists)
-                      list-head (butlast nested-lists (- length-nnl (+ top-n val-nth)))  
-                      ;;was (+ (- length-nnl top-n) val-nth))
-                      list-tail (nthcdr  (+ found-top-n val-nth)  nested-lists))    
-                ;;(break "XX BEFORE RECURSE")
-
-                ;;RECURSE ON SAME LIST WITH CDR  KEY-SPEC-LIST (set above)
-                (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                     return-value   return-old-keylist last-key-found-p )
-                    (get-set-append-delete-keyvalue-in-nested-list new-value  new-key-spec-lists  
-                                                            TOPITEM 
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p  append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items
-                                                            :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :put-value-after-items put-value-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-
-                (setf  return-nested-lists (append list-head 
-                                                   put-key-after-items  ;; (list key)  ;;list key added
-                                                   (list  new-return-nested-lists)   list-tail))
-
-                ;;(afout 'out (format nil "IN TOP NUMBERP, AFTER RECURSE ON TOPITEM= ~a, top-n= ~A new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" TOPITEM top-n new-keylist  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-                (when return-list-p
-                  (setf  return-keylist  new-return-nested-lists))
-                ;;(BREAK "BEFORE RETURN")
-                (when last-key-found-p
-                  (return))
-                ;;end key found, but not last key, cond
-                ))
-             ;;END KEY=ITEM
-             )
-            ;;KEY NOT= ITEM, and  (null recurse-for-key-p)
-            ((null recurse-for-key-p)
-             (setf old-keylist topitem) ;;added is this right?
-             (setf return-nested-lists (append return-nested-lists (list topitem)))
-             ;;(afout 'out (format nil "IN TOP NUMBERP, NO-RECURSE, KEY= ~a NOT= ITEM= ~a~%topitem= ~A~% (append return-nested-lists (list topitem))= ~A"  key item topitem return-nested-lists))
-             ;;end (null recurse-for-key-p)
-             )
-            ;;KEY NOT=ITEM, RECURSE (recurse-for-key-p)
-            (recurse-for-key-p
-             ;;RECURSE ON  new-key-spec-lists new-nested-lists ;;same as nested lists
-             ;; ADD TO RETURN NESTED-LISTS ETC
-             ;;don't loop, done in recurse?    
-             (setf list-head (butlast nested-lists (- length-nnl top-n))
-                   list-tail (nthcdr (+ top-n 1) nested-lists))
-             (setf old-keylist topitem) ;;added is this right?
-
-             ;;(BREAK "XX BEFORE TOPITEM LIST RECURSE")
-             ;;RECURSE ON SAME LIST WITH SAME  KEY-SPEC-LIST (set above)
-             ;;  WAS ON CDR KEY-SPEC-LIST, BUT IF NOT FOUND, NO
-             (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                  return-value   return-old-keylist last-key-found-p )
-                 (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists  
-                                                         TOPITEM 
-                                                         :return-list-p return-list-p :test test
-                                                         :append-value-p  append-value-p
-                                                         :add-value-p add-value-p
-                                                         :new-begin-items new-begin-items :new-end-items new-end-items
-                                                         :max-list-length max-list-length
-                                                         :last-key-found-p   last-key-found-p
-                                                         ;;      :new-keylist new-keylist
-                                                         ;;     :old-keylist old-keylist
-                                                         ;;      :return-value return-value
-                                                         :put-value-after-items put-value-after-items
-                                                         :if-not-found-append-key-value-p NIL
-                                                         :RECURSE-FOR-KEY-P T
-                                                         :bottom-level-p nil
-                                                         ;; :put-key-after-items put-key-after-items
-                                                         ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                         :splice-old-new-values-p splice-old-new-values-p
-                                                         ;;  :return-keylist return-keylist
-                                                         ))
-             (setf  return-nested-lists (append list-head 
-                                                put-key-after-items  ;; (list key)  ;;list key added
-                                                (list  new-return-nested-lists)   list-tail))
-
-             ;;(afout 'out (format nil "IN TOP NUMBERP, AFTER RECURSE ON TOPITEM LIST= ~a, top-n= ~A new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" TOPITEM top-n new-keylist  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-             (when return-list-p
-               (setf  return-keylist  new-return-nested-lists))
-             ;;(BREAK "BEFORE RETURN")
-             (when last-key-found-p
-               (return))
-             ;;end recurse-for-key-p,cond
-             ))
-
-           ;;END NUMBERP KEYLOC-N
-           )
-          ;;(LISTP TOPITEM), BUT  KEYLOC-N = T, NIL or other non-number
-          ;;Recurse on this list to search for key?
-          (recurse-for-key-p
-           (setf list-head (butlast nested-lists (- length-nnl top-n)) ;;lll
-                 list-tail (nthcdr (+ top-n 1) nested-lists))
-           (setf old-keylist topitem) ;;added is this right?
-
-           ;;put this here?
-           (cond
-            ((equal key :any-key)
-             (setf key-spec-lists1 (cdr key-spec-lists)))
-            (t (setf key-spec-lists1 key-spec-lists)))
-           
-           (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                return-value   return-old-keylist last-key-found-p )
-               (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists1  
-                                                       TOPITEM 
-                                                       :return-list-p return-list-p :test test
-                                                       :append-value-p append-value-p
-                                                       :add-value-p add-value-p
-                                                       :new-begin-items new-begin-items 
-                                                       :new-end-items new-end-items
-                                                       :max-list-length max-list-length
-                                                       :last-key-found-p   last-key-found-p
-                                                       ;;      :new-keylist new-keylist
-                                                       ;;     :old-keylist old-keylist
-                                                       ;;      :return-value return-value
-                                                       :if-not-found-append-key-value-p NIL
-                                                       :RECURSE-FOR-KEY-P  recurse-for-key-p
-                                                       :bottom-level-p nil
-                                                       ;; :put-key-after-items put-key-after-items
-                                                       ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                       ;; :put-value-after-items put-value-after-items
-                                                       :splice-old-new-values-p splice-old-new-values-p
-                                                       ;;  :return-keylist return-keylist
-                                                       ))
-           (setf  return-nested-lists (append list-head 
-                                              put-key-after-items  ;; (list key)  ;;list key added
-                                              (list  new-return-nested-lists)   list-tail))
-
-           ;;(afout 'out (format nil "IN TOP NUMBERP LOOP, AFTER RECURSE, ITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" ITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-           (when last-key-found-p
-             (return))
-           ;;end listp topitem, not numberp keyloc-n,  listp item, recurse-for-key-p
-           ))
-         ;;END (LISTP TOPITEM)
-         )
-        ;;TOPITEM NOT A LIST
-        (t
-         (cond
-          ;;TOPITEM = KEY ( or NTH if :NTH)
-          ((or (funcall test  topitem key) ;;was (my-equal topitem key)
-               (and (equal key :nth) (equal top-n keyloc-n)))
-           ;;(afout 'out (format nil ">>>> 1. TOPITEM NOT A LIST, KEY= ~a  FOUND~% NESTED-LISTS=old-keylist= ~A, ~%FOR OLD: SPEC-LIST= ~a, TOP-N= ~a  " key nested-lists spec-list top-n ))
-           (setf key-found-p T              
-                 new-key-spec-lists (cdr key-spec-lists))
-           (when (not (numberp keyloc-n))
-             (setf keyloc-n top-n)) 
-           (cond
-            ((numberp val-nth)
-             (setf new-nested-lists (nth (+ top-n val-nth) nested-lists)
-                   old-keylist  nested-lists                  
-                   list-head (butlast nested-lists (- length-nnl (+ top-n val-nth)))
-                   list-tail (nthcdr (+ top-n val-nth 1) nested-lists)))
-            (t (setf new-nested-lists nested-lists
-                      old-keylist  nested-lists )))  ;;could cause infinite loop?? NEW
-           ;;(afout 'out (format nil ">>>> 2. TOPITEM NOT A LIST, KEY= ~a  FOUND~% NESTED-LISTS= ~A, ~%FOR NEW RECURSE: new-key-spec-lists ~a, TOP-N= ~a ~%LIST-HEAD= ~a~%LIST-TAIL= ~a" key nested-lists new-key-spec-lists top-n  list-head list-tail))
-           ;;(BREAK "TOPITEM NOT LIST, FOR NEW RECURSE:")
-
-           (cond
-            ;;LAST-KEY-FOUND-P
-            ((null new-key-spec-lists)
-             ;;GET-SET
-             (setf last-key-found-p T
-                   old-value (nth (+ keyloc-n val-nth) nested-lists)
-                   old-keylist nested-lists)
-            ;;(afout 'out (format nil ">>>> 2. LAST-KEY-FOUND. OLD-VALUE= ~A" old-value))      
-#|    not needed, causes extra addition of these items in front of return-keylist??
-        (cond
-             ((and (numberp keyloc-n) (> keyloc-n 0))
-              (setf  put-key-after-items (subseq nested-lists 0  keyloc-n) 
-                     ;;was (+ keyloc-n 1) (+ keyloc-n val-nth))
-                     ;;was  splice-old-new-values-p NIL ;;SSS or should be NIL?
-                     splice-key-value-in-list-p nil))
-            ;;added
-            (t (setf put-key-after-items NIL)))|#
-
-             ;;(BREAK "BEFORE GET-SET-OR-APPEND")
-
-             ;;HERE
-             ;;USE GET-SET-OR-APPEND
-             (multiple-value-setq (return-keylist new-keylist return-value)
-                 (get-set-append-delete-keyvalue key  new-value
-                                          :keyloc-n keyloc-n :val-nth val-nth :test test
-                                          :old-keylist old-keylist
-                                          :append-value-p append-value-p
-                                          :add-value-p add-value-p
-                                          :put-key-after-items put-key-after-items
-                                          :put-value-after-items put-value-after-items
-                                          :new-begin-items new-begin-items
-                                          :new-end-items new-end-items
-                                          :splice-key-value-in-list-p splice-key-value-in-list-p
-                                          :splice-old-new-values-p splice-old-new-values-p))
-             (setf return-old-keylist old-keylist)
-             (setf return-nested-lists  (append list-head
-                                                (list return-value)   ;;was return-keylist
-                                                list-tail))
-
-             ;;(BREAK "before return-list-p")
-             (when return-list-p
-               (setf return-keylist return-nested-lists))
-
-             ;;(afout 'out (format nil "TOPITEM= ~A NOT A LIST AFTER LAST-KEY-FOUND:~%GET-SET-APPEND; top-n= ~A list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A OLD-VALUE= ~a" TOPITEM top-n list-head return-keylist list-tail return-nested-lists old-value))
-             (when last-key-found-p
-               (return))
-             ;;end (null new-key-spec-lists)
-             )
-            ;;LAST KEY NOT FOUND, RECURSE ON NEW-NESTED-LISTS
-            (t
-             ;;(BREAK "KEY-FOUND, RECURSE, TOPITEM NOT A LIST")
-             ;;Arguments set above after key found
-             ;;to fix errors, redundant?
-             (setf keyspec-list (car key-spec-lists))
-             (multiple-value-setq (key keyloc-n val-nth)
-                 (values-list keyspec-list))
-             ;;test added
-             (cond
-              ((not (numberp val-nth))
-               (setf new-key (caar new-key-spec-lists))    
-                     
-               ;;when val-nth is not a number search entire current list 
-               (cond
-                ((member new-key nested-lists :test 'my-equal)
-                 (setf new-nested-lists nested-lists) )
-                ( t 
-                  (multiple-value-setq (found-keylist found-top-n)
-                        (find-list-with-item new-key nested-lists))
-                    (when found-keylist
-                      (setf new-nested-lists  found-keylist)
-                      ))
-                )
-               ;;add??       new-key-spec-lists (cdr new-spec-lists)
-               ;;end whens
-               ))
-              (cond
-               ((listp new-nested-lists)
-                (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                     return-value   return-old-keylist last-key-found-p )
-                    (get-set-append-delete-keyvalue-in-nested-list new-value  new-key-spec-lists  
-                                                            NEW-NESTED-LISTS
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                            ;; :splice-old-new-values-p splice-old-new-values-p
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-                ;;(afout 'out (format nil "IN LOOP, TOPITEM=KEY (NOT A LIST),, AFTER RECURSE, TOPITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a~%old-keylist= ~A last-key-found-p= ~A" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items old-keylist last-key-found-p))
-                )
-               (t NIL))
-              ;;WAS (BREAK "ERROR: NEW-NESTED-LISTS= [~A  ]  IS NOT A LIST [May have wrong keyloc-n]" new-nested-lists), BUT OK FOR IT TO NOT BE A NESTED LIST.
-              ;;SSS DOES MORE CODE NEED TO BE WRITTEN TO PROCEED IF THIS NON-LIST?
-              (cond
-               ((numberp keyloc-n)
-                (setf  return-nested-lists (append list-head 
-                                                   put-key-after-items  ;; (list key)  ;;list key added
-                                                   (list  new-return-nested-lists)   list-tail)))
-               ;;If keyloc-n = T, return whole nested list
-               (t (setf return-nested-lists new-return-nested-lists)))                         
-
-              ;;(BREAK "IN LOOP, TOPITEM=KEY (NOT A LIST), RETURN? if  last-key-found-p")
-              ;;test this
-              (when (or last-key-found-p (null (cdr new-key-spec-lists)))
-                ;;(break "test")
-                (return))
-              ))
-           ;;end key found
-           )
-          ;;added 2017-03
-          ;;AAA          ;;KEY NOT FOUND AS LAST ITEM IN FINAL TOPLIST
-          ((and (not (numberp keyloc-n))
-                (= top-n (- length-nnl 1)) ;;last item in nested-lists
-                if-not-found-add-item-in-last-nested-list-p ;;PUT IN KEYS
-                (or if-not-found-append-key-value-p 
-                    if-not-found-append-keyvalue-list-p))
-           (setf old-keylist nested-lists) ;;SSS OR topitem or new-return-nested-lists?
-           (multiple-value-setq (return-keylist new-keylist return-value)
-               (get-set-append-delete-keyvalue key  new-value
-                                        :keyloc-n keyloc-n :val-nth val-nth
-                                        :old-keylist old-keylist :test test
-                                        :append-value-p append-value-p ;;was if-not-found-append-keyvalue-list-p
-                                        :add-value-p add-value-p ;;was if-not-found-append-key-value-p
-                                        :put-key-after-items put-key-after-items
-                                        :put-value-after-items put-value-after-items
-                                        :new-begin-items new-begin-items :new-end-items new-end-items
-                                        :splice-key-value-in-list-p splice-key-value-in-list-p
-                                        :splice-old-new-values-p splice-old-new-values-p))
-           (setf return-old-keylist old-keylist)
-           ;;(break "NO KEY FOUND, APPEND")
-           ;;end when, = top-n
-           )
-          ;;end added
-          ;;KEY NOT FOUND  AS ITEM IN TOPLIST
-          (T
-           (setf return-nested-lists (append return-nested-lists (list topitem)))
-           ;;(afout 'out (format nil "AT LOOP END, NO KEY FOUND as item in toplist, top-n= ~A length-nnl= ~A topitem= ~A" top-n length-nnl topitem))
-           ))
-         ;;END TOPITEM NOT A LIST, COND
-         ))
-
-       ;;END TOPLEVEL LOOP
-       )
-      ;;END LISTP NESTED-LISTS
-      )
-     ;;NESTED-LISTS NOT A LIST
-     (T NIL )) ;;was (break "ERROR: NESTED-LISTS IS NOT A LIST")))
-
-    ;;IF-NOT-FOUND-APPEND-KEY-VALUE-P
-    ;;NOTE: Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-    (when (and bottom-level-p
-               (or if-not-found-append-key-value-p
-                   if-not-found-append-keyvalue-list-p)  
-               (null if-not-found-add-item-in-last-nested-list-p)
-               (null last-key-found-p) (null new-keylist) 
-               (not (member new-value '(:get :delete-keylist :delete-value :delete-key&value))))
-      (setf  added-key-value T
-             key (caar (last key-spec-lists))
-             new-keylist (list key new-value)
-             return-keylist new-keylist
-             return-value new-value)
-      (cond
-       (if-not-found-append-keyvalue-list-p
-        (setf return-nested-lists (append nested-lists 
-                                          (list new-keylist))))
-       (t (setf return-nested-lists (append nested-lists 
-                                            new-keylist))))
-      
-      ;;(break "new-value if not found")      
-      ;;(afout 'out (format nil "KEY NEVER FOUND, return-nested-lists= ~A" return-nested-lists))
-      ;;end if-not-found-append-key-value-p clause
-      )
-
-    (when (and bottom-level-p (null return-nested-list-p)) ;;was (null return-orig-nested-list-p)
-      (setf return-nested-lists  (list "return-nested-list-p=NIL")))  ;;was (list "return-orig-nested-list-p=NIL"))))
-
-    ;;(BREAK "AT END")
-    (values return-keylist return-nested-lists new-keylist return-value    
-            return-old-keylist last-key-found-p )
-    ;;end let, get-set-append-delete-keyvalue-in-nested-list
-    ))|#
- 
- 
- 
- 
-
- 
-#| 2018-01-19 OLD WORKING VERSION ----   LATER DELETE??
-(defun get-set-append-delete-keyvalue-in-nested-list (new-value  key-spec-lists  nested-lists                                                           &key append-value-p 
-                                                                 list-first-item-in-append-p
-                                                                 add-value-p (test 'my-equal)
-                                                                 return-list-p 
-                                                                 key=list-p
-                                                                 put-key-after-items
-                                                                 put-value-after-items
-                                                                 new-begin-items  new-end-items
-                                                                 splice-key-value-in-list-p 
-                                                                 splice-old-new-values-p
-                                                                 parens-after-begin-items-p
-                                                                 (return-nested-list-p T) ;;was return-orig-nested-list-p
-                                                                 (max-list-length 1000)  
-                                                                 (if-not-found-append-key-value-p T)
-                                                                 if-not-found-append-keyvalue-list-p 
-                                                                 ;;doesn't work well unless finds lower keys
-                                                                 if-not-found-add-item-in-last-nested-list-p 
-                                                                 orig-list-items-leftn
-                                                                 (recurse-for-key-p T)
-                                                                 (bottom-level-p T)
-                                                                 (if-get-no-return-old-keylist-p T)
-                                                                 last-key-found-p )
-  "In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) KEYLOC-N NOT USED--searches entire list at that level  for key (as before if keyloc-n = T) [In which case will check entire list at that level for key].  Use depreciated old function for that.
-   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
-   If in  NOT LAST KEYSPEC VAL-NTH is a NUMBER  searches that location [can be VALUE LIST] for the nested list with next key.  IF VAL-NTH not a number (eg aT), searches ALL NESTED LISTS for the NEXT KEY.
-   To APPEND KEY & VALUE TO TOP LIST, set :IF-NOT-FOUND-APPEND-KEYVALUE-LIST-P to NIL. (To append whole list, set to T)
-    RETURNS (return-keylist new-return-nested-lists new-keylist return-value  old-keylist last-key-found-p ) 
-     If RETURN-LIST-P, return-keylist is the ENTIRE list containing key, otherwise same as new-keylist. 
-     KEY-SPEC-LISTS are lists of (key keyloc-n val-n) [val-nth optional, default= 0) from outermost to innermost (last) key. Eg of proper list (:k1 (a) :key1 (k2 (b) :key2 (k3 (c) k4 (d) :key3 (:key5 OLD-VALUE)...)); key-spec-list= ((:key1 2)(:key2  2)(:key3 4)(:key5 0)) .
-     IF-NOT-FOUND-APPEND-KEY-VALUE-P adds a key and keyvalue to innermost list if not found (but preceding key must be found). If last keyloc-n = 0, puts old previous keyvalue at end of new keylist. If last keyloc-n > 0, puts it first, then fills in nils before new key in last list which is new value of previous key. 
-     IF KEY = :NTH, then gets, sets, or appends number in KEYLOC-N PLACE. Note: If second item in spec-list isn't number, uses default keyloc-n.  
-     PUT-KEY-AFTER-ITEMS is a list of items which is used if keyloc-n > 0 to fill in items between key and value [done automatically if old items are there]. splice-key-value-in-list-p does similar except includes items after the value. 
-    If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.  ADD-VALUE-P just adds new-value after old-value.
-   LAST-KEY-FOUND-P must be NIL (set only in recursive calls), or keeps from adding new values sometimes.          
-   NOTE: IF KEYS NOT FOUND, Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-   return-nested-list-p often makes no difference.
-   LIST-FIRST-ITEM-IN-APPEND-P to set keylist to key (newitem) not key newitem.
-   * This version DOES NOT USE THE KEYLOC-N to search lists
-  * THIS CAN BE USED AS A GENERAL SEARCH FUNCTION"
-  (let*
-      ((return-nested-lists)
-       (return-old-keylist)
-       (new-return-nested-lists)
-       (match-item)
-       (spec-list (car key-spec-lists))
-       (KEY (first spec-list))
-       (keyloc-n (second spec-list))
-       (val-nth )
-       (new-nested-lists)
-       (new-key-spec-lists)
-       (add-new-value-p)
-       (cur-level-list)
-       (list-head)
-       (list-tail)
-       (length-nnl) 
-       (old-value)
-       (key-found-p)
-       (last-key-found-p1)
-       (added-key-value)
-       (return-keylist)(new-keylist)(old-keylist)( return-value)
-       (testitem)
-       (item)
-       (new-key)
-       (found-keylist)
-       (found-top-n)
-       )
-    (when (listp key)
-      (setf key=list-p key))
-    
-    ;;LISTP NESTED-LISTS--Function only processes list inputs.
-    (cond           
-     ((listp nested-lists)
-      (setf length-nnl (list-length nested-lists))
-
-      ;;SPEC-LIST VARIABLES ----------------------------
-      (cond
-       ;;KEY = T  (for compatibity with older and is useful)
-       ((or  (equal key 'T)(equal key T))
-        (setf  ;;no? key-spec-lists  (cdr key-spec-lists)
-               spec-list (car key-spec-lists)
-               key (car spec-list)
-               keyloc-n (second spec-list)
-               val-nth (third spec-list))
-        ;;always recurse-for-key-p T)
-        (when (null keyloc-n) 
-          (setf keyloc-n 1))
-        
-        ;;(afout 'out (format nil ">>KEY= T, THEN KEY= ~A,~% spec-list= ~A keyloc-n= ~A  KEY-SPEC-LISTS= ~A~% recurse-for-key-p= ~A"key  spec-list keyloc-n key-spec-lists     recurse-for-key-p))
-        )
-       ;;FOR KEY = :NTH (to find nth in list without key)
-       ((equal key :NTH)
-        (setf val-nth 0))
-       (t nil))
- 
-      ;;KEYLOC-N (position of the key in nested-lists)
-      (when (not (numberp keyloc-n))
-        (setf  recurse-for-key-p T))
-      ;;VAL-NTH, place for value after key
-      (when  (third spec-list)
-        (setf val-nth (third spec-list)))
-      (when (null val-nth)
-        (setf val-nth 1))
-
-      ;;(afout 'out (format nil ">>>>>>>> 1-NESTED-LISTS= ~A~%SPEC-LIST= ~A~%KEYLOC-N= ~a  VAL-NTH= ~a~% recurse-for-key-p= ~A"  nested-lists spec-list keyloc-n  val-nth    recurse-for-key-p))
-
-      ;;TOPLEVEL LOOP  AAA
-      (loop
-       for topitem in nested-lists
-       for top-n from 0 to length-nnl
-       do
-       ;;(afout 'out  (format nil "***** TOPLEVEL LOOP, TOPITEM= ~A~% TOP-N=~a~%SPEC-LIST= ~A" TOPITEM TOP-N spec-list))
-
-       ;;TOP LEVEL COND: Is item a list or not?
-       (cond
-        ;;TOPITEM IS A LIST (but key is not), RECURSE
-        ((and (listp topitem) 
-              (null (and key=list-p
-                         (member  key=list-p nested-lists :test test))))
-
-         ;;Set head and tail before recurse to append after recurse
-         (setf list-head (butlast nested-lists (- length-nnl top-n)) ;;lll
-               list-tail (nthcdr (+ top-n 1) nested-lists))
-         (setf old-keylist topitem) ;;added is this right?
-         #|     What is this for?    
-           (cond
-            ((equal key :any-key)
-             (setf key-spec-lists1 (cdr key-spec-lists)))
-            (t (setf key-spec-lists1 key-spec-lists)))|#
-         (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                              return-value   return-old-keylist last-key-found-p1 new-key-spec-lists)
-             (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists  
-                                                            TOPITEM 
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items 
-                                                            :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :RECURSE-FOR-KEY-P  recurse-for-key-p
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                            ;; :put-value-after-items put-value-after-items
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            :parens-after-begin-items-p parens-after-begin-items-p
-                                                            :list-first-item-in-append-p list-first-item-in-append-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-         (setf  return-nested-lists (append list-head 
-                                            put-key-after-items  ;; (list key)  ;;list key added
-                                            (list  new-return-nested-lists)   list-tail))
-         ;;(my-equal-path
-         ;;(afout 'out (format nil "IN TOP NUMBERP LOOP, AFTER RECURSE, ITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-         
-         ;;last-key-found-p1 from recurse, If T, RETURN
-         (when last-key-found-p1
-           (setf last-key-found-p T)
-           (return))
-         ;;end listp topitem, not numberp keyloc-n,  listp item, recurse-for-key-p
-         ;;)
-         ;;END (LISTP TOPITEM)
-         )
-        ;;TOPITEM NOT A LIST or BOTH TOPITEM AND KEY ARE LISTS
-        ((or (null (listp topitem))
-             (and key=list-p (listp topitem)))
-
-         (cond
-          ;;TOPITEM = KEY ( or NTH if :NTH)
-          ((or (FUNCALL TEST  TOPITEM KEY) ;;was (my-equal topitem key)
-               (and (equal key :nth) (equal top-n keyloc-n)))
-
-           ;;(afout 'out (format nil ">>>> 1. TOPITEM NOT A LIST, KEY= ~a  FOUND~% NESTED-LISTS=old-keylist= ~A, ~%FOR OLD: SPEC-LIST= ~a, TOP-N= ~a  " key nested-lists spec-list top-n ))
-           (setf key-found-p T              
-                 new-key-spec-lists (cdr key-spec-lists))
-           (when (not (numberp keyloc-n))
-             (setf keyloc-n top-n)) 
-           ;;NOT FOR THIS VERSION, THE NEXT KEY DOEN'T NEED TO BE IN THE VALUE-LIST
-           ;;THE SPEC-LIST IS NEW, SO RE-SEARCH ENTIRE LIST, COULD BE BEFORE IT EVEN
-           ;;(BREAK "TOPITEM NOT LIST, FOR NEW RECURSE:")
-
-           (cond
-            ;;LAST-KEY-FOUND-P
-            ((null new-key-spec-lists)
-             ;;GET-SET
-             (setf last-key-found-p T
-                   old-value (nth (+ keyloc-n val-nth) nested-lists)
-                   list-head (butlast nested-lists (- length-nnl (+ top-n val-nth)))
-                   list-tail (nthcdr (+ top-n val-nth 1) nested-lists)
-                   old-keylist nested-lists)
-
-             ;;(afout 'out (format nil ">>>> 2. LAST-KEY-FOUND. OLD-VALUE= ~A~%list-head= ~A~%list-tail= ~A" old-value list-head list-tail))    
-             ;;(BREAK "BEFORE GET-SET-OR-APPEND")
-
-             ;;LAST KEY FOUND, SO USE get-set-append-delete-keyvalue
-             ;;
-             ;;USE GET-SET-APPEND-DELETE-KEYVALUE 
-             (multiple-value-setq (return-keylist new-keylist return-value) ;;NOS old-value)
-                 (get-set-append-delete-keyvalue key  new-value
-                                                 :keyloc-n keyloc-n :val-nth val-nth :test test
-                                                 :old-keylist old-keylist
-                                                 :append-value-p append-value-p
-                                                 :list-first-item-in-append-p list-first-item-in-append-p
-                                                 :add-value-p add-value-p
-                                                 :put-key-after-items put-key-after-items
-                                                 :put-value-after-items put-value-after-items
-                                                 :new-begin-items new-begin-items
-                                                 :new-end-items new-end-items
-                                                 :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                 :splice-old-new-values-p splice-old-new-values-p                                    
-                                                 :parens-after-begin-items-p parens-after-begin-items-p))
-             ;;(break "after get-set-append-delete-keyvalue")
-             ;;modified 2017-07
-             (setf return-old-keylist old-keylist)
-             (cond
-              ;;to splice new value into list, not add as a list
-              ;;HERE3
-               ((and (or add-value-p splice-key-value-in-list-p splice-old-new-values-p)
-                    (listp return-value))  ;;not add-value-p
-                 (setf  return-nested-lists  (append list-head
-                                                 return-value   ;;was return-keylist
-                                                list-tail)))
-              ;;to append as a list
-              (t (setf  return-nested-lists  (append list-head
-                                                (list return-value)   ;;was return-keylist
-                                                list-tail))))
-
-             ;;(BREAK "before return-list-p")
-             (when return-list-p
-               (setf return-keylist return-nested-lists)) ;;HEREX
-             ;;Set return values above
-             ;;(values return-keylist return-nested-lists new-keylist return-value    
-             ;;      return-old-keylist last-key-found-p old-value new-key-spec-lists )
-
-             ;;(afout 'out (format nil "BEFORE RETURN AFTER GET-SET TOPITEM= ~A NOT A LIST AFTER LAST-KEY-FOUND:~%GET-SET-APPEND; top-n= ~A list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A OLD-VALUE= ~a" TOPITEM top-n list-head return-keylist list-tail return-nested-lists old-value))
-
-             ;;RETURN
-             (RETURN)
-             ;;end (null new-key-spec-lists)
-             )
-            ;;LAST KEY NOT FOUND, RECURSE ON NEW-NESTED-LISTS
-            (t
-             ;;(BREAK "KEY-FOUND, RECURSE, TOPITEM NOT A LIST")
-             ;;Arguments set above after key found
-
-             ;;SET VALUES FOR RECURSE
-             (setf new-nested-lists nested-lists
-                   old-keylist  nested-lists 
-                   key-spec-list (car key-spec-lists))
-             (multiple-value-setq (key keyloc-n val-nth)
-                 (values-list key-spec-list))
-
-             ;;end COND
-             ))
-           ;;If NOT (NULL KEY-SPEC-LISTS)
-           ;;RECURSE W NEW-KEY-SPEC-LISTS -- USE CURRENT NESTED-LIST
-           (cond
-            ((listp new-nested-lists) ;;same as nested-lists set above
-             (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                  return-value   return-old-keylist last-key-found-p )
-                 (get-set-append-delete-keyvalue-in-nested-list new-value  NEW-KEY-SPEC-LISTS  
-                                                                NEW-NESTED-LISTS ;;same as nested-lists
-                                                                :return-list-p return-list-p :test test
-                                                                :append-value-p append-value-p
-                                                                :add-value-p add-value-p
-                                                                :new-begin-items new-begin-items
-                                                                :new-end-items new-end-items
-                                                                :max-list-length max-list-length
-                                                                :last-key-found-p   last-key-found-p
-                                                                ;;      :new-keylist new-keylist
-                                                                ;;     :old-keylist old-keylist
-                                                                ;;      :return-value return-value
-                                                                :if-not-found-append-key-value-p NIL
-                                                                :bottom-level-p nil
-                                                                :list-first-item-in-append-p 
-                                                                list-first-item-in-append-p
-                                                                ;; :put-key-after-items put-key-after-items
-                                                                ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                                ;; :splice-old-new-values-p splice-old-new-values-p
-                                                                :splice-old-new-values-p splice-old-new-values-p
-                                                                :parens-after-begin-items-p parens-after-begin-items-p
-                                                                ;;  :return-keylist return-keylist
-                                                                ))
-             (setf return-old-keylist old-keylist)
-             ;;(afout 'out (format nil "IN LOOP, TOPITEM=KEY (NOT A LIST),, AFTER RECURSE, TOPITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a~%old-keylist= ~A last-key-found-p= ~A" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items old-keylist last-key-found-p))
-             )
-            ;;MUST BE ABLE TO CONTINUE PROCESSING
-            (t 
-             ;;RECURSE ON CDR AFTER LAST FOUND KEY  OR WHOLE LIST HERE??
-             (BREAK "SSS FIX?? ERROR: NEW-NESTED-LISTS= [~A  ]  IS NOT A LIST [May have wrong keyloc-n]" new-nested-lists)
-             ))
-           (cond
-            ((numberp keyloc-n)
-             (setf  return-nested-lists (append list-head 
-                                                put-key-after-items  ;; (list key)  ;;list key added
-                                                (list  new-return-nested-lists)   list-tail)))
-            ;;If keyloc-n = T, return whole nested list
-            (t (setf return-nested-lists new-return-nested-lists)))                         
-
-           ;;(BREAK "IN LOOP, TOPITEM=KEY (NOT A LIST), RETURN? if  last-key-found-p")
-           ;;test this
-           (when (or last-key-found-p (null (cdr new-key-spec-lists)))
-             ;;(break "test")
-             (return))              
-           ;;END KEY FOUND
-           )
-          ;;added 2017-03
-          ;;AAA          ;;KEY NOT FOUND AS LAST ITEM IN FINAL TOPLIST
-          ((AND (= top-n (- length-nnl 1))                            ;;WAS (and (not (numberp keyloc-n))
-                ;;(= top-n (- length-nnl 1)) ;;last item in nested-lists
-                if-not-found-add-item-in-last-nested-list-p ;;PUT IN KEYS
-                (or if-not-found-append-key-value-p 
-                    if-not-found-append-keyvalue-list-p))
-           (setf old-keylist nested-lists) ;;SSS OR topitem or new-return-nested-lists?
-           (multiple-value-setq (return-keylist new-keylist return-value)
-               (get-set-append-delete-keyvalue key  new-value
-                                               :keyloc-n keyloc-n :val-nth val-nth
-                                               :old-keylist old-keylist :test test
-                                               :append-value-p append-value-p ;;was if-not-found-append-keyvalue-list-p
-                                               :add-value-p add-value-p ;;was if-not-found-append-key-value-p
-                                               :put-key-after-items put-key-after-items
-                                               :put-value-after-items put-value-after-items
-                                               :new-begin-items new-begin-items :new-end-items new-end-items
-                                               :splice-key-value-in-list-p splice-key-value-in-list-p
-                                               :splice-old-new-values-p splice-old-new-values-p
-                                               :list-first-item-in-append-p list-first-item-in-append-p
-                                               :parens-after-begin-items-p parens-after-begin-items-p))
-           (setf return-old-keylist old-keylist)
-           ;;(break "NO KEY FOUND, APPEND")
-           ;;end when, = top-n
-           )
-          ;;end added
-          ;;KEY NOT FOUND  AS ITEM IN TOPLIST
-          (T
-           (setf return-nested-lists (append return-nested-lists (list topitem)))
-           ;;(afout 'out (format nil "AT LOOP END, NO KEY FOUND as item in toplist, top-n= ~A length-nnl= ~A topitem= ~A" top-n length-nnl topitem))
-           ))
-         ;;END TOPITEM NOT A LIST, COND
-         ))
-
-       ;;END TOPLEVEL LOOP
-       )
-      ;;END LISTP NESTED-LISTS
-      )
-     ;;NESTED-LISTS NOT A LIST
-     (T ;;was (break "ERROR: NESTED-LISTS IS NOT A LIST")))
-        ;;TRY RECURSING ON THE CDR OF LIST
-        ;;MODIFY RETURN VALS??
-        (when  (funcall test key nested-lists)
-          (setf new-key-spec-lists (cdr key-spec-lists)
-                return-value nested-lists
-                return-keylist nested-lists))
-        ;;here
-        (when (null new-key-spec-lists)
-          (setf return-old-keylist old-keylist)
-          (setf last-key-found-p T)
-          ;;(afor 'out "NESTED-LISTS NOT A LIST;; KEY= ~A EQUALS NESTED-LISTS= ~A" key nested-lists)
-          ;;(break "after nested-list= key")
-          ;;end when
-          )
-
-        ;;END NESTED-LIST NOT A LIST
-        ))
-
-    ;;IF-NOT-FOUND-APPEND-KEY-VALUE-P
-    ;;NOTE: Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-    (when (and bottom-level-p
-               (or if-not-found-append-key-value-p
-                   if-not-found-append-keyvalue-list-p)  
-               (null if-not-found-add-item-in-last-nested-list-p)
-               (null last-key-found-p) (null new-keylist) 
-               (not (member new-value '(:get :delete-keylist :delete-value :delete-key&value))))
-      (setf  added-key-value T
-             key (caar (last key-spec-lists))
-             new-keylist (list key new-value)
-             return-keylist new-keylist
-             return-value new-value)
-      (cond
-       (if-not-found-append-keyvalue-list-p
-        (setf return-nested-lists (append nested-lists 
-                                          (list new-keylist))))
-       (t (setf return-nested-lists (append nested-lists 
-                                            new-keylist))))
-      
-      ;;(break "new-value if not found")      
-      ;;(afout 'out (format nil "KEY NEVER FOUND, return-nested-lists= ~A" return-nested-lists))
-      ;;end if-not-found-append-key-value-p clause
-      )
-
-    (when (and bottom-level-p (null return-nested-list-p)) ;;was (null return-orig-nested-list-p)
-      (setf return-nested-lists  (list "return-nested-list-p=NIL")))  ;;was (list "return-orig-nested-list-p=NIL"))))
-
-    ;;(afor 'out "END RETURN-VALUES  return-keylist= ~A~% return-nested-lists= ~A~%                new-keylist= ~A~%  return-value= ~A~% return-old-keylist= ~A~%  last-key-found-p new-key-spec-lists= ~A" return-keylist return-nested-lists new-keylist return-value    return-old-keylist last-key-found-p new-key-spec-lists )
-
-    ;;(BREAK "AT END")
-    (cond
-     ;;to reduce extra output for long return-old-keylist
-     ((and bottom-level-p  if-get-no-return-old-keylist-p
-           (equal new-value :get))
-        (values return-keylist return-nested-lists new-keylist 
-                return-value 'SEE-RETURN-NESTED-LISTS-FOR-GET   
-                last-key-found-p old-value new-key-spec-lists ))
-       (t
-        (values return-keylist return-nested-lists new-keylist return-value    
-                return-old-keylist last-key-found-p old-value new-key-spec-lists )))
-      
-    ;;end let, get-set-append-delete-keyvalue-in-nested-list
-    ))|#
-
-
-;;DEFECTIVE VERSION, DELETE LATER
- #|(defun get-set-append-delete-keyvalue-in-nested-list (new-value  key-spec-lists  nested-lists                                                           &key append-value-p  add-value-p (test 'my-equal)
-                                                          return-list-p (test 'my-equal)
-                                                          put-key-after-items
-                                                          put-value-after-items
-                                                          new-begin-items  new-end-items
-                                                          splice-key-value-in-list-p 
-                                                          splice-old-new-values-p
-                                                          (return-nested-list-p T) ;;was return-orig-nested-list-p
-                                                          (max-list-length 1000)  
-                                                          (if-not-found-append-key-value-p T)
-                                                          if-not-found-append-keyvalue-list-p 
-                                                          ;;doesn't work well unless finds lower keys
-                                                          if-not-found-add-item-in-last-nested-list-p 
-                                                          orig-list-items-leftn
-                                                          (recurse-for-key-p T)
-                                                          (bottom-level-p T)
-                                                          last-key-found-p )
-  "In U-lists. KEYSPEC= (key keyloc-n val-nth).  FOR KEY = :NTH (to find nth in list without key) :  (1) Can have exact loc of all keys, keyloc-n as a number OR can be NIL or T [In which case will check entire list at that level for key]. Also, if the KEY = T, searches entire list.  DOES NOT check for keys in any other location than keyloc-n (UNLESS T, NIL);   (2) Each new level does NOT need a key in the key-spec-lists (it can be a list with lists containing keys; and (3) VALUE MUST either be an item next to key (val-nth = 1) OR val-nth [the optional 3rd item in the level spec-list].  If :NR member spec-list, sets RECURSE-FOR-KEY-P to NIL If :R member, sets it to T, then key MUST be IN LIST on FIRST LEVEL of current recursion (doesn't recurse on inner lists for that spec-list). 
-   If in  NOT LAST KEYSPEC VAL-NTH is a NUMBER  searches that location [can be VALUE LIST] for the nested list with next key.  IF VAL-NTH not a number (eg aT), searches ALL NESTED LISTS for the NEXT KEY.
-   To APPEND KEY & VALUE TO TOP LIST, set :IF-NOT-FOUND-APPEND-KEYVALUE-LIST-P to NIL. (To append whole list, set to T)
-    RETURNS (return-keylist new-return-nested-lists new-keylist return-value  old-keylist last-key-found-p ) If return-list-p, return-keylist is the ENTIRE list containing key, otherwise same as new-keylist. KEY-SPEC-LISTS are lists of (key keyloc-n val-n) [val-nth optional, default= 0) from outermost to innermost (last) key. Eg of proper list (:k1 (a) :key1 (k2 (b) :key2 (k3 (c) k4 (d) :key3 (:key5 OLD-VALUE)...)); key-spec-list= ((:key1 2)(:key2  2)(:key3 4)(:key5 0)) .IF-NOT-FOUND-APPEND-KEY-VALUE-P adds a key and keyvalue to innermost list if not found (but preceding key must be found). If last keyloc-n = 0, puts old previous keyvalue at end of new keylist. If last keyloc-n > 0, puts it first, then fills in nils before new key in last list which is new value of previous key. IF KEY = :NTH, then gets, sets, or appends number in KEYLOC-N PLACE. Note: If second item in spec-list isn't number, uses default keyloc-n.  PUT-KEY-AFTER-ITEMS is a list of items which is used if keyloc-n > 0 to fill in items between key and value [done automatically if old items are there]. splice-key-value-in-list-p does similar except includes items after the value. If SPLICE-OLD-NEW-VALUES-P, puts or splices (list key value) into put or splice list. Otherwise puts or splices key value [not a list]. COMPATIBIILITY PROBLEMS: get-key-value-in-nested-lists, val-nth starts with 0 there, with 1 here. APPEND-VALUE-P puts old-value & new-value in a list.  ADD-VALUE-P just adds new-value after old-value.
-   LAST-KEY-FOUND-P must be NIL (set only in recursive calls), or keeps from adding new values sometimes.          
-   NOTE: IF KEYS NOT FOUND, Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-   return-nested-list-p often makes no difference.
-  THIS CAN BE USED AS A GENERAL SEARCH FUNCTION"
-  (let*
-      ((return-nested-lists)
-       (return-old-keylist)
-       (new-return-nested-lists)
-       (match-item)
-       (spec-list (car key-spec-lists))
-       (KEY (first spec-list))
-       (keyloc-n (second spec-list))
-       (val-nth )
-       (new-spec-lists)
-       (new-nested-list1)
-       (new-nested-lists)
-       (new-key-spec-lists)
-       (key-spec-lists1)
-       (loop-return-list)
-       (add-new-value-p)
-       (cur-level-list)
-       (list-head)
-       (list-tail)
-       (length-nnl) 
-       (old-value)
-       (key-found-p)
-       (added-key-value)
-       (return-keylist)(new-keylist)(old-keylist)( return-value)
-       (testitem)
-       (item)
-       (new-key)
-       (found-keylist)
-       (found-top-n)
-       )
-    
-    ;;LISTP NESTED-LISTS--Function only processes list inputs.
-    (cond           
-     ((listp nested-lists)
-      (setf length-nnl (list-length nested-lists))
-
-      ;;SPEC-LIST VARIABLES ----------------------------
-      (cond
-       ;;KEY = T  (for compatibity with older and is useful)
-       ((or  (equal key 'T)(equal key T))
-        (setf  key-spec-lists  (cdr key-spec-lists)
-               spec-list (car key-spec-lists)
-               key (car spec-list)
-               keyloc-n (second spec-list)
-               val-nth (third spec-lists)
-               recurse-for-key-p T)
-        (when (null keyloc-n) 
-          (setf keyloc-n 1))
-        
-        ;;(afout 'out (format nil ">>KEY= T, THEN KEY= ~A,~% spec-list= ~A keyloc-n= ~A  KEY-SPEC-LISTS= ~A~% recurse-for-key-p= ~A"key  spec-list keyloc-n key-spec-lists     recurse-for-key-p))
-        )
-       ;;FOR KEY = :NTH (to find nth in list without key)
-       ((equal key :NTH)
-        (setf val-nth 0))
-       (t nil) ) 
-      ;;KEYLOC-N (position of the key in nested-lists)
-      (when (not (numberp keyloc-n))
-        (setf  recurse-for-key-p T))
-      ;;VAL-NTH, place for value after key
-      (when  (third spec-list)
-        (setf val-nth (third spec-list)))
-      (when (null val-nth)
-        (setf val-nth 1))
-      ;;SET RECURSE-FOR-KEY-P (Causes search all lists in top list)
-      (cond
-       ((member :R spec-list)
-        (setf  recurse-for-key-p T))
-       ((member :NR spec-list)
-        (setf  recurse-for-key-p NIL)))   
-      ;;(afout 'out (format nil ">>>>>>>> 1-NESTED-LISTS= ~A~%SPEC-LIST= ~A~%KEYLOC-N= ~a  VAL-NTH= ~a~% recurse-for-key-p= ~A"  nested-lists spec-list keyloc-n  val-nth    recurse-for-key-p))
-
-      ;;TOPLEVEL LOOP  AAA
-      (loop
-       for topitem in nested-lists
-       for top-n from 0 to length-nnl
-       do
-       ;;(afout 'out  (format nil "***** TOPLEVEL LOOP, TOPITEM= ~A TOP-N=~a~%SPEC-LIST= ~A" TOPITEM TOP-N spec-list))
-
-       ;;TOP LEVEL COND: Is item a list or not?
-       (cond
-        ((listp topitem)
-         (cond
-          ;;IF (NUMBERP KEYLOC-N), check (nth keyloc-n nested-lists) for key
-          ((and (numberp keyloc-n) (not (equal key :any-key)))
-
-           ;;First test key at this level
-           (setf item (nth keyloc-n topitem))
-           ;;(afout 'out (format nil "NUMBERP KEYLOC-N= ~A, found ITEM= ~A key-spec-lists= ~A~%TOPITEM list= ~A" keyloc-n item  key-spec-lists topitem ))
-
-#|(defun testtesttt (a b &key (test 'equal))
- (eval `(,test a b))
-  ;;(list test a b)
-  )
-  (testtesttt  'this 'this)
-|#
-
-           (cond
-            ;;TOPITEM = KEY
-            ((or (eval `(,test key item)) (equal key :nth)) 
-             ;;was (or (my-equal key item) (equal key :nth))
-             (setf key-found-p T
-                   list-head (butlast nested-lists (- length-nnl top-n ))
-                   list-tail (nthcdr (+ top-n 1) nested-lists)
-                 new-key-spec-lists (cdr key-spec-lists))
-             ;;(afout 'out (format nil ">>>In numberp, HEAD-TAIL:KEY= ~A FOUND-P= ~A keyloc-n ~A top-n= ~A  length-nnl= ~A~% new-nested-lists= ~A~%list-head= ~A ~%list-tail= ~A"key key-found-p keyloc-n top-n  length-nnl new-nested-lists list-head    list-tail))
-             (cond
-              ((null new-key-spec-lists)
-               ;;copied from old
-               (setf old-value (nth (+ keyloc-n  val-nth) topitem)
-                     old-keylist topitem
-                     last-key-found-p T)
-
-               ;;IS KEY= :NTH?
-               (cond 
-                ((not (equal key :NTH)) 
-                 (multiple-value-setq (return-keylist new-keylist return-value)
-                     (get-set-append-delete-keyvalue key  new-value
-                                              :keyloc-n keyloc-n :val-nth val-nth :test test
-                                              :old-keylist TOPITEM
-                                              :append-value-p append-value-p
-                                              :add-value-p add-value-p
-                                              :put-key-after-items put-key-after-items
-                                              :put-value-after-items put-value-after-items
-                                              :new-begin-items new-begin-items 
-                                              :new-end-items new-end-items
-                                              :splice-key-value-in-list-p splice-key-value-in-list-p
-                                              :splice-old-new-values-p splice-old-new-values-p))
-                 (setf return-old-keylist old-keylist)
-
-                 ;;Inserts items betw keyloc-n and val-nth into final returned list
-                 (cond
-                  ((> keyloc-n 0)
-                   (setf  put-key-after-items (subseq topitem 0  keyloc-n) ;; (+ keyloc-n val-nth))
-                          ;;was (+ keyloc-n 1) (+ keyloc-n val-nth))
-                          ;;was splice-old-new-values-p NIL ;;SSS or should be NIL?
-                          splice-key-value-in-list-p nil))
-                  ;;added
-                  (t (setf put-key-after-items NIL)))
-                 ;;copied from old end
-
-                 ;;(afout 'out (format nil "LAST KEY FOUND= key= ~A  old-keylist= ~a~%put-key-after-items= ~a old-value= ~A" key old-keylist put-key-after-items old-value))
-                 (setf return-nested-lists  (append list-head
-                                                    (list return-keylist)
-                                                    list-tail))
-                 ;;(BREAK "before return-list-p")
-                 (when return-list-p
-                   (setf return-keylist return-nested-lists))
-                 ;;(afout 'out (format nil "AFTER LAST-KEY-FOUND: list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A" list-head return-keylist list-tail return-nested-lists))   
-                 (when last-key-found-p
-                   (return)) 
-                 ;;(BREAK "RETURN? if  last-key-found-p")
-                 ;;END (not (equal key :NTH))
-                 )
-                ;;was (setf old-keylist (list key old-value)))
-                (t  nil)) ;;(setf old-keylist (list old-value))))
-               ;;end null spec-list
-               )
-              ;;RECURSE TO NEXT KEY-SPEC
-              ( T 
-                ;;RECURSE ON  new-key-spec-lists new-nested-lists ;;same as nested lists
-                ;; ADD TO RETURN NESTED-LISTS ETC
-                ;;VARS SET ABOVE
-                ;;(afout 'out (format nil "RECURSE TO NEXT KEY-SPEC: list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A next-key-in-value-p= ~a" list-head return-keylist list-tail return-nested-lists next-key-in-value-p))
-                (cond
-                 ;;WHEN VAL-NTH IS A NUMBER
-                 ((numberp val-nth)              ;;was next-key-in-value-p
-                  (setf found-top-n top-n)
-                  ;;set above  list-tail  (nthcdr top-n))
-                  )
-                 ;;OTHERWISE SEARCH ENTIRE CURRENT LIST 
-                 ;; for nested-lists that contain (at next level ONLY) the next key
-                 ;; Set it as the new 
-                 (T
-                  (multiple-value-setq (topitem found-top-n)
-                      (find-list-with-item key nested-lists))
-                  ))
-                ;;in either case
-                (setf topitem (nth (+ val-nth top-n) nested-lists)
-                      list-head (butlast nested-lists (- length-nnl (+ top-n val-nth)))  
-                      ;;was (+ (- length-nnl top-n) val-nth))
-                      list-tail (nthcdr  (+ found-top-n val-nth)  nested-lists))    
-                ;;(break "XX BEFORE RECURSE")
-
-                ;;RECURSE ON SAME LIST WITH CDR  KEY-SPEC-LIST (set above)
-                (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                     return-value   return-old-keylist last-key-found-p )
-                    (get-set-append-delete-keyvalue-in-nested-list new-value  new-key-spec-lists  
-                                                            TOPITEM 
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p  append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items
-                                                            :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :put-value-after-items put-value-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-
-                (setf  return-nested-lists (append list-head 
-                                                   put-key-after-items  ;; (list key)  ;;list key added
-                                                   (list  new-return-nested-lists)   list-tail))
-
-                ;;(afout 'out (format nil "IN TOP NUMBERP, AFTER RECURSE ON TOPITEM= ~a, top-n= ~A new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" TOPITEM top-n new-keylist  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-                (when return-list-p
-                  (setf  return-keylist  new-return-nested-lists))
-                ;;(BREAK "BEFORE RETURN")
-                (when last-key-found-p
-                  (return))
-                ;;end key found, but not last key, cond
-                ))
-             ;;END KEY=ITEM
-             )
-            ;;KEY NOT= ITEM, and  (null recurse-for-key-p)
-            ((null recurse-for-key-p)
-             (setf old-keylist topitem) ;;added is this right?
-             (setf return-nested-lists (append return-nested-lists (list topitem)))
-             ;;(afout 'out (format nil "IN TOP NUMBERP, NO-RECURSE, KEY= ~a NOT= ITEM= ~a~%topitem= ~A~% (append return-nested-lists (list topitem))= ~A"  key item topitem return-nested-lists))
-             ;;end (null recurse-for-key-p)
-             )
-            ;;KEY NOT=ITEM, RECURSE (recurse-for-key-p)
-            (recurse-for-key-p
-             ;;RECURSE ON  new-key-spec-lists new-nested-lists ;;same as nested lists
-             ;; ADD TO RETURN NESTED-LISTS ETC
-             ;;don't loop, done in recurse?    
-             (setf list-head (butlast nested-lists (- length-nnl top-n))
-                   list-tail (nthcdr (+ top-n 1) nested-lists))
-             (setf old-keylist topitem) ;;added is this right?
-
-             ;;(BREAK "XX BEFORE TOPITEM LIST RECURSE")
-             ;;RECURSE ON SAME LIST WITH SAME  KEY-SPEC-LIST (set above)
-             ;;  WAS ON CDR KEY-SPEC-LIST, BUT IF NOT FOUND, NO
-             (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                  return-value   return-old-keylist last-key-found-p )
-                 (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists  
-                                                         TOPITEM 
-                                                         :return-list-p return-list-p :test test
-                                                         :append-value-p  append-value-p
-                                                         :add-value-p add-value-p
-                                                         :new-begin-items new-begin-items :new-end-items new-end-items
-                                                         :max-list-length max-list-length
-                                                         :last-key-found-p   last-key-found-p
-                                                         ;;      :new-keylist new-keylist
-                                                         ;;     :old-keylist old-keylist
-                                                         ;;      :return-value return-value
-                                                         :put-value-after-items put-value-after-items
-                                                         :if-not-found-append-key-value-p NIL
-                                                         :RECURSE-FOR-KEY-P T
-                                                         :bottom-level-p nil
-                                                         ;; :put-key-after-items put-key-after-items
-                                                         ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                         :splice-old-new-values-p splice-old-new-values-p
-                                                         ;;  :return-keylist return-keylist
-                                                         ))
-             (setf  return-nested-lists (append list-head 
-                                                put-key-after-items  ;; (list key)  ;;list key added
-                                                (list  new-return-nested-lists)   list-tail))
-
-             ;;(afout 'out (format nil "IN TOP NUMBERP, AFTER RECURSE ON TOPITEM LIST= ~a, top-n= ~A new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" TOPITEM top-n new-keylist  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-             (when return-list-p
-               (setf  return-keylist  new-return-nested-lists))
-             ;;(BREAK "BEFORE RETURN")
-             (when last-key-found-p
-               (return))
-             ;;end recurse-for-key-p,cond
-             ))
-
-           ;;END NUMBERP KEYLOC-N
-           )
-          ;;(LISTP TOPITEM), BUT  KEYLOC-N = T, NIL or other non-number
-          ;;Recurse on this list to search for key?
-          (recurse-for-key-p
-           (setf list-head (butlast nested-lists (- length-nnl top-n)) ;;lll
-                 list-tail (nthcdr (+ top-n 1) nested-lists))
-           (setf old-keylist topitem) ;;added is this right?
-
-           ;;put this here?
-           (cond
-            ((equal key :any-key)
-             (setf key-spec-lists1 (cdr key-spec-lists)))
-            (t (setf key-spec-lists1 key-spec-lists)))
-           
-           (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                return-value   return-old-keylist last-key-found-p )
-               (get-set-append-delete-keyvalue-in-nested-list new-value  key-spec-lists1  
-                                                       TOPITEM 
-                                                       :return-list-p return-list-p :test test
-                                                       :append-value-p append-value-p
-                                                       :add-value-p add-value-p
-                                                       :new-begin-items new-begin-items 
-                                                       :new-end-items new-end-items
-                                                       :max-list-length max-list-length
-                                                       :last-key-found-p   last-key-found-p
-                                                       ;;      :new-keylist new-keylist
-                                                       ;;     :old-keylist old-keylist
-                                                       ;;      :return-value return-value
-                                                       :if-not-found-append-key-value-p NIL
-                                                       :RECURSE-FOR-KEY-P  recurse-for-key-p
-                                                       :bottom-level-p nil
-                                                       ;; :put-key-after-items put-key-after-items
-                                                       ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                       ;; :put-value-after-items put-value-after-items
-                                                       :splice-old-new-values-p splice-old-new-values-p
-                                                       ;;  :return-keylist return-keylist
-                                                       ))
-           (setf  return-nested-lists (append list-head 
-                                              put-key-after-items  ;; (list key)  ;;list key added
-                                              (list  new-return-nested-lists)   list-tail))
-
-           ;;(afout 'out (format nil "IN TOP NUMBERP LOOP, AFTER RECURSE, ITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a" ITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items))
-
-           (when last-key-found-p
-             (return))
-           ;;end listp topitem, not numberp keyloc-n,  listp item, recurse-for-key-p
-           ))
-         ;;END (LISTP TOPITEM)
-         )
-        ;;TOPITEM NOT A LIST
-        (t
-         (cond
-          ;;TOPITEM = KEY ( or NTH if :NTH)
-          ((or (FUNCALL TEST  TOPITEM KEY) ;;was (my-equal topitem key)
-               (and (equal key :nth) (equal top-n keyloc-n)))
-           ;;(afout 'out (format nil ">>>> 1. TOPITEM NOT A LIST, KEY= ~a  FOUND~% NESTED-LISTS=old-keylist= ~A, ~%FOR OLD: SPEC-LIST= ~a, TOP-N= ~a  " key nested-lists spec-list top-n ))
-           (setf key-found-p T              
-                 new-key-spec-lists (cdr key-spec-lists))
-           (when (not (numberp keyloc-n))
-             (setf keyloc-n top-n)) 
-           (cond
-            ((numberp val-nth)
-             (setf new-nested-lists (nth (+ top-n val-nth) nested-lists)
-                   old-keylist  nested-lists                  
-                   list-head (butlast nested-lists (- length-nnl (+ top-n val-nth)))
-                   list-tail (nthcdr (+ top-n val-nth 1) nested-lists)))
-            (t (setf new-nested-lists nested-lists
-                      old-keylist  nested-lists )))  ;;could cause infinite loop?? NEW
-           ;;(afout 'out (format nil ">>>> 2. TOPITEM NOT A LIST, KEY= ~a  FOUND~% NESTED-LISTS= ~A, ~%FOR NEW RECURSE: new-key-spec-lists ~a, TOP-N= ~a ~%LIST-HEAD= ~a~%LIST-TAIL= ~a" key nested-lists new-key-spec-lists top-n  list-head list-tail))
-           ;;(BREAK "TOPITEM NOT LIST, FOR NEW RECURSE:")
-
-           (cond
-            ;;LAST-KEY-FOUND-P
-            ((null new-key-spec-lists)
-             ;;GET-SET
-             (setf last-key-found-p T
-                   old-value (nth (+ keyloc-n val-nth) nested-lists)
-                   old-keylist nested-lists)
-            ;;(afout 'out (format nil ">>>> 2. LAST-KEY-FOUND. OLD-VALUE= ~A" old-value))      
-#|    not needed, causes extra addition of these items in front of return-keylist??
-        (cond
-             ((and (numberp keyloc-n) (> keyloc-n 0))
-              (setf  put-key-after-items (subseq nested-lists 0  keyloc-n) 
-                     ;;was (+ keyloc-n 1) (+ keyloc-n val-nth))
-                     ;;was  splice-old-new-values-p NIL ;;SSS or should be NIL?
-                     splice-key-value-in-list-p nil))
-            ;;added
-            (t (setf put-key-after-items NIL)))|#
-
-             ;;(BREAK "BEFORE GET-SET-OR-APPEND")
-
-             ;;HERE
-             ;;USE GET-SET-OR-APPEND
-             (multiple-value-setq (return-keylist new-keylist return-value)
-                 (get-set-append-delete-keyvalue key  new-value
-                                          :keyloc-n keyloc-n :val-nth val-nth :test test
-                                          :old-keylist old-keylist
-                                          :append-value-p append-value-p
-                                          :add-value-p add-value-p
-                                          :put-key-after-items put-key-after-items
-                                          :put-value-after-items put-value-after-items
-                                          :new-begin-items new-begin-items
-                                          :new-end-items new-end-items
-                                          :splice-key-value-in-list-p splice-key-value-in-list-p
-                                          :splice-old-new-values-p splice-old-new-values-p))
-             (setf return-old-keylist old-keylist)
-             (setf return-nested-lists  (append list-head
-                                                (list return-value)   ;;was return-keylist
-                                                list-tail))
-
-             ;;(BREAK "before return-list-p")
-             (when return-list-p
-               (setf return-keylist return-nested-lists))
-
-             ;;(afout 'out (format nil "TOPITEM= ~A NOT A LIST AFTER LAST-KEY-FOUND:~%GET-SET-APPEND; top-n= ~A list-head= ~A~%return-keylist= ~A~%list-tail= ~A~%return-nested-lists= ~A OLD-VALUE= ~a" TOPITEM top-n list-head return-keylist list-tail return-nested-lists old-value))
-             (when last-key-found-p
-               (return))
-             ;;end (null new-key-spec-lists)
-             )
-            ;;LAST KEY NOT FOUND, RECURSE ON NEW-NESTED-LISTS
-            (t
-             ;;(BREAK "KEY-FOUND, RECURSE, TOPITEM NOT A LIST")
-             ;;Arguments set above after key found
-             ;;to fix errors, redundant?
-             (setf keyspec-list (car key-spec-lists))
-             (multiple-value-setq (key keyloc-n val-nth)
-                 (values-list keyspec-list))
-             ;;test added
-               ;;WHEN VAL-NTH IS NOT A NUMBER SEARCH ENTIRE CURRENT LIST 
-#|    2017-5 REDUNDANT?
-             (cond
-              ((not (numberp val-nth))
-               (setf new-key (caar new-key-spec-lists))    
-                     
-
-        (cond
-                ((member new-key nested-lists :test test)
-                 (setf new-nested-lists nested-lists) )
-                ( t 
-                  (multiple-value-setq (found-keylist found-top-n)
-                        (find-list-with-item new-key nested-lists :test test))
-                    (when found-keylist
-                      (setf new-nested-lists  found-keylist)
-                      ))
-                )|#
-               ;;add??       new-key-spec-lists (cdr new-spec-lists)
-               ;;end COND
-               ))
-             ;;RECURSE USING NEW-KEY-SPEC-LISTS -- STARTS WITH CURRENT NESTED-LIST
-              (cond
-               ((listp new-nested-lists)
-                (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                     return-value   return-old-keylist last-key-found-p )
-                    (get-set-append-delete-keyvalue-in-nested-list new-value  NEW-KEY-SPEC-LISTS  
-                                                            NESTED-LISTS
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-p
-                                                            ;; :splice-old-new-values-p splice-old-new-values-p
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-                ;;(afout 'out (format nil "IN LOOP, TOPITEM=KEY (NOT A LIST),, AFTER RECURSE, TOPITEM=new-keylist= ~A~%return-value= ~A~%new-return-nested-lists= ~A~%list-head= ~A~%list-tail= ~A new-keylist= ~A return-keylist= ~A~%FINAL: return-nested-lists= ~A~% AND put-key-after-items= ~a~%old-keylist= ~A last-key-found-p= ~A" TOPITEM  return-value new-return-nested-lists list-head list-tail new-keylist return-keylist return-nested-lists put-key-after-items old-keylist last-key-found-p))
-                )
-               ;;MUST BE ABLE TO CONTINUE PROCESSING
-               (t 
-                ;;RECURSE ON CDR AFTER LAST FOUND KEY  OR WHOLE LIST HERE??
-
-
-                ;;(BREAK "ERROR: NEW-NESTED-LISTS= [~A  ]  IS NOT A LIST [May have wrong keyloc-n]" new-nested-lists)
-                ))
-
-              (cond
-               ((numberp keyloc-n)
-                (setf  return-nested-lists (append list-head 
-                                                   put-key-after-items  ;; (list key)  ;;list key added
-                                                   (list  new-return-nested-lists)   list-tail)))
-               ;;If keyloc-n = T, return whole nested list
-               (t (setf return-nested-lists new-return-nested-lists)))                         
-
-              ;;(BREAK "IN LOOP, TOPITEM=KEY (NOT A LIST), RETURN? if  last-key-found-p")
-              ;;test this
-              (when (or last-key-found-p (null (cdr new-key-spec-lists)))
-                ;;(break "test")
-                (return))              
-           ;;END KEY FOUND
-           )
-          ;;added 2017-03
-          ;;AAA          ;;KEY NOT FOUND AS LAST ITEM IN FINAL TOPLIST
-          ((and (not (numberp keyloc-n))
-                (= top-n (- length-nnl 1)) ;;last item in nested-lists
-                if-not-found-add-item-in-last-nested-list-p ;;PUT IN KEYS
-                (or if-not-found-append-key-value-p 
-                    if-not-found-append-keyvalue-list-p))
-           (setf old-keylist nested-lists) ;;SSS OR topitem or new-return-nested-lists?
-           (multiple-value-setq (return-keylist new-keylist return-value)
-               (get-set-append-delete-keyvalue key  new-value
-                                               :keyloc-n keyloc-n :val-nth val-nth
-                                               :old-keylist old-keylist :test test
-                                               :append-value-p append-value-p ;;was if-not-found-append-keyvalue-list-p
-                                               :add-value-p add-value-p ;;was if-not-found-append-key-value-p
-                                               :put-key-after-items put-key-after-items
-                                               :put-value-after-items put-value-after-items
-                                               :new-begin-items new-begin-items :new-end-items new-end-items
-                                               :splice-key-value-in-list-p splice-key-value-in-list-p
-                                               :splice-old-new-values-p splice-old-new-values-p))
-           (setf return-old-keylist old-keylist)
-           ;;(break "NO KEY FOUND, APPEND")
-           ;;end when, = top-n
-           )
-          ;;end added
-          ;;KEY NOT FOUND  AS ITEM IN TOPLIST
-          (T
-           (setf return-nested-lists (append return-nested-lists (list topitem)))
-           ;;(afout 'out (format nil "AT LOOP END, NO KEY FOUND as item in toplist, top-n= ~A length-nnl= ~A topitem= ~A" top-n length-nnl topitem))
-           ))
-         ;;END TOPITEM NOT A LIST, COND
-         ))
-
-       ;;END TOPLEVEL LOOP
-       )
-      ;;END LISTP NESTED-LISTS
-      )
-     ;;NESTED-LISTS NOT A LIST
-     (T ;;was (break "ERROR: NESTED-LISTS IS NOT A LIST")))
-        ;;TRY RECURSING ON THE CDR OF LIST
-        ;;MODIFY RETURN VALS??
-        (multiple-value-setq (return-keylist new-return-nested-lists new-keylist
-                                                     return-value   return-old-keylist last-key-found-p )
-                    (get-set-append-delete-keyvalue-in-nested-list new-value  new-key-spec-lists  
-                                                            (NTHCDR N??? NESTED-LIST)
-                                                            :return-list-p return-list-p :test test
-                                                            :append-value-p append-value-p
-                                                            :add-value-p add-value-p
-                                                            :new-begin-items new-begin-items :new-end-items new-end-items
-                                                            :max-list-length max-list-length
-                                                            :last-key-found-p   last-key-found-p
-                                                            ;;      :new-keylist new-keylist
-                                                            ;;     :old-keylist old-keylist
-                                                            ;;      :return-value return-value
-                                                            :if-not-found-append-key-value-p NIL
-                                                            :bottom-level-p nil
-                                                            ;; :put-key-after-items put-key-after-items
-                                                            ;; :splice-key-value-in-list-p splice-key-value-in-list-py
-                                                            ;; :splice-old-new-values-p splice-old-new-values-p
-                                                            :splice-old-new-values-p splice-old-new-values-p
-                                                            ;;  :return-keylist return-keylist
-                                                            ))
-        ;;END NESTED-LIST NOT A LIST
-        ))
-
-    ;;IF-NOT-FOUND-APPEND-KEY-VALUE-P
-    ;;NOTE: Can NOT reliably put new key and value in an innermost list IF LAST KEY NOT FOUND, because without a rigid orderly key system, could end up putting it inside the last of any or multiple nested lists. Therefore putting it in lowest level list.  Use the get-set-append-delete-keyvalue-in-orderly-nested-list function to put it INSIDE an inner nested list.
-    (when (and bottom-level-p
-               (or if-not-found-append-key-value-p
-                   if-not-found-append-keyvalue-list-p)  
-               (null if-not-found-add-item-in-last-nested-list-p)
-               (null last-key-found-p) (null new-keylist) 
-               (not (member new-value '(:get :delete-keylist :delete-value :delete-key&value))))
-      (setf  added-key-value T
-             key (caar (last key-spec-lists))
-             new-keylist (list key new-value)
-             return-keylist new-keylist
-             return-value new-value)
-      (cond
-       (if-not-found-append-keyvalue-list-p
-        (setf return-nested-lists (append nested-lists 
-                                          (list new-keylist))))
-       (t (setf return-nested-lists (append nested-lists 
-                                            new-keylist))))
-      
-      ;;(break "new-value if not found")      
-      ;;(afout 'out (format nil "KEY NEVER FOUND, return-nested-lists= ~A" return-nested-lists))
-      ;;end if-not-found-append-key-value-p clause
-      )
-
-    (when (and bottom-level-p (null return-nested-list-p)) ;;was (null return-orig-nested-list-p)
-      (setf return-nested-lists  (list "return-nested-list-p=NIL")))  ;;was (list "return-orig-nested-list-p=NIL"))))
-
-    ;;(BREAK "AT END")
-    (values return-keylist return-nested-lists new-keylist return-value    
-            return-old-keylist last-key-found-p )
-    ;;end let, get-set-append-delete-keyvalue-in-nested-list
-    ))|#
-
-
-
-;;DELETE--NOT WORK
-#|(defun group-items-by-equal-nth-items (nth list-of-lists &key (put-nth-first-p T) 
-                                          appendp  (test 'my-equal) grouped-lists other-items 
-                                          (cycle-n 1) (max-cycles 100))
-  "In  U-lists, RETURNS   where if put-nth-first-p AND appendp=NIL grouped-list items are (nth (rest of list)), appendp=T (nth rest of list). If  put-nth-first-p = NIL, simply makes  lists of all matching sublists. INPUT:  "
-  (let
-      (;;(len-lol (list-length list-of-lists))
-       (non-grouped-lists)
-       )
-    (loop
-     for list in list-of-lists
-     do
-     (cond
-      ((and (listp list)
-            (> (list-length list) nth))
-       (let*
-           ((nthitem (nth nth list))
-            (list-group)
-            )
-         (multiple-value-setq (list-group non-grouped-lists1)
-             (get-lists-with-equal-nth-items nth nthitem list-of-lists
-                                             :appendp appendp :test test))
-         ;;put nthitem first?
-         (when put-nth-first-p
-           (setf list-group (list nthitem list-group)))
-
-         ;;add to grouped-lists
-         (cond
-          (appendp
-           (setf grouped-lists (append grouped-lists list-group)
-                 non-grouped-lists (append non-grouped-lists non-grouped-lists1)))
-          (t (setf grouped-lists (append grouped-lists (list list-group))
-                   non-grouped-lists (append non-grouped-lists (list non-grouped-lists1)))))
-         ;;end let, listp
-         ))
-     (t (setf other-items (append other-items (list list)))))
-     ;;end loop
-     )
-    ;;RECURSE ON NON-GROUP-LISTS
-    (when (and non-grouped-lists (< cycle-n max-cycles))
-      (multiple-value-bind (grouped-lists1) ;;other-items1)
-          (group-items-by-equal-nth-items  nth non-grouped-lists :appendp appendp
-                                           :put-nth-first-p put-nth-first-p :test test                                
-                                           ;;:grouped-lists grouped-lists ;;:other-items other-items
-                                           :cycle-n (incf cycle-n)
-                                           :max-cycles (- max-cycles 1))
-        (cond
-         (appendp
-          (setf grouped-lists (append grouped-lists grouped-lists1)))
-                ;;other-items (append other-items other-items1)))
-         (t
-          (setf grouped-lists (append grouped-lists (list grouped-lists1)))))
-                ;;other-items (append other-items (list other-items1)))))
-        ;;end mvb,when
-        ))
-    (afout 'out (format nil "grouped-lists= ~A~%non-grouped-lists= ~A" grouped-lists non-grouped-lists))
-    (values  grouped-lists other-items non-grouped-lists)
-    ;;end let, group-items-by-equal-nth-items 
-    ))|#

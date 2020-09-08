@@ -54,7 +54,7 @@
    ) 
   (:PANES
    (tree capi:tree-view
-         :roots *tree-roots-list  ;;was '(1 2 3 4) 
+         :roots  *tree-roots-list  ;;was '(1 2 3 4) 
          :leaf-node-p-function 'my-leaf-node-p-function
          :children-function 'treeview-children-function
          ;; :image-lists (list :normal *my-image-list*)
@@ -124,9 +124,11 @@
              (get-node-childlists root *tree-nodes-list))
         ;;(break "in callback *tree-root-sublists")
          *child-rootnlists
-       ;;end let,when,chidren-function
+       ;;end let,when,treeview-children-function
        )))
 ;;TEST
+;; (treeview-children-function *testlist22)
+;; (get-node-childlists root *tree-nodes-list)
 ;; (make-treeview-frame *testlist22)
 #| older, works, using global vars
    (defun treeview-children-function (root)
@@ -145,6 +147,7 @@
          *child-rootnlists
        ;;end let,when,chidren-function
        ))))|#
+
 
 
 
@@ -172,6 +175,7 @@ When the USER EXPANDS A NODE,
 expandp-function is CALLED ON EACH NEWLY CREATED CHILD NODE, which is expanded if this call returns true, and so on RECURSIVELY. 
 The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPANSION and only the root nodes are visible initially|#
 
+
 ;;MY-EXPANDP-FUNCTION
 ;;
 ;;ddd
@@ -186,6 +190,7 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
    expandp
   ;;end  let, my-expandp-function
   ))
+
 
 ;;MY-NOT-EXPANDP-FUNCTION
 ;;
@@ -297,19 +302,22 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 ;;ddd
 (defun make-treeview-frame (list &key (frame-title "Tom's List Tree View")
                                  group-by-val-p  order-by-rank-p
-                                 last-list=value-p (valkey :V=) (sublistkey :SL)
+                                 last-list=value-p (valkey :V=) (sublistkey :SL) ;;change to :S?
                                  (min-treeview-pane-height 800)
                                  (min-treeview-pane-width 500)
                                  frame-init-args (expand-tree-p 99)
                                  (initial-y 20))
   #|  background   checkbox-change-callback   checkbox-initial-status   delete-item-callback    has-root-line     expandp-function    font  capi:help-key    image-lists   internal-border   keep-selection-p    leaf-node-p-function   retain-expanded-nodes   visible-border|#
   "In U-trees, makes a tree-view frame that uses make-tree-nodes to create a tree view of ANY list to any degree of nesting. expand-tree-p= T for initial expansion of all nodes. last-list=value-p puts the value after the sublists."
+
   (multiple-value-setq (*tree-nodes-list *tree-rootn-list *tree-flat-rootn-list 
                                          *tree-root-leveln-list *totaln-nodes  *tree-roots-list)
       (make-tree-nodes-list list :group-by-val-p group-by-val-p  
                             :order-by-rank-p  order-by-rank-p
                             :last-list=value-p last-list=value-p
                             :valkey valkey :sublistkey sublistkey))
+  ;;here33
+  ;;(break "after make-tree-nodes-list")
   (let*
       ((frame-call-args `(make-instance 'my-tree-view-interface :title ,frame-title))
        (tree-inst)
@@ -330,7 +338,7 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
       (setf frame-call-args (append frame-call-args frame-init-args))
 
     (setf tree-inst (eval frame-call-args))
-    ;;(break "y")
+    (break "END")
     
     ;;SET THE VARIABLE VALUES
 #|    (setf (slot-value tree-inst 'totaln-nodes) *totaln-nodes
@@ -341,8 +349,20 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
           ;;(slot-value tree-inst ' 
           )|#
     (capi:display tree-inst)
+    ;;end let, make-treeview-frame
     ))
 ;;TEST
+;;USING NEW MAKE-CS-TREE FUNCTION output
+;; (make-treeview-frame  *CS-CAT-DB-TREE)
+
+
+
+;; SSS START HERE make-treeview-frame USE NEW MAKE-TREE-NODES FUN
+;;(setf *test-artdims-tree1 '(cs :s (hs :s (1 :s (1 2)  2 :s (1  2  3)   3)  ms :s (ms1 :s (1 2)))))
+;; (SETF *treenodes-test11 (make-tree-nodes-list *test-artdims-tree1))
+;; (make-treeview-frame  *TREENODES-TEST11)
+;; 
+
 ;;  (setf *testlist22 '(a (b c (d e (f g (h i j)) (k l) m (n (o (p q (r (s)) t) u v) w) x y ) z) end))
 ;; (make-treeview-frame *testlist22)
 ;; (make-treeview-frame *file-elmsymvals)
@@ -350,156 +370,37 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 ;; (setf *valtest1 '(happy love health (truth knowledge integrity (self-man (time-man goalset) interp (romance friends family others) career (contribute income security fun) impact productivity))))
 ;; (make-treeview-frame *valtest1)
 
-;;OLD DELETE AFTER TEST NEW ---------------------
-(defun make-treeview-frame (list &key (frame-title "Tom's List Tree View")
-                                 group-by-val-p  order-by-rank-p
-                                 last-list=value-p (valkey :V=) (sublistkey :SL)
-                                 (min-treeview-pane-height 800)
-                                 (min-treeview-pane-width 500)
-                                 frame-init-args (expand-tree-p 99)
-                                 (initial-y 20))
-  #|  background   checkbox-change-callback   checkbox-initial-status   delete-item-callback    has-root-line     expandp-function    font  capi:help-key    image-lists   internal-border   keep-selection-p    leaf-node-p-function   retain-expanded-nodes   visible-border|#
-  "In U-trees, makes a tree-view frame that uses make-tree-nodes to create a tree view of ANY list to any degree of nesting. expand-tree-p= T for initial expansion of all nodes. last-list=value-p puts the value after the sublists."
-  (multiple-value-setq (*tree-nodes-list *tree-rootn-list *tree-flat-rootn-list 
-                                         *tree-root-leveln-list *totaln-nodes  *tree-roots-list)
-      (make-tree-nodes-list list :last-list=value-p last-list=value-p
-                            :valkey valkey :sublistkey sublistkey))
-  (let*
-      ((frame-call-args `(make-instance 'my-tree-view-interface :title ,frame-title))
-       (tree-inst)
-       (expand-function)
-       )
-    (cond
-     (expand-tree-p
-      (setf *my-expand-function 'my-expandp-function)
-      (when (numberp (setf  *treeview-expand-level expand-tree-p))))
-     (t (setf *my-expand-function 'my-not-expandp-function)))
-    #| doesn't work   (setf frame-call-args (append frame-call-args 
-                                  `(:expandp-function (quote ,expand-function))))|#
- ;;herego
-      (setf frame-init-args (append frame-init-args 
-                                    (list  :y initial-y :visible-min-height min-treeview-pane-height
-                                          :visible-min-width min-treeview-pane-width)))            
-            
-      (setf frame-call-args (append frame-call-args frame-init-args))
-
-    (setf tree-inst (eval frame-call-args))
-    ;;(break "y")
-    
-    ;;SET THE VARIABLE VALUES
-#|    (setf (slot-value tree-inst 'totaln-nodes) *totaln-nodes
-          (slot-value tree-inst 'treeview-expand-level) expand-tree-p
-          (slot-value tree-inst 'tree-nodes-list) *tree-nodes-list
-          (slot-value tree-inst 'tree-roots-list) *tree-roots-list
-          (slot-value tree-inst 'tree-rootn-list) *tree-rootn-list
-          ;;(slot-value tree-inst ' 
-          )|#
-    (capi:display tree-inst)
-    ))
-
-(defun make-tree-nodes-list  (tree &key  tree-num-list ;;(rootmult 1)
-                                   group-by-val-p  order-by-rank-p
-                                    last-list=value-p (valkey :V=)(sublistkey :SL)
-                                    parent-rootn parent-rootnlist  (root-leveln 0) root-leveln-list
-                                    frame-init-args)
-  "In U-trees, INPUT any list w/any nesting.  RETURNS (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list). Each node (rootnlist rootn value) where rootnlist eg (2 3 4 6) of each level node; rootn eg. \"2.3.4.6\" and key value = valkey  the original item in list OR for a parent node sublistkey (...) = key sublist of child nodes.  If  last-list=value-p, then the last level list is considered a value for the node in level below it. USED FOR CREATING CAPI:LIST-VIEW PANES in its :chidren-function used to create root trees."
-  (let
-      ((len-tree (list-length tree))
-       (bottom-root-list)
-       (tree-nodes) 
-       (rootn-list)
-       (rootbase 0)
-       (flat-rootn-list)
-       (flat-rootnlist-list)
-       (rootn 0)
-       (rootnlist)
-       (rootnlist-list)
-       (leveln 0)
-       (totaln 0)
-       )
-    (incf root-leveln)
-    (setf root-leveln-list (append root-leveln-list (list root-leveln)))
-    (cond
-     ((and tree (listp tree))
-      (loop
-       for item in tree
-       for item-n from 1 to len-tree
-       do
-       (let
-           ((itemlist)
-            (subtree-parent-node)
-            )
-       (incf leveln)       
-       ;;(incf rootbase)
-       (cond
-        (parent-rootn
-         (setf rootn (format nil "~A.~A" parent-rootn item-n)
-               rootnlist (append parent-rootnlist (list  item-n))))
-        ;;  itemlist (append itemlist (list (list rootnlist rootn item
-        (t (setf  bottom-root-list (append bottom-root-list (list item-n))
-                  rootn (format nil "~A" item-n)               
-                  rootnlist (list item-n))))
-       ;;was  (+ (* item-n rootmult) parent-rootn)
-       (setf rootn-list (append rootn-list (list rootn))
-             flat-rootn-list (append flat-rootn-list (list rootn))
-             rootnlist-list (append rootnlist-list (list rootnlist)))     
-       (cond
-        ((and tree (listp item))
-         (cond
-          ;;if want to use the last non-nested list as the value for the parent node
-          ((or (null item)
-               (and last-list=value-p (null (nested-list-p item))))
-           (setf itemlist  (list rootnlist rootn valkey item)
-                 tree-nodes (append tree-nodes  (list itemlist))))
-          ;;otherwise each item is used as a value for that node
-          (t
-;;(values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln)
-           (multiple-value-bind (subtree-nodes rootn-list1 flat-rootn-list1 
-                                                 root-leveln-list1 return-n)
-               (make-tree-nodes-list item  ;;:n (- n 1) 
-                                       :parent-rootn rootn :parent-rootnlist rootnlist                                    
-                                       :root-leveln  root-leveln
-                                       :last-list=value-p  last-list=value-p
-                                       :tree-num-list tree-num-list)
-             ;;add current level info
-             (setf subtree-parent-node (list rootnlist rootn sublistkey subtree-nodes)
-                   tree-nodes (append tree-nodes  (list subtree-parent-node))
-                   rootn-list (append rootn-list (list rootn-list1))
-                   flat-rootn-list (append flat-rootn-list flat-rootn-list1)
-                   ;;flat-rootnlist-list (append flat-rootnlist-list flat-rootnlist-list1)
-                   root-leveln-list (append root-leveln-list (list root-leveln-list1)))
-             (setf totaln (+ totaln return-n))
-             ;;end mvb, clause
-             ))
-          ;;end inner cond, listp item
-          ))
-          ;;FINAL (NON-LIST NODE)
-        (t
-           (setf itemlist  (list rootnlist rootn valkey item)
-                 tree-nodes (append tree-nodes (list itemlist)))
-         ;;was (setf tree-nodes (append tree-nodes (list n)))
-         ))
-       ;;end let, loop, listp clause
-       )))
-     (t (setf tree-nodes (list tree))))
-    (setf tree-num-list (append tree-num-list (list tree-nodes))
-          totaln (+ totaln leveln))
-    (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list)
-    ;;end let, make-tree-nodes-list
-    ))
-;;END OLD -------------------------------------------------
+;; (make-treeview-frame  *dim-tree-list :valkey :V :sublistkey :S)
+;;
+;;FOR DIMLISTS
+#|
+ (setf test-cs-dimlistxxx '(((CS)   "CS"  :S
+  (((CS HS)    "CS.HS"    :S
+    (((CS HS 1)      "CS.HS.1"      :S
+      (((CS HS 1 1) "CS.HS.1.1") ((CS HS 1 2) "CS.HS.1.2")))
+     ((CS HS 2)      "CS.HS.2"      :S
+      (((CS HS 2 1) "CS.HS.2.1")
+       ((CS HS 2 2) "CS.HS.2.2")
+       ((CS HS 2 3) "CS.HS.2.3")))
+     ((CS HS 3) "CS.HS.3")))
+   ((CS MS)    "CS.MS"    :S
+    (((CS MS MS1)      "CS.MS.MS1"      :S
+      (((CS MS MS1 1) "CS.MS.MS1.1") ((CS MS MS1 2) "CS.MS.MS1.2")))))))))
+|#
+;; (make-treeview-frame  test-cs-dimlistxxx)
+;; works with invented dimlists and only the dim as the value of each sublist.
 
 
 
 ;;MAKE-TREE-NODES-LIST
-;;2017
+;; 
 ;;ddd
 (defun make-tree-nodes-list  (tree &key  tree-num-list ;;(rootmult 1)
-                                   group-by-val-p  order-by-rank-p
+                                   group-by-val-p  order-by-rank-p (root-separator ".")
                                     last-list=value-p (valkey :V=)(sublistkey :SL)
                                     parent-rootn parent-rootnlist  (root-leveln 0) root-leveln-list
                                     frame-init-args)
-  "In U-trees, INPUT any list w/any nesting.  RETURNS (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list). Each node (rootnlist rootn value) where rootnlist eg (2 3 4 6) of each level node; rootn eg. \"2.3.4.6\" and key value = valkey  the original item in list OR for a parent node sublistkey (...) = key sublist of child nodes.  If  last-list=value-p, then the last level list is considered a value for the node in level below it. USED FOR CREATING CAPI:LIST-VIEW PANES in its :chidren-function used to create root trees."
+  "In U-trees, Makes tree from VALUES from nested elementes and INVENTS DIMLISTS of only numbers.  INPUT any list w/any nesting.  RETURNS (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list). Each NODE (rootnlist rootn value) where ROOTNLIST eg (2 3 4 6) of each level node; ROOTN eg. \"2.3.4.6\" and key value = VALKEY  the original item in list OR for a parent node SUBLISTKEY (...) = key sublist of child nodes.  If  LAST-LIST=VALUE-P, then the last level list is considered a value for the node in level below it. USED FOR CREATING CAPI:LIST-VIEW PANES in its :chidren-function used to create root trees."
   (let
       ((len-tree (list-length tree))
        (bottom-root-list)
@@ -530,8 +431,8 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
        ;;(incf rootbase)
        (cond
         (parent-rootn
-         (setf rootn (format nil "~A.~A" parent-rootn item-n)
-               rootnlist (append parent-rootnlist (list  item-n))))
+         (setf rootn (format nil "~A~A~A" parent-rootn root-separator item-n)
+               rootnlist (append parent-rootnlist (list  item-n))) )
         ;;  itemlist (append itemlist (list (list rootnlist rootn item
         (t (setf  bottom-root-list (append bottom-root-list (list item-n))
                   rootn (format nil "~A" item-n)               
@@ -554,10 +455,12 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
            (multiple-value-bind (subtree-nodes rootn-list1 flat-rootn-list1 
                                                  root-leveln-list1 return-n)
                (make-tree-nodes-list item  ;;:n (- n 1) 
-                                       :parent-rootn rootn :parent-rootnlist rootnlist                                    
+                                       :parent-rootn rootn :parent-rootnlist rootnlist  
+                                       :root-separator root-separator
                                        :root-leveln  root-leveln
                                        :last-list=value-p  last-list=value-p
                                        :tree-num-list tree-num-list)
+             ;;here44
              ;;add current level info
              (setf subtree-parent-node (list rootnlist rootn sublistkey subtree-nodes)
                    tree-nodes (append tree-nodes  (list subtree-parent-node))
@@ -585,59 +488,80 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
     ;;end let, make-tree-nodes-list
     ))
 ;;TEST
-;;HEREB
+;; FOR A TEST SYMS AND SUBSYMS TREE
+;; (setf *testartlist11 '(topsym (sub1 sub2 (sub11 sub12 (sub121 ( sub1211) sub122)))))
+;; USE root-separator = "-" to look more like artdimsym
+;; (make-tree-nodes-list *testartlist11 :root-separator "-" )
+;; (((1) "1" :V= TOPSYM) ((2) "2" :SL (((2 1) "2-1" :V= SUB1) ((2 2) "2-2" :V= SUB2) ((2 3) "2-3" :SL (((2 3 1) "2-3-1" :V= SUB11) ((2 3 2) "2-3-2" :V= SUB12) ((2 3 3) "2-3-3" :SL (((2 3 3 1) "2-3-3-1" :V= SUB121) ((2 3 3 2) "2-3-3-2" :SL (((2 3 3 2 1) "2-3-3-2-1" :V= SUB1211))) ((2 3 3 3) "2-3-3-3" :V= SUB122))))))))
+;; (make-tree-nodes-list *testartlist11)
+;; results= (((1) "1" :V= TOPSYM)
+#| ((2)   "2"  :SL   
+ (((2 1) "2.1" :V= SUB1)
+   ((2 2) "2.2" :V= SUB2)
+   ((2 3)  "2.3"     :SL 
+    (((2 3 1) "2.3.1" :V= SUB11)
+     ((2 3 2) "2.3.2" :V= SUB12)
+     ((2 3 3)  "2.3.3" :SL
+      (((2 3 3 1) "2.3.3.1" :V= SUB121)
+       ((2 3 3 2) "2.3.3.2" :SL 
+          (((2 3 3 2 1) "2.3.3.2.1" :V= SUB1211)))
+       ((2 3 3 3) "2.3.3.3" :V= SUB122))))))))|#
+;;("1" "2" ("2.1" "2.2" "2.3" ("2.3.1" "2.3.2" "2.3.3" ("2.3.3.1" "2.3.3.2" ("2.3.3.2.1") "2.3.3.3"))))
+;;("1" "2" "2.1" "2.2" "2.3" "2.3.1" "2.3.2" "2.3.3" "2.3.3.1" "2.3.3.2" "2.3.3.2.1" "2.3.3.3")   (1 (2 (3 (4 (5)))))   12   (1 2)
+;;USE REAL ARTDIMS
+;; (setf *testartlist22 '(CS (HS (1 (1 (1 ) 2 (1 (1)2 (1 2)) 3 (1 (1 2) 2 3)))) (VB (1 2 (1 (1 2) 2) 3))))
+;; (make-tree-nodes-list *TESTARTLIST22)
+;; results= 
+#|(((1) "1" :V= CS)
+ ((2)   "2"   :SL
+  (((2 1) "2.1" :V= HS)
+   ((2 2) "2.2" :SL
+    (((2 2 1) "2.2.1" :V= 1)
+     ((2 2 2) "2.2.2" :SL
+      (((2 2 2 1) "2.2.2.1" :V= 1)
+       ((2 2 2 2) "2.2.2.2" :SL (((2 2 2 2 1) "2.2.2.2.1" :V= 1)))
+       ((2 2 2 3) "2.2.2.3" :V= 2)
+       ((2 2 2 4) "2.2.2.4" :SL
+        (((2 2 2 4 1) "2.2.2.4.1" :V= 1)
+         ((2 2 2 4 2) "2.2.2.4.2" :SL (((2 2 2 4 2 1) "2.2.2.4.2.1" :V= 1)))
+         ((2 2 2 4 3) "2.2.2.4.3" :V= 2)
+         ((2 2 2 4 4) "2.2.2.4.4"  :SL
+          (((2 2 2 4 4 1) "2.2.2.4.4.1" :V= 1)
+           ((2 2 2 4 4 2) "2.2.2.4.4.2" :V= 2)))))
+       ((2 2 2 5) "2.2.2.5" :V= 3)
+       ((2 2 2 6)  "2.2.2.6" :SL
+        (((2 2 2 6 1) "2.2.2.6.1" :V= 1)
+         ((2 2 2 6 2)  "2.2.2.6.2" :SL
+          (((2 2 2 6 2 1) "2.2.2.6.2.1" :V= 1)
+           ((2 2 2 6 2 2) "2.2.2.6.2.2" :V= 2)))
+         ((2 2 2 6 3) "2.2.2.6.3" :V= 2)
+         ((2 2 2 6 4) "2.2.2.6.4" :V= 3)))))))))
+ ((3)  "3" :SL
+  (((3 1) "3.1" :V= VB)
+   ((3 2) "3.2" :SL
+    (((3 2 1) "3.2.1" :V= 1)
+     ((3 2 2) "3.2.2" :V= 2)
+     ((3 2 3)  "3.2.3" :SL
+      (((3 2 3 1) "3.2.3.1" :V= 1)
+       ((3 2 3 2)  "3.2.3.2"  :SL
+        (((3 2 3 2 1) "3.2.3.2.1" :V= 1) ((3 2 3 2 2) "3.2.3.2.2" :V= 2)))
+       ((3 2 3 3) "3.2.3.3" :V= 2)))
+     ((3 2 4) "3.2.4" :V= 3))))))|#
+
+;;FIRST TEST EG FROM VALUES a thru end)
 ;;  (setf *testlist22 '(a (b c (d e (f g (h i j)) (k l) m (n (o (p q (r (s)) t) u v) w) x y ) z) end))
 ;; (make-tree-nodes-list *testlist22)
 ;; works= 
 ;;tree-nodes= 
 #| (((1) "1" :VA A)
- ((2)
-  "2"
-  :SL
-  (((2 1) "2.1" :VA B)
-   ((2 2) "2.2" :VA C)
-   ((2 3)
-    "2.3"
-    :SL
-    (((2 3 1) "2.3.1" :VA D)
-     ((2 3 2) "2.3.2" :VA E)
-     ((2 3 3)
-      "2.3.3"
-      :SL
-      (((2 3 3 1) "2.3.3.1" :VA F)
-       ((2 3 3 2) "2.3.3.2" :VA G)
-       ((2 3 3 3)
-        "2.3.3.3"
-        :SL
-        (((2 3 3 3 1) "2.3.3.3.1" :VA H)
-         ((2 3 3 3 2) "2.3.3.3.2" :VA I)
-         ((2 3 3 3 3) "2.3.3.3.3" :VA J)))))
-     ((2 3 4)
-      "2.3.4"
-      :SL
-      (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L)))
+ ((2)   "2"   :SL   (((2 1) "2.1" :VA B)    ((2 2) "2.2" :VA C) ((2 3) "2.3"  :SL (((2 3 1) "2.3.1" :VA D)  ((2 3 2) "2.3.2" :VA E)
+     ((2 3 3)  "2.3.3"  :SL (((2 3 3 1) "2.3.3.1" :VA F)  ((2 3 3 2) "2.3.3.2" :VA G)
+         ((2 3 3 3)  "2.3.3.3"  :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H)  ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J)))))
+     ((2 3 4)  "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) 
      ((2 3 5) "2.3.5" :VA M)
-     ((2 3 6)
-      "2.3.6"
-      :SL
-      (((2 3 6 1) "2.3.6.1" :VA N)
-       ((2 3 6 2)
-        "2.3.6.2"
-        :SL
-        (((2 3 6 2 1) "2.3.6.2.1" :VA O)
-         ((2 3 6 2 2)
-          "2.3.6.2.2"
-          :SL
-          (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P)
-           ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q)
-           ((2 3 6 2 2 3)
-            "2.3.6.2.2.3"
-            :SL
-            (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R)
-             ((2 3 6 2 2 3 2)
-              "2.3.6.2.2.3.2"
-              :SL
-              (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S)))))
+     ((2 3 6) "2.3.6" :SL  (((2 3 6 1) "2.3.6.1" :VA N)   ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O)
+            ((2 3 6 2 2) "2.3.6.2.2" :SL(((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q)  ((2 3 6 2 2 3)"2.3.6.2.2.3":SL(((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R)
+             ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S)))))
            ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T)))
          ((2 3 6 2 3) "2.3.6.2.3" :VA U)
          ((2 3 6 2 4) "2.3.6.2.4" :VA V)))
@@ -678,13 +602,112 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 ;;root-leveln-list=  (1 (2 (3)) (2))         totaln= 17  bottom-root-list=  (1 2 3 4 5 6)
 ;;rootn-list= ("1" "2" "3" "4" "5" ("5.1" "5.2" "5.3" "5.4" "5.5" ("5.5.1" "5.5.2" "5.5.3" "5.5.4")) "6" ("6.1" "6.2"))
 ;;flat-rootn-list=  ("1" "2" "3" "4" "5" "5.1" "5.2" "5.3" "5.4" "5.5" "5.5.1" "5.5.2" "5.5.3" "5.5.4" "6" "6.1" "6.2")
+;;MAKE THE FRAME
+;;(make-treeview-frame  *testlist33)
 
+
+;;FOR CS/ART DIMLISTS
+;; (setf *testlist33 '((CS) (k1 1 2) b (k2 3 4) (c (k3 5 6) d (k4 7 8) (e (k5 9) f (k6 10 11))) (d (k7 1 2))))
+
+
+
+;; FROM A NESTED LIST OF VALUES, MAKE A NODES TREE
+;;FOR AN ART TREE
+;; (setf *testartlist00 '(CS (HS (1 (1 2 3) 2 (1 (1 2 3 4) 2 (1 2) 3 (1)) 3 (1 2 3)))(MS (1 2 3))))
+;; (MAKE-TREE-NODES-LIST *testartlist00 :root-separator "-" )
+;;Used to make lists= (*tree-nodes-list *tree-rootn-list *tree-flat-rootn-list                                   *tree-root-leveln-list *totaln-nodes  *tree-roots-list)
+#| RESULTS- DOES NOT REFLECT GOOD ART TREE CS & HS ARE VALUES
+       AND NUMBERS WOULDN'T BE SAME AS CELL NUMBERS EG. HS= 2-1
+       MUST MODIFY THIS IF WANT TO USE IT WITH ART.
+       COULD PUT ARTDIMS IN VALUES :V= & KEEP INDEPENDENT OF TREE DIMS. WOULD BE GOOD FOR DISPLAYING ART NETWORKS
+;;tree-nodes >> *tree-nodes-list=
+(((1) "1" :V= CS) 
+ ((2)   "2"  :SL
+  (((2 1) "2-1" :V= HS)
+   ((2 2)    "2-2" :SL
+    (((2 2 1) "2-2-1" :V= 1)
+     ((2 2 2)      "2-2-2"      :SL
+      (((2 2 2 1) "2-2-2-1" :V= 1)
+       ((2 2 2 2) "2-2-2-2" :V= 2)
+       ((2 2 2 3) "2-2-2-3" :V= 3)))
+     ((2 2 3) "2-2-3" :V= 2)
+     ((2 2 4)      "2-2-4"      :SL
+      (((2 2 4 1) "2-2-4-1" :V= 1)
+       ((2 2 4 2)        "2-2-4-2"        :SL
+        (((2 2 4 2 1) "2-2-4-2-1" :V= 1)
+         ((2 2 4 2 2) "2-2-4-2-2" :V= 2)
+         ((2 2 4 2 3) "2-2-4-2-3" :V= 3)
+         ((2 2 4 2 4) "2-2-4-2-4" :V= 4)))
+       ((2 2 4 3) "2-2-4-3" :V= 2)
+       ((2 2 4 4)        "2-2-4-4"        :SL
+        (((2 2 4 4 1) "2-2-4-4-1" :V= 1) ((2 2 4 4 2) "2-2-4-4-2" :V= 2)))
+       ((2 2 4 5) "2-2-4-5" :V= 3)
+       ((2 2 4 6) "2-2-4-6" :SL (((2 2 4 6 1) "2-2-4-6-1" :V= 1)))))
+     ((2 2 5) "2-2-5" :V= 3)
+     ((2 2 6)      "2-2-6"      :SL
+      (((2 2 6 1) "2-2-6-1" :V= 1)
+       ((2 2 6 2) "2-2-6-2" :V= 2)
+       ((2 2 6 3) "2-2-6-3" :V= 3)))))))
+ ((3)  "3"  :SL
+  (((3 1) "3-1" :V= MS)
+   ((3 2)    "3-2"    :SL
+    (((3 2 1) "3-2-1" :V= 1)
+     ((3 2 2) "3-2-2" :V= 2)
+     ((3 2 3) "3-2-3" :V= 3))))))
+ |#
+;;rootn-list>> *tree-rootn-list= ("1" "2" ("2-1" "2-2" ("2-2-1" "2-2-2" ("2-2-2-1" "2-2-2-2" "2-2-2-3") "2-2-3" "2-2-4" ("2-2-4-1" "2-2-4-2" ("2-2-4-2-1" "2-2-4-2-2" "2-2-4-2-3" "2-2-4-2-4") "2-2-4-3" "2-2-4-4" ("2-2-4-4-1" "2-2-4-4-2") "2-2-4-5" "2-2-4-6" ("2-2-4-6-1")) "2-2-5" "2-2-6" ("2-2-6-1" "2-2-6-2" "2-2-6-3"))) "3" ("3-1" "3-2" ("3-2-1" "3-2-2" "3-2-3")))
+;;flat-rootn-list=  ("1" "2" "2-1" "2-2" "2-2-1" "2-2-2" "2-2-2-1" "2-2-2-2" "2-2-2-3" "2-2-3" "2-2-4" "2-2-4-1" "2-2-4-2" "2-2-4-2-1" "2-2-4-2-2" "2-2-4-2-3" "2-2-4-2-4" "2-2-4-3" "2-2-4-4" "2-2-4-4-1" "2-2-4-4-2" "2-2-4-5" "2-2-4-6" "2-2-4-6-1" "2-2-5" "2-2-6" "2-2-6-1" "2-2-6-2" "2-2-6-3" "3" "3-1" "3-2" "3-2-1" "3-2-2" "3-2-3")
+;; *totaln-nodes=  (1 (2 (3 (4) (4 (5) (5) (5)) (4))) (2 (3)))     totaln=    35      
+;;*tree-roots-list= (1 2 3)    
 
 
 
 ;;GET-NODE-CHILDLISTS
 ;;
 ;;ddd
+(defun get-node-childlists (target-rootnlist tree-node-list &key (target-leveln 1)
+                                         (valkey :VA)(sublistkey :SL))
+  "U-trees  RETURNS: (values return-parent child-rootnlists root-value child-sublists)  Set parent-rootlist= 0 or NIL to find base roots.  "
+  (when (equal target-rootnlist 0)
+    (setf rootnlist NIL))
+  (unless (listp target-rootnlist)
+    (setf target-rootnlist (list target-rootnlist)))
+  (let*
+      ((n-levels (list-length target-rootnlist))
+        (speclist (list (list target-rootnlist 0 0)))
+       (return-parent (get-set-append-delete-keyvalue-in-nested-list :get speclist
+                                                       tree-node-list :return-list-p T))
+        (root-value (get-key-value valkey return-parent))
+        (child-sublists (get-key-value sublistkey return-parent))
+        (child-rootnlists  (get-nth-in-all-lists 0  child-sublists))
+       )
+    (when (null target-rootnlist)
+      (setf parent-leveln 0))
+    ;;(break "target-rootnlist")
+      ;; (get-set-append-delete-keyvalue-in-nested-list :get '(((2 3 4) 0 0)) *testcl33 :return-list-p T)        
+     (values return-parent child-rootnlists root-value child-sublists)
+      ;;end let, get-node-childlists
+      ))
+;;TEST
+;; (setf *testcl33 '(((1) "1" :VA A) ((2) "2" :SL (((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3) "2.3" :SL (((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :VA 99 :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6) "2.3.6" :SL (((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))) ((2 3 6 3) "2.3.6.3" :VA W))) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y))) ((2 4) "2.4" :VA Z))) ((3) "3" :VA END))  )
+;; for end in value
+;; (get-node-childlists  '(2 3 5)  *testcl33)
+;; works = ((2 3 5) "2.3.5" :VA M) NIL  M   NIL
+;; for end in sublists
+;; (get-node-childlists  '(2 3 4)  *testcl33)
+;;return-parent= ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L)))
+;;child-rootnlists= ((2 3 4 1) (2 3 4 2))
+;;root-value= NIL
+;;child-sublists= (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))
+;;older?
+;; works= ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L)));; value=NIL
+;; chlld-sublists= (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L)) 
+;;child-rootnlists= ((2 3 4 1) (2 3 4 2))
+;;   rootvalue= 99
+;; (get-node-childlists  '(2 3 1) *tree-nodes-list)
+
+
+#| OLD--MORE COMPLEX
 (defun get-node-childlists (target-rootnlist tree-node-list &key (target-leveln 1)
                                          (valkey :VA)(sublistkey :SL))
   "   RETURNS: (values return-childlists child-rootnlists root-value child-sublists)  Set parent-rootlist= 0 or NIL to find base roots.
@@ -760,21 +783,11 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
       (setf  child-sublists (get-key-value sublistkey return-childlists)
              child-rootnlists (get-nth-in-all-lists 0  child-sublists)
              root-value (get-key-value valkey return-childlists)))
-
     (values return-childlists child-rootnlists root-value child-sublists)
     ;;end let, get-node-childlists
-    ))
-;;TEST
-;; (setf *testcl33 '(((1) "1" :VA A) ((2) "2" :SL (((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3) "2.3" :SL (((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6) "2.3.6" :SL (((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))) ((2 3 6 3) "2.3.6.3" :VA W))) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y))) ((2 4) "2.4" :VA Z))) ((3) "3" :VA END))  )
-;; for end in value
-;; (get-node-childlists  '(2 3 5)  *testcl33)
-;; works = ((2 3 5) "2.3.5" :VA M) NIL  M   NIL
-;; for end in sublists
-;; (get-node-childlists  '(2 3 4)  *testcl33)
-;; works= ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) 
-;;child-rootnlists= ((2 3 4 1) (2 3 4 2))
-;;   rootvalue= NIL sublists= (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))
-;; (get-node-childlists  '(2 3 1) *tree-nodes-list)
+    ))|#
+
+
 
 
 ;;GET-ROOTNLISTS-SUBLISTS
@@ -898,14 +911,12 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 |#
 
 
-;; TEST-FUNCTIONS2.lisp 
-
 
 
 ;;GET-SET-APPEND-DELETE-TREE-NODELIST
 ;;
 ;;ddd
-(defun get-set-append-delete-tree-nodelist (new-value key  target-rootnlist tree-node-list 
+(defun get-set-append-delete-tree-nodelist (new-value key target-rootnlist tree-node-list 
                                                         &key (keyloc-n 2) (val-nth 1) (target-leveln 1)
                                                         (valkey :VA)(sublistkey :SL)  (test 'my-equal)
                                                         append-value-p add-value-p
@@ -916,11 +927,17 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
                                                         break-if-keys-not-match-p
                                                         splice-old-new-values-p 
                                                         parens-after-begin-items-p)
-  "   RETURNS: (values return-nodelist child-rootnlists root-value childsublists new-childlist
-            return-new-value old-value)  Set parent-rootlist= 0 or NIL to find base roots.
-   "
-  (when (equal target-rootnlist 0)
+  "U-trees SEARCHS a special TREE FOR KEY: KEY MUST? BE A LIST= (2 3 5) for a special type of tree organized by each key = a list describing its location where first item is TOP loc, second is which SUBLIST KEY within the toplist, ETC until last leaf.]
+  ART TREES: 1. KEY= artdims+pre list eg (CS HS 1 2 3 4), 2. Set target-rootnlist = :ARTDIMS, which causes it to convert the artdims+pre to a properly formated target-rootnlist eg ((CS T)(HS T)(4 T)(3 T)(2 T)(1 T))
+;; (get-node-childlists  '(2 3 5)  *testcl33) SEE TEST EG.]  
+      RETURNS: (values return-nodelist child-rootnlists root-value childsublists new-childlist return-new-value old-value)  Set parent-rootlist= 0 or NIL to find base roots. 
+     FOR NORMAL TREES WITH SYM, ETC KEYS, Use (get-set-append-delete-keyvalue-in-nested-list '(NEW 1 2 3) '((CS T)(HS T)(2 T)(4 T) (5 T)) *testorgdimslist) "
+  (cond
+   ((member target-rootnlist '(:ARTDIMS  ARTDIMS) :test 'equal)
+    (setf target-rootnlist  (make-rootns-key-from-artdims key)))
+   ((equal target-rootnlist 0)
     (setf rootnlist NIL))
+   (t nil))
   (unless (listp target-rootnlist)
     (setf target-rootnlist (list target-rootnlist)))
   (let*
@@ -941,6 +958,7 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
        )
     (when (null target-rootnlist)
       (setf target-leveln 0))
+    ;;(break "target-rootnlist")
     
     (cond
      ;;FOR COMPLEX CASES USE GET-SET-APPEND-DELETE-NESTED-LIST
@@ -978,7 +996,7 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
           for item in tree-node-list
           for item-n from 0 to len-tree-node-list ;;not needed?
           do
-          (afout 'out (format nil "item= ~A item-n= ~A" item item-n))
+          ;;(afout 'out (format nil "item= ~A item-n= ~A" item item-n))
           ;;NO? Fixed in get-set- functions;; must first differentiate between a node-list and a nested-list before doing next cond
           (let*
               ((test-rootnlist)
@@ -1115,27 +1133,70 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
     ;;end let, get-set-append-delete-tree-nodelist
     ))
 ;;TEST
+;;COMPLEX EG USING KEY = LIST
 ;; (setf *testcl33 '(((1) "1" :VA A) ((2) "2" :SL (((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3) "2.3" :SL (((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6) "2.3.6" :SL (((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S)))))    ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))) ((2 3 6 3) "2.3.6.3" :VA W))) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y))) ((2 4) "2.4" :VA Z))) ((3) "3" :VA END))  )
+;;(PPRINT *testcl33) =
+#|(((1) "1" :VA )
+ ((2)
+  "2"
+  :SL
+  (((2 1) "2.1" :VA B)
+   ((2 2) "2.2" :VA C)
+   ((2 3)
+    "2.3"
+    :SL
+    (((2 3 1) "2.3.1" :VA D)
+     ((2 3 2) "2.3.2" :VA E)
+     ((2 3 3)
+      "2.3.3"
+      :SL
+      (((2 3 3 1) "2.3.3.1" :VA F)
+       ((2 3 3 2) "2.3.3.2" :VA G)
+       ((2 3 3 3)
+        "2.3.3.3"
+        :SL
+        (((2 3 3 3 1) "2.3.3.3.1" :VA H)
+         ((2 3 3 3 2) "2.3.3.3.2" :VA I)
+         ((2 3 3 3 3) "2.3.3.3.3" :VA J)))))
+     ((2 3 4)
+      "2.3.4"
+      :SL
+      (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L)))
+     ((2 3 5) "2.3.5" :VA M)
+     ((2 3 6)
+      "2.3.6"
+      :SL
+      (((2 3 6 1) "2.3.6.1" :VA N)
+       ((2 3 6 2)
+        "2.3.6.2"
+        :SL
+        (((2 3 6 2 1) "2.3.6.2.1" :VA O)
+         ((2 3 6 2 2)
+          "2.3.6.2.2"
+          :SL
+          (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P)
+           ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q)
+           ((2 3 6 2 2 3)
+            "2.3.6.2.2.3"
+            :SL
+            (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R)
+             ((2 3 6 2 2 3 2)
+              "2.3.6.2.2.3.2"
+              :SL
+              (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S)))))
+           ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T)))
+         ((2 3 6 2 3) "2.3.6.2.3" :VA U)
+         ((2 3 6 2 4) "2.3.6.2.4" :VA V)))
+       ((2 3 6 3) "2.3.6.3" :VA W)))
+     ((2 3 7) "2.3.7" :VA X)
+     ((2 3 8) "2.3.8" :VA Y)))
+   ((2 4) "2.4" :VA Z)))
+ ((3) "3" :VA END))|#
+
+;;TEST GET-SET-APPEND-DELETE-TREE-NODELIST
+;; (get-set-append-delete-tree-nodelist :GET :VA '(2 3 6 2 2 3 1) *testcl33  )
+;; works= ((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" (2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R)                        (((1) "1" :VA A) ((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" (2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V) ((2 3 6 3) "2.3.6.3" :VA W) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y) ((2 4) "2.4" :VA Z) ((3) "3" :VA END))    NIL  R   NIL  R  R
 ;; for end in value
-;; (get-node-childlists  '(2 3 5)  *testcl33)
-;; works = ((2 3 5) "2.3.5" :VA M) NIL  M   NIL
-;; for end in sublists
-;; (get-node-childlists  '(2 3 4)  *testcl33)
-;; works= ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) 
-;;child-rootnlists= ((2 3 4 1) (2 3 4 2))
-;;   rootvalue= NIL sublists= (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))
-;;
-;; (get-set-append-delete-keyvalue-in-nested-list :GET '(('(2 3 6 2) 0 2) ) *testcl33)
-;; FOR GET
-;; (get-set-append-delete-tree-nodelist  :GET  :SL '(2 3 6 2) *testcl33)
-;; works=
-;;(values return-nodelist new-tree-node-list child-rootnlists root-value childsublists  return-new-value old-value)
-;;return-nodelist= ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V)))
-;;new-tree-node-list=  (((1) "1" :VA A) ((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6 1) "2.3.6.1" :VA N) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y) ((2 4) "2.4" :VA Z) ((3) "3" :VA END))
-;; child-rootnlists= ((2 3 6 2 1) (2 3 6 2 2) (2 3 6 2 3) (2 3 6 2 4))
-;;root-value= NIL (correct)
-;;childsublists= (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))
-;; return-new-value old-value all = childsublists
 ;; FOR SET NEW-VALUE
 ;;(values return-nodelist child-rootnlists root-value childsublists new-childlist  return-new-value old-value)
 ;; ;; (get-set-append-delete-tree-nodelist  '(NEW SL VALUE)  :SL '(2 3 6 2) *testcl33)
@@ -1145,7 +1206,7 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 ;; childsublists= (NEW SL VALUE)  new-childlist= NIL 
 ;; return-new-value= (NEW SL VALUE)
 ;;old-value= (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))
-;; with a real sublist
+;; WITH A REAL SUBLIST
 ;; (get-set-append-delete-tree-nodelist 'NEW-VALUE   :VA  '(2 3 6 2 2 4)  *testcl33)
 ;; works= ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA NEW-VALUE)
 ;; new-tree-node-list=  (((1) "1" :VA A) ((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA NEW-VALUE) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V) ((2 3 6 3) "2.3.6.3" :VA W) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y) ((2 4) "2.4" :VA Z) ((3) "3" :VA END))
@@ -1163,6 +1224,30 @@ The default value of expandp-function is NIL so that there is NO AUTOMATIC EXPAN
 ;; works= (:SL ((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))) (NEW SUBLISTS GO HERE))
 ;;       (((1) "1" :VA A) ((2) "2" :SL (((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3) "2.3" :SL (((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6) "2.3.6" :SL (((2 3 6 1) "2.3.6.1" :VA N) ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) (((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))) (NEW SUBLISTS GO HERE)))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))) ((2 3 6 3) "2.3.6.3" :VA W))) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y))) ((2 4) "2.4" :VA Z))) ((3) "3" :VA END))
 ;;     (2)   NIL   ((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R)    NIL   NIL
+
+
+;; TEST GET-NODE-CHILDLISTS
+;; SEARCHS TREE FOR KEY: KEY MUST? BE A LIST= (2 3 5) for a special type of tree organized by each key = a list describing its location where first item is TOP loc, second is which SUBLIST KEY within the toplist, ETC until last leaf.]
+;; (GET-NODE-CHILDLISTS  '(2 3 5)  *testcl33)
+;; works = ((2 3 5) "2.3.5" :VA M) NIL  M   NIL
+;; for end in sublists
+;; (get-node-childlists  '(2 3 4)  *testcl33)
+;; works= ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) 
+;;child-rootnlists= ((2 3 4 1) (2 3 4 2))
+;;   rootvalue= NIL sublists= (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))
+;; TEST GET-SET-APPEND-DELETE-KEYVALUE-IN-NESTED-LIST
+;; (get-set-append-delete-keyvalue-in-nested-list :GET '(('(2 3 6 2) 0 2) ) *testcl33)
+;; FOR GET
+;; 2019 (get-set-append-delete-tree-nodelist  :GET '(2 3 4 1)  :ARTDIMS *testcl33)
+;; (get-set-append-delete-tree-nodelist  :GET  :SL '(2 3 6 2) *testcl33)
+;; works=
+;;(values return-nodelist new-tree-node-list child-rootnlists root-value childsublists  return-new-value old-value)
+;;return-nodelist= ((2 3 6 2) "2.3.6.2" :SL (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V)))
+;;new-tree-node-list=  (((1) "1" :VA A) ((2 1) "2.1" :VA B) ((2 2) "2.2" :VA C) ((2 3 1) "2.3.1" :VA D) ((2 3 2) "2.3.2" :VA E) ((2 3 3) "2.3.3" :SL (((2 3 3 1) "2.3.3.1" :VA F) ((2 3 3 2) "2.3.3.2" :VA G) ((2 3 3 3) "2.3.3.3" :SL (((2 3 3 3 1) "2.3.3.3.1" :VA H) ((2 3 3 3 2) "2.3.3.3.2" :VA I) ((2 3 3 3 3) "2.3.3.3.3" :VA J))))) ((2 3 4) "2.3.4" :SL (((2 3 4 1) "2.3.4.1" :VA K) ((2 3 4 2) "2.3.4.2" :VA L))) ((2 3 5) "2.3.5" :VA M) ((2 3 6 1) "2.3.6.1" :VA N) ((2 3 7) "2.3.7" :VA X) ((2 3 8) "2.3.8" :VA Y) ((2 4) "2.4" :VA Z) ((3) "3" :VA END))
+;; child-rootnlists= ((2 3 6 2 1) (2 3 6 2 2) (2 3 6 2 3) (2 3 6 2 4))
+;;root-value= NIL (correct)
+;;childsublists= (((2 3 6 2 1) "2.3.6.2.1" :VA O) ((2 3 6 2 2) "2.3.6.2.2" :SL (((2 3 6 2 2 1) "2.3.6.2.2.1" :VA P) ((2 3 6 2 2 2) "2.3.6.2.2.2" :VA Q) ((2 3 6 2 2 3) "2.3.6.2.2.3" :SL (((2 3 6 2 2 3 1) "2.3.6.2.2.3.1" :VA R) ((2 3 6 2 2 3 2) "2.3.6.2.2.3.2" :SL (((2 3 6 2 2 3 2 1) "2.3.6.2.2.3.2.1" :VA S))))) ((2 3 6 2 2 4) "2.3.6.2.2.4" :VA T))) ((2 3 6 2 3) "2.3.6.2.3" :VA U) ((2 3 6 2 4) "2.3.6.2.4" :VA V))
+;; return-new-value old-value all = childsublists
 
 
 
@@ -1789,3 +1874,148 @@ expandp-function controls automatic expansion of nodes
 ;; 2.3.4.2.2.3.2 level 7 item 1 = (19)
 ;; 2.3.4.2.2.3.2.1  level 8 item 1 = 19
 |#
+
+
+;;OLD DELETE AFTER TEST NEW ---------------------
+#|(defun make-treeview-frame (list &key (frame-title "Tom's List Tree View")
+                                 group-by-val-p  order-by-rank-p
+                                 last-list=value-p (valkey :V=) (sublistkey :SL)
+                                 (min-treeview-pane-height 800)
+                                 (min-treeview-pane-width 500)
+                                 frame-init-args (expand-tree-p 99)
+                                 (initial-y 20))
+  #|  background   checkbox-change-callback   checkbox-initial-status   delete-item-callback    has-root-line     expandp-function    font  capi:help-key    image-lists   internal-border   keep-selection-p    leaf-node-p-function   retain-expanded-nodes   visible-border|#
+  "In U-trees, makes a tree-view frame that uses make-tree-nodes to create a tree view of ANY list to any degree of nesting. expand-tree-p= T for initial expansion of all nodes. last-list=value-p puts the value after the sublists."
+  (multiple-value-setq (*tree-nodes-list *tree-rootn-list *tree-flat-rootn-list 
+                                         *tree-root-leveln-list *totaln-nodes  *tree-roots-list)
+      (make-tree-nodes-list list :last-list=value-p last-list=value-p
+                            :valkey valkey :sublistkey sublistkey))
+  (let*
+      ((frame-call-args `(make-instance 'my-tree-view-interface :title ,frame-title))
+       (tree-inst)
+       (expand-function)
+       )
+    (cond
+     (expand-tree-p
+      (setf *my-expand-function 'my-expandp-function)
+      (when (numberp (setf  *treeview-expand-level expand-tree-p))))
+     (t (setf *my-expand-function 'my-not-expandp-function)))
+    #| doesn't work   (setf frame-call-args (append frame-call-args 
+                                  `(:expandp-function (quote ,expand-function))))|#
+ ;;herego
+      (setf frame-init-args (append frame-init-args 
+                                    (list  :y initial-y :visible-min-height min-treeview-pane-height
+                                          :visible-min-width min-treeview-pane-width)))            
+            
+      (setf frame-call-args (append frame-call-args frame-init-args))
+
+    (setf tree-inst (eval frame-call-args))
+    ;;(break "y")
+    
+    ;;SET THE VARIABLE VALUES
+#|    (setf (slot-value tree-inst 'totaln-nodes) *totaln-nodes
+          (slot-value tree-inst 'treeview-expand-level) expand-tree-p
+          (slot-value tree-inst 'tree-nodes-list) *tree-nodes-list
+          (slot-value tree-inst 'tree-roots-list) *tree-roots-list
+          (slot-value tree-inst 'tree-rootn-list) *tree-rootn-list
+          ;;(slot-value tree-inst ' 
+          )|#
+    (capi:display tree-inst)
+    ))|#
+
+
+;;MAKE-TREE-NODES-LIST
+;;1
+;;ddd
+#|(defun make-tree-nodes-list  (tree &key  tree-num-list ;;(rootmult 1)
+                                   group-by-val-p  order-by-rank-p
+                                    last-list=value-p (valkey :V=)(sublistkey :SL)
+                                    parent-rootn parent-rootnlist  (root-leveln 0) root-leveln-list
+                                    frame-init-args)
+  "In U-trees, INPUT any list w/any nesting.  RETURNS (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list). Each NODE (rootnlist rootn value) where ROOTNLIST eg (2 3 4 6) of each level node; ROOTN eg. \"2.3.4.6\" and key value = VALKEY  the original item in list OR for a parent node SUBLISTKEY (...) = key sublist of child nodes.  If  LAST-LIST=VALUE-P, then the last level list is considered a value for the node in level below it. USED FOR CREATING CAPI:LIST-VIEW PANES in its :chidren-function used to create root trees."
+  (let
+      ((len-tree (list-length tree))
+       (bottom-root-list)
+       (tree-nodes) 
+       (rootn-list)
+       (rootbase 0)
+       (flat-rootn-list)
+       (flat-rootnlist-list)
+       (rootn 0)
+       (rootnlist)
+       (rootnlist-list)
+       (leveln 0)
+       (totaln 0)
+       )
+    (incf root-leveln)
+    (setf root-leveln-list (append root-leveln-list (list root-leveln)))
+    (cond
+     ((and tree (listp tree))
+      (loop
+       for item in tree
+       for item-n from 1 to len-tree
+       do
+       (let
+           ((itemlist)
+            (subtree-parent-node)
+            )
+       (incf leveln)       
+       ;;(incf rootbase)
+       (cond
+        (parent-rootn
+         (setf rootn (format nil "~A.~A" parent-rootn item-n)
+               rootnlist (append parent-rootnlist (list  item-n))))
+        ;;  itemlist (append itemlist (list (list rootnlist rootn item
+        (t (setf  bottom-root-list (append bottom-root-list (list item-n))
+                  rootn (format nil "~A" item-n)               
+                  rootnlist (list item-n))))
+       ;;was  (+ (* item-n rootmult) parent-rootn)
+       (setf rootn-list (append rootn-list (list rootn))
+             flat-rootn-list (append flat-rootn-list (list rootn))
+             rootnlist-list (append rootnlist-list (list rootnlist)))     
+       (cond
+        ((and tree (listp item))
+         (cond
+          ;;if want to use the last non-nested list as the value for the parent node
+          ((or (null item)
+               (and last-list=value-p (null (nested-list-p item))))
+           (setf itemlist  (list rootnlist rootn valkey item)
+                 tree-nodes (append tree-nodes  (list itemlist))))
+          ;;otherwise each item is used as a value for that node
+          (t
+;;(values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln)
+           (multiple-value-bind (subtree-nodes rootn-list1 flat-rootn-list1 
+                                                 root-leveln-list1 return-n)
+               (make-tree-nodes-list item  ;;:n (- n 1) 
+                                       :parent-rootn rootn :parent-rootnlist rootnlist                                    
+                                       :root-leveln  root-leveln
+                                       :last-list=value-p  last-list=value-p
+                                       :tree-num-list tree-num-list)
+             ;;add current level info
+             (setf subtree-parent-node (list rootnlist rootn sublistkey subtree-nodes)
+                   tree-nodes (append tree-nodes  (list subtree-parent-node))
+                   rootn-list (append rootn-list (list rootn-list1))
+                   flat-rootn-list (append flat-rootn-list flat-rootn-list1)
+                   ;;flat-rootnlist-list (append flat-rootnlist-list flat-rootnlist-list1)
+                   root-leveln-list (append root-leveln-list (list root-leveln-list1)))
+             (setf totaln (+ totaln return-n))
+             ;;end mvb, clause
+             ))
+          ;;end inner cond, listp item
+          ))
+          ;;FINAL (NON-LIST NODE)
+        (t
+           (setf itemlist  (list rootnlist rootn valkey item)
+                 tree-nodes (append tree-nodes (list itemlist)))
+         ;;was (setf tree-nodes (append tree-nodes (list n)))
+         ))
+       ;;end let, loop, listp clause
+       )))
+     (t (setf tree-nodes (list tree))))
+    (setf tree-num-list (append tree-num-list (list tree-nodes))
+          totaln (+ totaln leveln))
+    (values tree-nodes rootn-list flat-rootn-list root-leveln-list totaln bottom-root-list)
+    ;;end let, make-tree-nodes-list
+    ))|#
+;;END OLD -------------------------------------------------
+

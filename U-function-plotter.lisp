@@ -256,6 +256,7 @@ ALL-EQ-OUTPUTS= list of all eq-output-lists.
           (prev-y)
           (cycle-deltas)
           (cycle-output)
+          (cycle-label)
           )
        ;;UPDATE NEW VALUES (+ DELTA-VALS PREV-VALS
        ;;CALC NEW Y
@@ -270,6 +271,8 @@ ALL-EQ-OUTPUTS= list of all eq-output-lists.
              (prev-y)
              (prev-delta)
              (delta)
+             (delta2)
+             (exp)
              )
           ;;use last calculated val for val
           (cond
@@ -1502,6 +1505,7 @@ ALL-EQ-OUTPUTS= list of all eq-output-lists.
           (y (car output))
           (xylist )
           (label)
+          (point)
           (pointn (nth pointn-n output))
           )
        ;;override (or add) label

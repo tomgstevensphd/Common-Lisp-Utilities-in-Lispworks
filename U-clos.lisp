@@ -32,6 +32,7 @@
        (metaclass)
        (class-inst-sym)
        (class-inst)
+       (class-inst-def)
        (defclass-call)
        (instance-initargs)
        (parents-list  `(:parents (quote ,superclasses))) ;; `(:parents ,superclasses-syms))
@@ -253,6 +254,7 @@ NEW-CLASS4
   "In U-clos.lisp, sets instance-sym to make-instance, and adds to class-instances slot-value. Default instance-sym= *class-sym-inst. If make-def-stream, sends def to that stream instead of evaling it."
   (let
       ((make-instance-call)
+       (write-form)
        ;;(new-initargs)  ;;use with below later??       
      ;;  (class-instances-slot) ;;fix later, makes default only  option
       ;;  (instance-sym)  ;;fix later, makes default only  option
@@ -508,6 +510,38 @@ CL-USER 13 > (slot-value  *sT1HigherSelf-inst 'raw-score)
 
 ;;XXX------------------- FUNCTIONS TO ACCESS CLASSES AND INSTANCES  ----------------
 
+;;CLASSNAME-P
+;;2020
+;;ddd
+(defun classname-p (name  &key  )
+  "U-clos  RETURNS    INPUT:  "
+  (let*
+      ((result)
+       )
+    (ignore-errors
+       (when (stringp name)
+        (setf name (my-make-symbol name)))
+           (setf result (find-class name)))
+    (values result )
+    ;;end let, classname-p
+    ))
+;;TEST
+;; WORKS
+;; (classname-p 'sworldview)
+;; =  #<STANDARD-CLASS SWORLDVIEW 2498F63F>
+;; (classname-p 'thisxx) = NIL
+;; (classname-p "sworldview") = #<STANDARD-CLASS SWORLDVIEW 2498F6
+
+#| (defun load-init-file (program user-homedir-pathname)
+   (let ((win nil))
+     (ignore-errors ;if this fails, don't enter debugger
+       (load (merge-pathnames (make-pathname :name program :type :lisp)
+                              user-homedir-pathname))
+       (setq win t))
+     (unless win (format t "~&Init file failed to load.~%"))
+     win))|#
+;; (load-init-file "THIS" "PATH")
+
 
 
 ;;FIND-CLASSNAME
@@ -542,22 +576,40 @@ CL-USER 13 > (slot-value  *sT1HigherSelf-inst 'raw-score)
 ;;GET-CLASS-INST
 ;;
 ;;ddd
-(defun get-class-inst (class)
-  "In U-clos.lisp, class can be string or symbol. Returns   (values class-inst-sym class-inst-object class-inst-string  class-string)"
+(defun get-class-inst (class &key (delete-pre "<"))
+  "In U-clos.lisp, class can be instance-sym, class string or class symbol. RETURNS   (values class-inst-sym class-inst-object class-inst-string  class-string)"
   (let
       ((class-string)
        (class-inst-string)
        (class-inst-sym)
        (class-inst-object)
+       (len-str 0)
        )
-    (setf class-string (format nil "~A" class)
+    (cond
+     ((class-instance-p class)
+      (setf class-inst-string (format nil "~A" class)
+            len-str (length class-inst-string)
+          class-string (subseq class-inst-string 1 (- len-str 5))
+          class-inst-sym (my-make-symbol class-inst-string)))
+     (T
+      (setf class-string (delete-begin-string '("<") (format nil "~A" class))
           class-inst-string (format nil "*~A-inst" class-string)
-          class-inst-sym (my-make-symbol class-inst-string))
-    (if  (and (symbolp (quote class-inst-sym))(boundp class-inst-sym))
+          class-inst-sym (my-make-symbol class-inst-string))))
+
+    (when  (and (symbolp (quote class-inst-sym))(boundp class-inst-sym))
       (setf  class-inst-object (eval class-inst-sym)))
+    ;;(break "end get-class-inst")
     (values class-inst-sym class-inst-object class-inst-string   class-string)
     ))
-;;test
+;;TEST
+;;If use instance instead of class
+;; (get-class-inst 'SWORLDVIEW)
+;; (get-class-inst '*sworldview-inst)
+;; works= *SWORLDVIEW-INST  #<SWORLDVIEW 2225404F>  "*SWORLDVIEW-INST"  "SWORLDVIEW"
+;;
+;; (get-class-inst "sworldview") = *SWORLDVIEW-INST    #<SWORLDVIEW 2225404F>  "*sworldview-inst"   "sworldview"
+;; (multiple-value-setq (**a  **b  **c) (get-class-inst "sworldview"))
+;; > **a= *SWORLDVIEW-INST **b= #<SWORLDVIEW 2225404F>  **c=  "*sworldview-inst"
 ;;  (get-class-inst 'outcome) =  *OUTCOME-INST  #<OUTCOME 25C9EBFF>  "*OUTCOME-inst"  "OUTCOME"
 ;;  (get-class-inst 'class1)
 ;;works, returns: *CLASS1-INST   #<CLASS1 22FAC627> "*CLASS1-inst"  "CLASS1"
@@ -674,7 +726,7 @@ class1-instances|#
 ;;
 ;;ddd
 (defun class-instance-p (instance &optional class)
-  "In U-clos.lisp, returns T if instance is an instance, T T if instance of class. Returns (values is-instance-p is-class-instance-p instance-class-string instance-class-sym  class-string. NOTE: use QUOTED symbol for instance. Works on unbound symbols.)"
+  "In U-clos.lisp,RETURNS: (values is-instance-p is-class-instance-p instance-class-string instance-class-sym  class-string)  NOTE:  returns T if instance is an instance, T T if instance of class. Returns (values is-instance-p is-class-instance-p instance-class-string instance-class-sym  class-string. NOTE: use QUOTED symbol for instance. Works on unbound symbols.)"
   (let
       ((instance-class-string)
        (class-string)
@@ -684,7 +736,8 @@ class1-instances|#
        )
   ;;uses typep to do the work
   (cond
-   ((and (symbolp instance)(boundp instance))
+   ((and (symbolp instance)(boundp instance)
+         (equal "*" (subseq (format nil "~A" instance) 0 1)))
     (multiple-value-setq (instance-class-sym  instance-class-string)
         (find-classname (eval instance)))
     (setf  class-string (format nil "~A" class)
@@ -738,10 +791,12 @@ class1-instances|#
       (setf nth-parent (nth nth parents)))
      (t nil))
     (values parents nth-parent)))
-;;test
+;;TEST
 #|(defun testgps ()
   (get-parent-syms 'class1 :nth 0))
 |#
+;; (get-parent-syms *SSL14MATHAPT-INST)
+;; works= (ACAD-LEARNING SCALE)   NIL
 
 
 
@@ -756,7 +811,7 @@ class1-instances|#
 ;;defmethod causes unbound error in test1 below
 ;;ddd
 (defun get-all-class-instances-slot-value (class-generic-inst slot  &key nth class-instances-slot)
-  "in u-clos.lisp, returns values list= slot-values-list all instance symbols and all instance objects. by default returns a list of slot-value for all instances, if nth is a number, returns only that one value, instance-sym and instance-object--use ordinary slot value if know instance-sym."
+  "in u-clos.lisp, DEPRECIATED: USE GET-INSTANCES-SLOT-VALUES INSTEAD. returns values list= slot-values-list all instance symbols and all instance objects. by default returns a list of slot-value for all instances, if nth is a number, returns only that one value, instance-sym and instance-object--use ordinary slot value if know instance-sym."
   (let
       ((slot-value)
        (all-instance-syms)
@@ -939,7 +994,8 @@ class1-instances|#
      (values multi-slot-value-list instance-sym1)
      ))
 ;;TEST
-;;  (get-multi-slot-values 'ssl11NotNonAcadMot '(name-string label scale-name description scale-group-name scale-questions mean-score help-links) :convert-classvar-p T)
+;;     (values multi-slot-value-list instance-sym1)
+;;  (get-multi-slot-values 'ssl11NotNonAcadMot '(name-string label scale-name description scale-group-name scale-questions subscales mean-score standard-deviation num-questions) :convert-classvar-p T)
 ;; works= ((NAME-STRING "ssl11NotNonAcadMot") (LABEL "ssl11NotNonAcadMot") (SCALE-NAME "College Internal Motivation") (DESCRIPTION "Internal Motivation--to be in college. Internal motives versus pleasing parents, making money, or being confused why in school. Financially self-supporting. Internal motivation for accomplishing any task--including a college degree--is associated with greater success and happiness. (4 items)") (SCALE-GROUP-NAME "acad-learning") (SCALE-QUESTIONS (STUEXTMO STUMONEYNEW STUCONFU STUFINDE STUCAREE)) (MEAN-SCORE 0.593) (HELP-LINKS ("c15-carp.htm" "time_management.htm" "life_goals_and_meaning.htm")))      *SSL11NOTNONACADMOT-INST
 
 
@@ -948,56 +1004,170 @@ class1-instances|#
 
 
 
-
-
-
-;;GET-SLOT-VALUES
-;;
+;;GET-INSTANCES-SLOT-VALUES
+;;2020 modified
 ;;ddd
-(defun get-slot-values (instance-sym-list slot-name-list &key convert-classvar-p)
+(defun get-instances-slot-values (instance-sym-list slot-name-list
+                                                    &key (return-slotkeys-p T)(convert-classvar-p T))
   "in u-clos.lisp, differs from normal (slot-value ...)  in that it evals the instance-sym arg first. If  convert-classvar-p, instance-sym can be a classvar which is converted to a class-instance of form *classname-inst. If  slot-name-list= a slot-name symbol, uses that symbol for EVERY instance.  RETURNS (values slot-values-list class-inst-list)."
   (let
-      ( (slot-values-list)
+      ((return-inst-values-lists)
         (class-inst-list)
-        (n -1)
-        (slot-name slot-name-list)
-        (slot-value)
+        (n-insts 0)
         )
     (loop
      for instance in instance-sym-list
      do
-     (incf n)
-     (when (listp slot-name-list)
-       (setf slot-name (nth n slot-name-list)))
-     (when convert-classvar-p
-       (setf instance (get-class-inst instance)))
-     (setf slot-value (slot-value  (eval instance) slot-name)
-           slot-values-list (append slot-values-list (list slot-value))
-           class-inst-list (append class-inst-list (list instance)))
-     ;;end loop
-     )
-    (values slot-values-list class-inst-list)
-    ;;end let, get-slot-values
+     (incf n-insts)
+     (multiple-value-bind (return-values-list inst)
+         (get-slot-values instance slot-name-list :return-only-valueslist-p T
+                          :return-slotkeys-p return-slotkeys-p)  
+       (setf return-inst-values-lists (append return-inst-values-lists (list return-values-list))
+             class-inst-list (append class-inst-list (list inst)))
+     ;;end mvb, loop
+     ))
+    (values return-inst-values-lists class-inst-list n-insts)
+    ;;end let, get-instances-slot-values
     ))
 ;;TEST
-;;  (get-slot-values '( sscpPosThoughts  ssieautony) 'relative-score :convert-classvar-p t))
-;; works = (0.5835 0.71433336)      (*SSCPPOSTHOUGHTS-INST *SSIEAUTONY-INST)
+;; (get-instances-slot-values  '(sscpPosThoughts  ssieautony) '(scale-name name-string scale-questions))
+;;works= ((:SCALE-NAME "Emotional Coping Using Positive Thoughts" :NAME-STRING "sscpPosThoughts" :SCALE-QUESTIONS (COPNEGTH COPPEPTA)) (:SCALE-NAME "Relationship Autonomy" :NAME-STRING "ssieautony" :SCALE-QUESTIONS (IECSELFS IECICONT IECDEPEN)))     
+;;  (#<SSCPPOSTHOUGHTS 2A31D727> #<SSIEAUTONY 2A2BDC1B>)      2
 
 
-#|(let ((xx))
-(loop
- for n from 1 to 10
- for i from 1 to 5
- do
- (setf xx (append xx (list n i)))
- ) xx) = (1 1 2 2 3 3 4 4 5 5) NOTE STOPS AFTER SHORTEST FOR|#
+
+#|
+(defun test-mvb (x)
+   (multiple-value-bind (class-inst-sym class-inst-object class-inst-string class-string)
+      (get-class-inst x)
+     (setf **res1 class-inst-object)
+    (break)
+    ))
+;; (test-mvb 'sworldview)
+(defun test-mvb-loop (x)
+  (let
+      ((return-items)
+       )
+   (multiple-value-bind (class-inst-sym class-inst-object class-inst-string class-string)
+      (get-class-inst x)
+     ;;(setf **res1 class-inst-object)
+     ;;NOTE: MVB LOCAL VAR WORKS INSIDE THE LOOP 
+     (loop
+      for item in '(a b c)
+      do
+      (setf return-items (append return-items (list (list item class-inst-object))))
+     )
+     return-items
+    )))
+;; (test-mvb-loop 'sworldview) 
+;; works= ((A #<SWORLDVIEW 2225404F>) (B #<SWORLDVIEW 2225404F>) (C #<SWORLDVIEW 2225404F>))
+(defun test-mvb2 (x)
+  (let
+      ((class-inst-sym)
+       (class-inst-object)
+       )
+   (multiple-value-setq (class-inst-sym class-inst-object) ;;class-inst-string class-string)
+      (get-class-inst x))
+   (setf **res class-inst-object)
+    (break)
+    ))|#
+;; (test-mvb2 'sworldview)
+
+
+
+;;GET-SLOT-VALUES
+;;2020 modified
+;;ddd
+(defun get-slot-values (instance slot-name-list &key (convert-classvar-p T)
+                                    return-only-values-p return-only-valueslist-p 
+                                    (return-slotkeys-p T) (unbound-slot-value  'unbound-slot))
+  "U-CLOS.LISP, differs from normal (slot-value ...)  in that it evals the instance-sym arg first. If  convert-classvar-p, instance-sym can be a classvar which is converted to a class-instance of form *classname-inst. If  slot-name-list= a slot-name symbol, uses that symbol for EVERY instance.  RETURNS (values key-values-list  ALL values lass-inst) If return-only-values-p, returns all values;
+  if return-only-valueslist-p, only a list of (if return-slotkeys-p, key-value pairs list; if not only list of values), if neither returns list, then values."
+  ;;NOTE: (BREAK) NOT WORKING WHEN PUT INSIDE MVB BELOW
+      ;;(break)
+      (let*
+          (#|(class-inst-sym)
+           (class-inst-object)
+           (class-inst-string)
+           (class-string)|#
+          #|          ((inst-name (cond (is-class-instance-p (format nil "~A" instance))
+                            (convert-classvar-p (get-class-inst instance))))|#
+        ;; (inst-sym
+           #|(cond ((symbolp instance) (format nil "*~A-inst" instance))
+                        ((stringp instance) instance)
+                        ((class-instance-p instance)(get-slot-value instance 'name-string)))|#
+           #|            (class-inst (cond ((symbolp inst-name) (eval inst-name))
+                              ((stringp inst-name) (eval (my-make-symbol inst-name)))
+                              ((class-instance-p  instance) (eval instance))))       |#        
+           #|(cond (convert-classvar-p (get-class-inst instance))
+                          ((or (symbolp instance)(class-instance-p instance)) (eval instance)))|#
+           (values-only-list)
+           (key-values-list)
+           )
+        ;;note: (class-instance-p '*sworldview-inst)  = T NIL "SWORLDVIEW" SWORLDVIEW      "NIL"
+  (multiple-value-bind (class-inst-sym class-inst-object class-inst-string
+                                       class-string)
+      (get-class-inst instance)
+    ;;use to see if mvb working:
+    ;;  (setf **res-obj class-inst-object) works = #<SWORLDVIEW 2225404F>
+
+    (multiple-value-bind (is-instance-p is-class-instance-p)
+        ;;instance-class-string  instance-class-sym  class-string)
+        (class-instance-p class-inst-sym)
+        (loop
+         for slot-name in slot-name-list
+         do
+         (let*
+             ((value)
+              (slotkey (cond (return-slotkeys-p (my-make-keyword slot-name))
+                             (T slot-name)))
+              )
+           (cond
+            ((and (slot-exists-p class-inst-object slot-name)
+                  (slot-boundp  class-inst-object slot-name))
+             (setf value (slot-value  class-inst-object slot-name)
+                   values-only-list (append values-only-list (list value))
+                   key-values-list (append key-values-list (list slotkey value))))
+            (T (setf value unbound-slot-value
+                   values-only-list (append values-only-list (list value))
+                   key-values-list (append key-values-list (list slotkey value)))))
+           ;;end let,loop
+           ))
+        ;;(break "values-only-list")
+        (cond  ;;class-inst-sym class-inst-object class-inst-string class-string)
+         ((and return-only-values-p (< (list-length values-only-list) 30))
+          (values-list (append values-only-list 
+                               (list class-inst-sym class-inst-object class-inst-string class-string))))
+         (return-only-valueslist-p
+          (values key-values-list class-inst-sym class-inst-object class-inst-string class-string))
+         (T
+          (values-list (append (list key-values-list) (list values-only-list)
+                               (list class-inst-sym class-inst-object class-inst-string class-string)))))
+        ;;end let, get-slot-values
+        ))))
+;;TEST
+;;HERE66
+;; (get-slot-values 'sworldview '(name-string   label  scale-name   description    scale-group-name   scale-questions relative-score reverse-scored-p   mean-score   standard-deviation  sample-N num-questions    help-priority  help-info help-links ))
+;;works= (for all outputs)
+#|;;key-values-list= (:NAME-STRING "sworldview" :LABEL "s-Positive world view" :SCALE-NAME "Positive World View" :DESCRIPTION "Optimism about the future of the world and own life, lack of entitlement thinking, plus daily positive versus negative thoughts. How constructively and positively you view the world and the future can significantly affect motivation, relationships, happiness, and success in most life areas. 
+      Living life with a sense of gratitude (versus a sense of entitlement and deprivation) may be one of the most important factors for 
+      happiness. It correlates .687 with happiness, .528 with low depression, .375 with low anxiety, .235 with 
+      low anger/aggression, .384 with relationship success, .233 with positive health outcomes. (10 items)" :SCALE-GROUP-NAME "beliefs" :SCALE-QUESTIONS (WOVPROGR WOVGOODF WOVMYLIF WOVNFAIR TBVENTIT WOVINJUR WOVABUND TBVGRATI WOVENTIT WOVGRATE WOVPOSTH) :RELATIVE-SCORE NIL :REVERSE-SCORED-P NIL :MEAN-SCORE ".624" :STANDARD-DEVIATION ".153" :SAMPLE-N 3162 :NUM-QUESTIONS 10 :HELP-PRIORITY 1 :HELP-INFO "If you scored very low, it could cause you to have a problem with anxiety, depression, or low motivation. Examine your underlying negative beliefs and your expectations of what others (or the world) owes you.  Reading books on positive motivation and learning from people with positive motivation can help. Check our help link and even consider counseling if this troubles you." :HELP-LINKS ("h4world.htm"))
+;;VALUES= ABOVE OUTPUT AS VALUES INSTEAD OF LIST
+;;class-inst-object=  #<SWORLDVIEW 2225404F>
+|#
+;;  (get-slot-values 'SSCPPOSTHOUGHTS '(name-string   label  scale-name   description    scale-group-name   scale-questions relative-score reverse-scored-p   mean-score   standard-deviation  sample-N num-questions    help-priority  help-info help-links ))
+;;works= (:NAME-STRING "sscpPosThoughts" :LABEL "sscp-Pos thoughts-phil, pep talk" :SCALE-NAME "Emotional Coping Using Positive Thoughts" :DESCRIPTION "When upset, think positive thoughts.  Positive; not critical, punitive, or negative thoughts in response to negative emotions. (2 items)" :SCALE-GROUP-NAME "semotcop" :SCALE-QUESTIONS (COPNEGTH COPPEPTA) :RELATIVE-SCORE NIL :REVERSE-SCORED-P NIL :MEAN-SCORE ".477" :STANDARD-DEVIATION ".204" :SAMPLE-N 3273 :NUM-QUESTIONS 2 :HELP-PRIORITY 1 :HELP-INFO "Develop a positive belief system/philosophy that you can use to generate positive thoughts when you need them. Practice viewing the problem/situation from a more positive perspective, help others do the same, confront negative thoughts, and schedule them for a later time to deal with in depth when you are out of the situation. Give yourself pep talks, seek input only from people who can really help--avoid those who interfere." :HELP-LINKS ("h8hf2.htm"))
+;;values= "sscpPosThoughts"  "sscp-Pos thoughts-phil, pep talk"  "Emotional Coping Using Positive Thoughts"  "When upset, think positive thoughts.  Positive; not critical, punitive, or negative thoughts in response to negative emotions. (2 items)"  "semotcop"  (COPNEGTH COPPEPTA)   NIL  NIL  ".477"  ".204"  3273  2  1    "Develop a positive belief system/philosophy that you can use to generate positive thoughts when you need them. Practice viewing the problem/situation from a more positive perspective, help others do the same, confront negative thoughts, and schedule them for a later time to deal with in depth when you are out of the situation. Give yourself pep talks, seek input only from people who can really help--avoid those who interfere."      ("h8hf2.htm")
+;;inst= #<SSCPPOSTHOUGHTS 2BA911AF>
+
 
 
 
 ;;GET-SLOT-VALUE
 ;;
 ;;ddd
-(defun get-slot-value (instance-sym slot-name &key convert-classvar-p)
+(defun get-slot-value (instance-sym slot-name &key (convert-classvar-p T))
   "in u-clos.lisp, differs from normal (slot-value ...)  in that it evals the instance-sym arg first. If  convert-classvar-p, instance-sym can be a classvar which is converted to a class-instance of form *classname-inst. RETURNS (values slot-value  instance-sym instance-object). ALSO checks SLOT-BOUNDP"
   (if convert-classvar-p 
       (setf instance-sym (get-class-inst instance-sym)))
@@ -1012,10 +1182,13 @@ class1-instances|#
     (values slot-value  instance-sym instance-object)
     ))
 ;;TEST
+;; ;; (get-slot-value 'sselfman 'description  :convert-classvar-p T)
+;; works= "A key HQ scale. Skills related to self-care, decision-making, goal-setting, and time-management including leading a balanced life and attending to all main need/value areas. Many items are based upon  OPATSM time-management system.  Research shows that these vital skills are related to a more successful and happier life in almost all life areas. This scale correlated .606 with overall life happiness, .297 with low depression, .365 with relationship success, and over .30 with job status. (15 items)"            *SSELFMAN-INST   #<SSELFMAN 2A5D2B13>
+;;
 ;; (get-slot-value 'sselfman 'relative-score  :convert-classvar-p T)
 ;; works 1.0  *SSELFMAN-INST #<SSELFMAN 23F9CC8F>
 ;; (get-slot-value 'sselfman 'range  :convert-classvar-p T) 
-;; (note: range unbound) works = NIL *SSELFMAN-INST #<SSELFMAN 23F9CC8F>
+;; (note: range unbound) works = NIL *SSELFMAN-INST #<SSELFMAN 23F9CC8F
 ;;works
 #|(defun test2 ()
   (let
@@ -1030,6 +1203,238 @@ class1-instances|#
             new-list (append new-list (list i))) 
       )
     new-list))|#
+
+
+;;MY-DESCRIBE-OBJECT
+;;2020
+;;ddd
+(defun my-describe-object (instance  &key (return-output-string-p T)
+                                     (divide-lines-into-parts '(1 rest))
+                                     divide-string-into-tokens-p)
+  "U-clos   RETURNS (values all-line-strings  all-line-lists output-string)
+      ==> DOES NOT RETURN ALL SLOTS!!
+  If  DIVIDE-STRING-INTO-TOKENS-P, divides each line into tokens in line-lists.
+  If divide-lines-into-n-parts divides each line into n parts. divide-lines-into-parts also makes tokens."
+  (let
+      ((n-part-line-lists)
+       )
+ (multiple-value-bind  (all-line-strings  all-line-lists output-string divided-line-lists)
+  (make-strings-from-stream-output 'describe-object '(*sworldview-inst) 2 
+                                   :divide-string-into-tokens-p divide-string-into-tokens-p
+                                   :divide-lines-into-parts divide-lines-into-parts
+                                   :return-output-string-p return-output-string-p)  
+    (values all-line-strings  all-line-lists output-string divided-line-lists)
+    ;;end let, my-describe-object
+    )))
+;;TEST
+;; (my-describe-object *sworldview-inst)
+
+
+
+;;GET-ALL-SLOTS  ==> DOES NOT RETURN ALL SLOTS!!
+;;2020
+;;ddd
+#|(defun get-all-slots  (class )
+  "U-clos   RETURNS (values slotsyms slotnames)"
+  (multiple-value-bind (class-obj class-sym class-name)
+        (my-get-class class)
+  (let*
+      ((slotnames)
+       (slotsyms)
+       (n-lines)
+       (class-slots-string)
+
+       )
+    (format nil "~A" 
+                                   (clos::class-instance-slots (find-class class-sym)))
+    
+(divide-string-to-tokens "( NAME 2213CAEB>  NAME-STRING 2213CB53>  LABEL 2213CB97>  TITLE 2213CBDB>  DESCRIPTION 2213CC1F>  OBJECT-DOCS 2213CC63>  CLASS-INSTANCE 2213CCA7>  PARENTS 2213CD0F>  CHILDREN 2213CD77>  CLASS-INSTANCES 2213CDDF>  UPDATED-DATE 2213CE8B>  PREVIOUS-NAMES 2213CECF>" '(#\space)  :word-delim-list '(#\space))
+
+;;eg ("(" "NAME" "2213CAEB>" "NAME-STRING" "2213CB53>" "LABEL" "2213CB97>" "TITLE" "2213CBDB>" "DESCRIPTION" "2213CC1F>" "OBJECT-DOCS" "2213CC63>" "CLASS-INSTANCE" "2213CCA7>" "PARENTS" "2213CD0F>" "CHILDREN" "2213CD77>" "CLASS-INSTANCES" "2213CDDF>" "UPDATED-DATE" "2213CE8B>" "PREVIOUS-NAMES" "2213CECF>")
+
+    (loop
+     for list in divided-line-lists
+     for n from 1 to (- n-lines 1) ;;eleminates las line
+     do
+     (when  (> n 1)
+       (let*
+           ((slotname (caar list))
+            (slotsym (when (stringp slotname) (my-make-symbol slotname)))
+            )
+         (setf slotnames (append slotnames (list slotname))
+               slotsyms (append slotsyms (list slotsym)))      
+         ;;end let,when,loop
+         )))
+    (values slotsyms slotnames)
+    ;;end let, get-all-slots
+    )))|#
+;;TEST
+;; (get-all-slots *sworldview-inst)
+
+
+
+
+;;GET-ALL-SLOTS  ==> DOES NOT RETURN ALL SLOTS!!
+;;2020
+;;ddd
+#|(defun get-all-slots  (instance )
+  "U-clos   RETURNS (values slotsyms slotnames)
+  ==> DOES NOT RETURN ALL SLOTS!!  SSSSSS FIX LATER?"
+  (let*
+      ((slotnames)
+       (slotsyms)
+       (n-lines)
+       )
+  (multiple-value-bind (all-line-strings  all-line-lists output-string divided-line-lists)
+      (my-describe-object instance :divide-lines-into-parts '(1 rest))
+    (setf n-lines (list-length divided-line-lists))
+    (loop
+     for list in divided-line-lists
+     for n from 1 to (- n-lines 1) ;;eleminates las line
+     do
+     (when  (> n 1)
+       (let*
+           ((slotname (caar list))
+            (slotsym (when (stringp slotname) (my-make-symbol slotname)))
+            )
+         (setf slotnames (append slotnames (list slotname))
+               slotsyms (append slotsyms (list slotsym)))      
+         ;;end let,when,loop
+         )))
+    (values slotsyms slotnames)
+    ;;end let, get-all-slots
+    )))|#
+;;TEST
+;; (get-all-slots *sworldview-inst)
+;; works= (SCALE-NAME IS-SCALE-P SCALE-INSTANCE SUBSCALES COMPOSITE-SCALE-P ASSESSMENT-TYPE SCALE-GROUP-NAME SCALE-GROUP-DESCRIPTION SCALE-CLASSES SCALE-INSTANCES NUM-QUESTIONS SCALE-QUESTIONS FIRING-ORDER-LIST INCL-IN-RESULTS-P SPSS-MATCH QUEST-SELECTION-TYPE REVERSE-SCORED-P SCORING-FORMULA RAW-SCORE RELATIVE-SCORE)
+;;slotnames= ("SCALE-NAME" "IS-SCALE-P" "SCALE-INSTANCE" "SUBSCALES" "COMPOSITE-SCALE-P" "ASSESSMENT-TYPE" "SCALE-GROUP-NAME" "SCALE-GROUP-DESCRIPTION" "SCALE-CLASSES" "SCALE-INSTANCES" "NUM-QUESTIONS" "SCALE-QUESTIONS" "FIRING-ORDER-LIST" "INCL-IN-RESULTS-P" "SPSS-MATCH" "QUEST-SELECTION-TYPE" "REVERSE-SCORED-P" "SCORING-FORMULA" "RAW-SCORE" "RELATIVE-SCORE")
+
+
+
+;;MY-GET-CLASS
+;;2020
+;;ddd
+(defun my-get-class (class)
+  "U-clos   RETURNS (values class-obj class-sym class-name)
+     INPUT:  class can be CLASS OR CLASS-INST symbol OR string (not object)."
+  (let*
+      ((class-obj (when (and (not (symbolp class))(not (stringp class))) class))
+        (arg-str (format nil "~A" class))
+       (class-sym)
+       (class-name)       
+       )
+    (cond
+    ;;if class-instance, convert itto class name and symbol
+     ((string-equal (subseq arg-str 0 1) "*")
+      (setf class-name (subseq arg-str 1 (- (length arg-str) 5))
+            class-sym (my-make-symbol class-name)))
+     ;;if class = sym
+     ((symbolp class)
+      (setf class-sym class
+            class-name arg-str))
+     ((stringp class)
+      (setf class-sym (my-make-symbol class)
+            class-name class))
+     (t nil))
+    ;;get class-obj
+    (when (classname-p class-sym)
+      (setf class-obj (find-class  class-sym)))
+    (values class-obj class-sym class-name)
+    ;;end let, my-get-class
+    ))
+;;TEST
+;; (my-get-class 'sworldview) = #<STANDARD-CLASS SWORLDVIEW 24F2E907>  SWORLDVIEW  "SWORLDVIEW"
+;; (my-get-class "sworldview") = #<STANDARD-CLASS SWORLDVIEW 24F2E907>  SWORLDVIEW  "sworldview"
+;; (my-get-class '*sworldview-inst)  = #<STANDARD-CLASS SWORLDVIEW 24F2E907>   SWORLDVIEW  "SWORLDVIEW"
+;; (my-get-class "*sworldview-inst") = #<STANDARD-CLASS SWORLDVIEW 24F2E907>  SWORLDVIEW  "sworldview"
+;; (my-get-class sworldview) = ERROR
+
+;; (my-delete-substring "#<STANDARD-EFFECTIVE-SLOT-DEFINITION"   "(#<STANDARD-EFFECTIVE-SLOT-DEFINITION NAME 2213CAEB> #<STANDARD-EFFECTIVE-SLOT-DEFINITION NAME-STRING 2213CB53> #<STANDARD-EFFECTIVE-SLOT-DEFINITION LABEL 2213CB97> #<STANDARD-EFFECTIVE-SLOT-DEFINITION TITLE 2213CBDB> #<STANDARD-EFFECTIVE-SLOT-DEFINITION DESCRIPTION 2213CC1F> #<STANDARD-EFFECTIVE-SLOT-DEFINITION OBJECT-DOCS 2213CC63> #<STANDARD-EFFECTIVE-SLOT-DEFINITION CLASS-INSTANCE 2213CCA7> #<STANDARD-EFFECTIVE-SLOT-DEFINITION PARENTS 2213CD0F> #<STANDARD-EFFECTIVE-SLOT-DEFINITION CHILDREN 2213CD77> #<STANDARD-EFFECTIVE-SLOT-DEFINITION CLASS-INSTANCES 2213CDDF> #<STANDARD-EFFECTIVE-SLOT-DEFINITION UPDATED-DATE 2213CE8B> #<STANDARD-EFFECTIVE-SLOT-DEFINITION PREVIOUS-NAMES 2213CECF>")
+;;works= "( NAME 2213CAEB>  NAME-STRING 2213CB53>  LABEL 2213CB97>  TITLE 2213CBDB>  DESCRIPTION 2213CC1F>  OBJECT-DOCS 2213CC63>  CLASS-INSTANCE 2213CCA7>  PARENTS 2213CD0F>  CHILDREN 2213CD77>  CLASS-INSTANCES 2213CDDF>  UPDATED-DATE 2213CE8B>  PREVIOUS-NAMES 2213CECF>"
+;;  "( NAME 2213CAEB>  NAME-STRING 2213CB53>  LABEL 2213CB97>  TITLE 2213CBDB>  DESCRIPTION 2213CC1F>  OBJECT-DOCS 2213CC63>  CLASS-INSTANCE 2213CCA7>  PARENTS 2213CD0F>  CHILDREN 2213CD77>  CLASS-INSTANCES 2213CDDF>  UPDATED-DATE 2213CE8B> "
+;; " PREVIOUS-NAMES 2213CECF>"
+;; "#<STANDARD-EFFECTIVE-SLOT-DEFINITION"  T
+;; (divide-string-to-tokens "( NAME 2213CAEB>  NAME-STRING 2213CB53>  LABEL 2213CB97>  TITLE 2213CBDB>  DESCRIPTION 2213CC1F>  OBJECT-DOCS 2213CC63>  CLASS-INSTANCE 2213CCA7>  PARENTS 2213CD0F>  CHILDREN 2213CD77>  CLASS-INSTANCES 2213CDDF>  UPDATED-DATE 2213CE8B>  PREVIOUS-NAMES 2213CECF>" '(#\space))
+;; NO- ELEMINATES NAME-STRING
+;;2nd value= ("(" "NAME" "2213CAEB>" "NAME" "STRING" "2213CB53>" "LABEL" "2213CB97>" "TITLE" "2213CBDB>" "DESCRIPTION" "2213CC1F>" "OBJECT" "DOCS" "2213CC63>" "CLASS" "INSTANCE" "2213CCA7>" "PARENTS" "2213CD0F>" "CHILDREN" "2213CD77>" "CLASS" "INSTANCES" "2213CDDF>" "UPDATED" "DATE" "2213CE8B>" "PREVIOUS" "NAMES" "2213CECF>")
+
+
+;;GET-CLASS-SLOTS
+;;2020
+;;ddd
+(defun get-class-slots (class &key (return-slotname-syms-p T)
+                              return-slotname-keys-p)
+  "U-clos   RETURNS (values slot-names slotname-syms slotname-keys) if  keys= T.
+    INPUT:  class can be CLASS OR CLASS-INST symbol or string."
+  (multiple-value-bind (class-obj class-sym class-name)
+      (my-get-class class)
+   ;;eg (car '(#<STANDARD-EFFECTIVE-SLOT-DEFINITION NAME 2213CAEB> #<STANDARD-EFFECTIVE-SLOT-DEFINITION NAME-STRING 2213CB53>
+    (let*
+        ((slot-lists-str (format nil "~A" (clos::class-instance-slots  class-obj)))
+         (slot-str-tokens (nth-value 2  (divide-string-to-tokens slot-lists-str
+                                                                 '(#\space)  :word-delim-list '(#\space))))
+         (slotname-strs)
+         (slotname-syms)
+         (slotname-keys)
+         )
+    (loop
+     for token in slot-str-tokens
+     for n from 1 to 1000
+     do
+     (let*
+         ((slotsym)
+          (slotkey)
+          )          
+       (when (integerp (/ (+ n 1) 3))   ;;2,5,8,11
+         (setf slotname-strs (append slotname-strs (list token)))
+         (when return-slotname-syms-p
+           (setf  slotname-syms (append slotname-syms (list (my-make-symbol token)))))
+         (when return-slotname-keys-p
+           (setf slotname-keys (append slotname-keys (list (my-make-keyword token)))))
+         ;;end when integerp
+         )     
+     ;;end let,loop
+     ))
+    (values slotname-syms slotname-strs  slotname-keys)
+    ;;end let, get-class-slots
+    )))
+;;TEST
+;; (get-class-slots 'sworldview :return-slotname-syms-p T :return-slotname-keys-p T )
+;; works= 
+;;slotname-syms= (NAME NAME-STRING LABEL TITLE DESCRIPTION OBJECT-DOCS CLASS-INSTANCE PARENTS CHILDREN CLASS-INSTANCES UPDATED-DATE PREVIOUS-NAMES DATA-NAME-STRING DATA-LABEL DATA-DESCRIPTION SYSTEM SYSTEM-LIST ASSESSMENT-TYPE SCALE-GROUP-NAME SCALE-GROUP-DESCRIPTION SCALE-CLASSES SCALE-INSTANCES NUM-QUESTIONS SCALE-QUESTIONS FIRING-ORDER-LIST INCL-IN-RESULTS-P SPSS-MATCH QUEST-SELECTION-TYPE REVERSE-SCORED-P SCORING-FORMULA RAW-SCORE RELATIVE-SCORE MEAN-SCORE VARIANCE STANDARD-DEVIATION SAMPLE-N RANGE MAX-POSSIBLE-VALUE MIN-POSSIBLE-VALUE QUESTION-DATA-LISTS FRAME FRAME-TITLE FRAME-DIM-WIDTH FRAME-DIM-HEIGHT FRAME-CREATED-P HELP-PRIORITY HELP-INFO HELP-LINKS HELP-RESOURCES SCALE-NAME IS-SCALE-P SCALE-INSTANCE SUBSCALES COMPOSITE-SCALE-P)
+;;slotname-strs= ("NAME" "NAME-STRING" "LABEL" "TITLE" "DESCRIPTION" "OBJECT-DOCS" "CLASS-INSTANCE" "PARENTS" "CHILDREN" "CLASS-INSTANCES" "UPDATED-DATE" "PREVIOUS-NAMES" "DATA-NAME-STRING" "DATA-LABEL" "DATA-DESCRIPTION" "SYSTEM" "SYSTEM-LIST" "ASSESSMENT-TYPE" "SCALE-GROUP-NAME" "SCALE-GROUP-DESCRIPTION" "SCALE-CLASSES" "SCALE-INSTANCES" "NUM-QUESTIONS" "SCALE-QUESTIONS" "FIRING-ORDER-LIST" "INCL-IN-RESULTS-P" "SPSS-MATCH" "QUEST-SELECTION-TYPE" "REVERSE-SCORED-P" "SCORING-FORMULA" "RAW-SCORE" "RELATIVE-SCORE" "MEAN-SCORE" "VARIANCE" "STANDARD-DEVIATION" "SAMPLE-N" "RANGE" "MAX-POSSIBLE-VALUE" "MIN-POSSIBLE-VALUE" "QUESTION-DATA-LISTS" "FRAME" "FRAME-TITLE" "FRAME-DIM-WIDTH" "FRAME-DIM-HEIGHT" "FRAME-CREATED-P" "HELP-PRIORITY" "HELP-INFO" "HELP-LINKS" "HELP-RESOURCES" "SCALE-NAME" "IS-SCALE-P" "SCALE-INSTANCE" "SUBSCALES" "COMPOSITE-SCALE-P" "CSARTLOC")
+;;slotname-keys= (:NAME :NAME-STRING :LABEL :TITLE :DESCRIPTION :OBJECT-DOCS :CLASS-INSTANCE :PARENTS :CHILDREN :CLASS-INSTANCES :UPDATED-DATE :PREVIOUS-NAMES :DATA-NAME-STRING :DATA-LABEL :DATA-DESCRIPTION :SYSTEM :SYSTEM-LIST :ASSESSMENT-TYPE :SCALE-GROUP-NAME :SCALE-GROUP-DESCRIPTION :SCALE-CLASSES :SCALE-INSTANCES :NUM-QUESTIONS :SCALE-QUESTIONS :FIRING-ORDER-LIST :INCL-IN-RESULTS-P :SPSS-MATCH :QUEST-SELECTION-TYPE :REVERSE-SCORED-P :SCORING-FORMULA :RAW-SCORE :RELATIVE-SCORE :MEAN-SCORE :VARIANCE :STANDARD-DEVIATION :SAMPLE-N :RANGE :MAX-POSSIBLE-VALUE :MIN-POSSIBLE-VALUE :QUESTION-DATA-LISTS :FRAME :FRAME-TITLE :FRAME-DIM-WIDTH :FRAME-DIM-HEIGHT :FRAME-CREATED-P :HELP-PRIORITY :HELP-INFO :HELP-LINKS :HELP-RESOURCES :SCALE-NAME :IS-SCALE-P :SCALE-INSTANCE :SUBSCALES :COMPOSITE-SCALE-P :CSARTLOC)
+
+
+
+
+;;GET-ALL-SLOTS&VALUES
+;;2020
+;;ddd
+(defun get-all-slots&values (instance  &key (return-slotkeys-p t))
+  "U-CLOS   RETURNS   (values key-values-list slotsyms slotnames) If return-slotkeys-p, returns keys as keywords, otherwise as symbols."
+  (let
+      ((key-values-list)
+       )
+  (multiple-value-bind (slotsyms slotnames)
+      (get-class-slots  instance)
+    (setf key-values-list
+      (get-slot-values instance slotsyms :return-slotkeys-p return-slotkeys-p))  
+      (values key-values-list slotsyms slotnames)
+      ;;end mvb,mvb get-all-slots&values
+      )))
+;;TEST
+;; (get-all-slots&values '*sworldview-inst)
+;; works= 
+;; key-values-list 
+ #|(:NAME "Initial top-class name" :NAME-STRING "sworldview" :LABEL "s-Positive world view" :TITLE "BELIEFS" :DESCRIPTION "Optimism about the future of the world and own life, lack of entitlement thinking, plus daily positive versus negative thoughts. How constructively and positively you view the world and the future can significantly affect motivation, relationships, happiness, and success in most life areas. 
+      Living life with a sense of gratitude (versus a sense of entitlement and deprivation) may be one of the most important factors for 
+      happiness. It correlates .687 with happiness, .528 with low depression, .375 with low anxiety, .235 with 
+      low anger/aggression, .384 with relationship success, .233 with positive health outcomes. (10 items)" :OBJECT-DOCS "Put class doc here." :CLASS-INSTANCE *PERSIM-INST :PARENTS (BELIEFS HQ SCALE) :CHILDREN NIL :CLASS-INSTANCES (*SWORLDVIEW-INST) :DATA-NAME-STRING "sworldvi" :ASSESSMENT-TYPE "questionnaire" :SCALE-GROUP-NAME "beliefs" :SCALE-GROUP-DESCRIPTION "These scales are almost exactly from items originally presented in the book and were supported by factor analytic study. " :NUM-QUESTIONS 10 :SCALE-QUESTIONS (WOVPROGR WOVGOODF WOVMYLIF WOVNFAIR TBVENTIT WOVINJUR WOVABUND TBVGRATI WOVENTIT WOVGRATE WOVPOSTH) :INCL-IN-RESULTS-P T :SPSS-MATCH T :QUEST-SELECTION-TYPE :SINGLE-SELECTION :REVERSE-SCORED-P NIL :SCORING-FORMULA + :RELATIVE-SCORE NIL :MEAN-SCORE ".624" :STANDARD-DEVIATION ".153" :SAMPLE-N 3162 :FRAME-DIM-WIDTH 805 :FRAME-DIM-HEIGHT 460 :HELP-PRIORITY 1 :HELP-INFO "If you scored very low, it could cause you to have a problem with anxiety, depression, or low motivation. Examine your underlying negative beliefs and your expectations of what others (or the world) owes you.  Reading books on positive motivation and learning from people with positive motivation can help. Check our help link and even consider counseling if this troubles you." :HELP-LINKS ("h4world.htm") :SCALE-NAME "Positive World View" :IS-SCALE-P T :SUBSCALES NIL)|#
+
+;;slotsyms= (NAME NAME-STRING LABEL TITLE DESCRIPTION OBJECT-DOCS CLASS-INSTANCE PARENTS CHILDREN CLASS-INSTANCES UPDATED-DATE PREVIOUS-NAMES DATA-NAME-STRING DATA-LABEL DATA-DESCRIPTION SYSTEM SYSTEM-LIST ASSESSMENT-TYPE SCALE-GROUP-NAME SCALE-GROUP-DESCRIPTION SCALE-CLASSES SCALE-INSTANCES NUM-QUESTIONS SCALE-QUESTIONS FIRING-ORDER-LIST INCL-IN-RESULTS-P SPSS-MATCH QUEST-SELECTION-TYPE REVERSE-SCORED-P SCORING-FORMULA RAW-SCORE RELATIVE-SCORE MEAN-SCORE VARIANCE STANDARD-DEVIATION SAMPLE-N RANGE MAX-POSSIBLE-VALUE MIN-POSSIBLE-VALUE QUESTION-DATA-LISTS FRAME FRAME-TITLE FRAME-DIM-WIDTH FRAME-DIM-HEIGHT FRAME-CREATED-P HELP-PRIORITY HELP-INFO HELP-LINKS HELP-RESOURCES SCALE-NAME IS-SCALE-P SCALE-INSTANCE SUBSCALES COMPOSITE-SCALE-P)
+;;slotnames= ("NAME" "NAME-STRING" "LABEL" "TITLE" "DESCRIPTION" "OBJECT-DOCS" "CLASS-INSTANCE" "PARENTS" "CHILDREN" "CLASS-INSTANCES" "UPDATED-DATE" "PREVIOUS-NAMES" "DATA-NAME-STRING" "DATA-LABEL" "DATA-DESCRIPTION" "SYSTEM" "SYSTEM-LIST" "ASSESSMENT-TYPE" "SCALE-GROUP-NAME" "SCALE-GROUP-DESCRIPTION" "SCALE-CLASSES" "SCALE-INSTANCES" "NUM-QUESTIONS" "SCALE-QUESTIONS" "FIRING-ORDER-LIST" "INCL-IN-RESULTS-P" "SPSS-MATCH" "QUEST-SELECTION-TYPE" "REVERSE-SCORED-P" "SCORING-FORMULA" "RAW-SCORE" "RELATIVE-SCORE" "MEAN-SCORE" "VARIANCE" "STANDARD-DEVIATION" "SAMPLE-N" "RANGE" "MAX-POSSIBLE-VALUE" "MIN-POSSIBLE-VALUE" "QUESTION-DATA-LISTS" "FRAME" "FRAME-TITLE" "FRAME-DIM-WIDTH" "FRAME-DIM-HEIGHT" "FRAME-CREATED-P" "HELP-PRIORITY" "HELP-INFO" "HELP-LINKS" "HELP-RESOURCES" "SCALE-NAME" "IS-SCALE-P" "SCALE-INSTANCE" "SUBSCALES" "COMPOSITE-SCALE-P")
+
 
 
 
@@ -1164,35 +1569,50 @@ class1-instances|#
 ;;ddd
 (defun find-direct-subclass-names (class-name
                                    &key reverse-subclass-order-p)
-  "In U-clos, RETURNS (values subclass-names subclasses class-sym class)"
+  "In U-clos, RETURNS (values subclass-names subclasses class-sym class). class-name can be string or symbol."
   (let*
-      ((class-sym (my-make-symbol class-name))
-       (class (find-class class-sym))
-       (subclasses (class-direct-subclasses class))
+      ((class-sym (cond ((symbolp class-name) class-name) 
+                        ((stringp class-name) (my-make-symbol class-name))))
+       (class  (my-get-class class-sym))
+       (subclasses (when class (class-direct-subclasses class)))
        (subclass-names)
        (subclass-name)
        (superclass)
        (instance-id)
        (subclass-info-list)
        )
-    (loop
-     for subclass in subclasses
-     do     
-     ;; (setf subclass-string (format nil "~A" (print-object subclass NIL)))
-     (multiple-value-setq (subclass-name superclass instance-id
-                                         subclass-info-list)  
-         (find-object-info subclass))
-     (setf subclass-names (append subclass-names (list subclass-name)))
-     ;;end loop
-     ) 
+    (unless (stringp class-name)
+      (setf class-name (format nil "~A" class-name)))
+
+    (when subclasses
+      (loop
+       for subclass in subclasses
+       do     
+       ;; (setf subclass-string (format nil "~A" (print-object subclass NIL)))
+       (multiple-value-setq (subclass-name superclass instance-id
+                                           subclass-info-list)  
+           (find-object-info subclass))
+       (setf subclass-names (append subclass-names (list subclass-name)))
+       ;;end loop,when
+       ))
     ;;class-direct-subclasses above returns subclasses in reverse order
     (unless reverse-subclass-order-p
       (setf subclass-names (reverse subclass-names)
             subclasses (reverse subclasses)))
-    (values subclass-names subclasses class-sym class)
+    (values subclass-names subclasses class-sym class class-name)
     ;;mvb, let, find-direct-subclass-names
     ))
 ;;TEST
+;;to find subclasses/children/subscales
+;; (find-direct-subclass-names "SWORLDVIEW")
+;;works= 
+;;subclass-names= ("SSWVGRATPT" "SSWVOPTIMS" "SSWVENTIT")
+;;subclasses= (#<STANDARD-CLASS SSWVGRATPT 25E7E233> #<STANDARD-CLASS SSWVOPTIMS 25E771B3> #<STANDARD-CLASS SSWVENTIT 25E71A67>)
+;;class-sym= SWORLDVIEW
+;;class= #<STANDARD-CLASS SWORLDVIEW 25DF635F>
+
+;; (find-direct-subclass-names "PERSIM")
+;; works= ("PER-SYSTEM" "ASSESSMENT")   (#<STANDARD-CLASS PER-SYSTEM 22DF65D7> #<STANDARD-CLASS ASSESSMENT 22E1D857>)   PERSIM
 ;;(find-direct-subclass-names "ACAD-LEARNING")
 ;;works, returns = ("SSL14MATHAPT" "SSL13VERBALAPT" "SSL12STDYTMAVAIL" "SSL11NOTNONACADMOT" "SSL10MEMNOTANX" "SSL9ATTENDHW" "SSL8STUDYENVIR" "SSL7MATHSCIPRINC" "SSL6SELFMANACADGOALS" "SSL5BASICSTUDYSKILLS" "SSL4BLDMENTALSTRUCT" "SSL3WRITINGSKILLS" "SSL2SATISCAMPUSFACFRIENDSGRDES" "SSL1BCONFIDNOTAVOIDSTUDY" "SSL1CONFIDEFFICSTUDYTEST")
 ;;sample of subclasses (#<STANDARD-CLASS SSL14MATHAPT 21A84FFF> #<STANDARD-CLASS SSL13VERBALAPT 21A8A33B> #<STANDARD-CLASS SSL12STDYTMAVAIL 21A8FE8F> #<STANDARD-CLASS SSL11NOTNONACADMOT 21D8B2B3> #<STANDARD-CLASS SSL10MEMNOTANX 21D7572B> #<STANDARD-CLASS SSL9ATTENDHW 221A11C7
@@ -1200,11 +1620,32 @@ class1-instances|#
 ;;(find-direct-subclass-names )
 
 
+
+
+;;GET-DIRECT-SUBCLASS-NAMES
+;;2020
+;;ddd
+(defun get-direct-subclass-names (scale)
+  "In U-clos, SIMPLE version of FIND-DIRECT-SUBCLASS-NAMES RETURNS  subclass-names. RETURNS ALL direct-subclass NAMES ONLY."
+  (let
+      ((subclass-names)
+       (subclasses (find-direct-subclass-names scale))
+       (non-subclasss)
+       (superclass-names)
+       )
+     subclasses
+    ;;end let, get-subclass-names
+    ))
+;;TEST
+;; (setf testsc*** (get-direct-subclass-names 'beliefs))
+;; works= ("SWORLDVIEW" "STBSLFWO" "SIECONTR" "SETHBEL" "SGRFEARS")
+
+
 ;;GET-SUBSCALE-NAMES
 ;;
 ;;ddd
 (defun get-subscale-names (scale)
-  "In U-clos, RETURNS (values subscale-names non-subscales). Non-subscales are subclasses that are not subscales."
+  "In U-clos, RETURNS (values subscale-names non-subscales). Non-DIRECT-subclass subscales are subclasses that are not DIRECT subscales."
   (let
       ((subscale-names)
        (subclasses (find-direct-subclass-names scale))
@@ -1232,6 +1673,8 @@ class1-instances|#
 
 
 
+
+
 ;;FIND-DIRECT-SUPERCLASS-NAMES
 ;;
 ;;ddd
@@ -1239,7 +1682,7 @@ class1-instances|#
   "In U-clos, RETURNS (values class-names superclasses subclass-sym subclass)"
   (let*
       ((subclass-sym (my-make-symbol subclass-name))
-       (subclass (find-class subclass-sym))
+       (subclass (my-get-class subclass-sym))
        (superclasses (class-direct-superclasses subclass))
        (class-names)
        )
@@ -1841,8 +2284,33 @@ WORKS, = #<SCALE 21BE283F>  "LE 2"
 XXX
 ;;PARTIALL SOLVED ERROR PROBLEM WITH function MY-OBJECT-TO-STRING
 All of following get same ERROR= Error while reading: Subcharacter #\< not defined for dispatch char #\#.  (Adding quotes didn't help)
-(PRINT-OBJECT #<STANDARD-CLASS SRPEOPLE 21F02F13>) 
-(DESCRIBE-OBJECT #<STANDARD-CLASS SRPEOPLE 21F02F13>) = ERROR
+(PRINT-OBJECT *SWORLDVIEW-INST T) = #<SWORLDVIEW 2B549433>
+(DESCRIBE-OBJECT *SWORLDVIEW-INST T)
+#<SWORLDVIEW 2B549433> is a SWORLDVIEW
+SCALE-NAME                   "Positive World View"
+IS-SCALE-P                   T
+SCALE-INSTANCE               #<unbound slot>
+SUBSCALES                    NIL
+COMPOSITE-SCALE-P            #<unbound slot>
+ASSESSMENT-TYPE              "questionnaire"
+SCALE-GROUP-NAME             "beliefs"
+SCALE-GROUP-DESCRIPTION      "These scales are almost exactly from items originally presented in the book and were supported by factor analytic study. "
+SCALE-CLASSES                #<unbound slot>
+SCALE-INSTANCES              #<unbound slot>
+NUM-QUESTIONS                10
+SCALE-QUESTIONS              (WOVPROGR WOVGOODF WOVMYLIF WOVNFAIR TBVENTIT WOVINJUR WOVABUND TBVGRATI WOVENTIT WOVGRATE WOVPOSTH)
+FIRING-ORDER-LIST            #<unbound slot>
+INCL-IN-RESULTS-P            T
+SPSS-MATCH                   T
+QUEST-SELECTION-TYPE         :SINGLE-SELECTION
+REVERSE-SCORED-P             NIL
+SCORING-FORMULA              +
+RAW-SCORE                    #<unbound slot>
+RELATIVE-SCORE               NIL ........
+
+NIL
+(setf ***test1 (DESCRIBE-OBJECT *SWORLDVIEW-INST nil))
+
 (class-name #<STANDARD-CLASS SRPEOPLE 21F02F13>) 
 PRINT-UNREADABLE-OBJECT
 (PRINT-UNREADABLE-OBJECT #<STANDARD-CLASS SRPEOPLE 21F02F13> T)

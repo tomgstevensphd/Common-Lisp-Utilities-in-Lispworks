@@ -171,21 +171,34 @@
 ;;works WITH ARRAY DIMS (5 6 6) and :array-startlist '(1 1 1) returns #3A(((0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0)) ((0 0 0 0 0 0) (0 1 2 3 0 0) (0 4 5 6 0 0) (0 7 8 9 0 0) (0 10 11 12 0 0)) ((0 0 0 0 0 0) (0 A B C 0 0) (0 D E F 0 0) (0 G H I 0 0) (0 J K L 0 0)) ((0 0 0 0 0 0) (0 M N O 0 0) (0 P Q R 0 0) (0 S T U 0 0) (0 W X Y 0 0)) ((0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0)) ((0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0) (0 0 0 0 0 0)))
 
 ;;ARRAY-TO-LIST
-;;
+;;modified 2020
 ;;ddd
-(defun array-to-list (array)
-  "In U-arrays.lisp. Gets all values from multi-dim array of any rank? and returns in list form. Outermost list is the first dim, innermost is last dim."
+(defun array-to-list (array &optional get-dimlist  X)
+  "In U-arrays.lisp. Gets all values from multi-dim array of any rank? and returns in list form. Outermost list is the first dim, innermost is last dim. &optional incl for Depreciated versions."
   (let*
       ((array-dimlist (array-dimensions array))
-       (return-list)
-      (get-dimlist)  
+       (n-dims (list-length array-dimlist))
       (return-list)
        )
-    (setf return-list 
-           (array-to-list1 array get-dimlist  0 return-list))
-    ))
+    (when (null get-dimlist)
+      (setf get-dimlist array-dimlist))
+    (cond
+     ((= n-dims 1)
+      (setf return-list
+            (get-array-dim-values array '(2) 0)) ;; (- num-dims 1))  ;;(+ dim-n 1)
+      )
+     (T (setf return-list 
+           (array-to-list1 array get-dimlist  0 return-list))))
+     (values return-list array-dimlist)
+     ))
+;;TEST
+;; (array-dimensions #((" 1MK  " " SS? " "   U-BUFFER-TEST-1.lisp       " "  my    notes   here   " "CogSys-Model" "(defun get-nth-in-all-2nested-lists ~% (nth list-of-1nested-lists)  In U-lists RETURNS (values nths-1nested-lists non-nth-items). ~%NTHS-1NESTED-LISTS list of all items at nth place~% for each list in each group of 1nested lists") ("  2MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  3MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ") ("  4MK  " "      " "    buffer              " "     notes   " " dir  " "  info   ")))
+;;note tested above with arrayp = T array-dimensions = 4
+;;
 
-;;array-to-list1  (see calling function above)
+
+
+;;ARRAY-TO-LIST1  (SEE CALLING FUNCTION ABOVE)
 ;;
 ;;ddd
 (defun array-to-list1  (array get-dimlist dim-n return-list)
@@ -194,31 +207,39 @@
       ((array-dimlist (array-dimensions array))
        (num-dims (list-length array-dimlist))
        (element-list-length (nth dim-n array-dimlist ))
-       (get-dimlist-length (list-length get-dimlist ))
+       (get-dimlist-length (cond ((null get-dimlist) 1)
+                                 (T (list-length get-dimlist ))))
        (new-return-list)
        )
-    (if (> *print-detail 1)(afout 'out  (format nil "STARTING array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~%" get-dimlist dim-n return-list )))
+    (break "1")
+   ;;(if (> *print-detail 1)(afout 'out  (format nil "STARTING array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~%" get-dimlist dim-n return-list )))
     (loop
      for n from 0 to (- element-list-length 1)  ;; 1) ;; left out last one (- element-list-length 1)
-     with new-get-dimlist 
      do
+     (let*
+         ((new-get-dimlist)
+          )
      (cond
       ((= get-dimlist-length (- num-dims 2)) 
        (setf new-get-dimlist (append get-dimlist (list  n  0))  
              new-return-list (append new-return-list
                                           (list (get-array-dim-values array new-get-dimlist (- num-dims 1)))))
-    (if (> *print-detail 1)(afout 'out  (format nil "END OF DIMS array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~% new-return-list= ~A~% " get-dimlist dim-n return-list new-return-list )))
+   ;;(if (> *print-detail 1)(afout 'out  (format nil "END OF DIMS array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~% new-return-list= ~A~% " get-dimlist dim-n return-list new-return-list )))
         )
        ((and ( < get-dimlist-length (- num-dims  2))(<  n element-list-length)) ;;was - 1
          (setf  new-get-dimlist (append get-dimlist (list  n))  
               ;;  dim-n (list-length new-get-dimlist) ;;  (+ dim-n 1) 
                 new-return-list
                 (append new-return-list (list  (array-to-list1 array new-get-dimlist (+ dim-n 1) new-return-list))))
-         (if (> *print-detail 1)(afout 'out  (format nil "RECURSIVE-CALL array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~% new-return-list= ~A~%  " get-dimlist dim-n return-list new-return-list )))
+        ;;(if (> *print-detail 1)(afout 'out  (format nil "RECURSIVE-CALL array-to-list1,get-dimlist= ~A~% dim-n= ~A~%return-list= ~A~% new-return-list= ~A~%  " get-dimlist dim-n return-list new-return-list )))
          )
+       ;;(and ( < get-dimlist-length (- num-dims  2))(<  n element-list-length))
+#|       ((and (< num-dims 2)  (<  n element-list-length))
+        )|#
        (t  NIL ))
-     ;;end loop
-     )
+     (break "2")
+     ;;end let,loop
+     ))
     new-return-list))
 
 
@@ -235,6 +256,8 @@
 ;;TEST                                       indices     1,0       1,1         1,2       1,3
 ;;  for only dims 1 and 2, works  returns((1 A I) (4 D L) (7 G O) (10 J R))
 ;; works returns (((1 2 3) (4 5 6) (7 8 9) (10 11 12)) ((A B C) (D E F) (G H I) (J K L)) ((M N O) (P Q R) (S T U) (W X Y)))
+
+
 
 ;;GET-ARRAY-DIM-VALUES (used with above functions or stand-alone)
 ;;
@@ -259,23 +282,13 @@
      (setf value (my-aref array new-dimlist )
            values-list (append values-list (list value)))
      )
-    (values values-list)))
-
+    (values values-list)
+    ;;end let, get-array-dim-values
+    ))
 ;;TEST
-
-(defun testca ()
-  (setf out nil)
-  (let* ((from-array (make-array '(3 4 3)
-              :initial-contents `(((1 2 3)(4 5 6)(7 8 9)(10 11 12))((A B C)(D E F)(G H I)(J K L))((i j k)(l m n)(o p q)(r s t)))))
-        (to-array (make-array  '(3 4 3) :initial-element 0))
-        (from-array-dims-list '(3 4 3))
-        (to-array-dims-list '(3 4 3))
-        (get-dimlist '(1 2 0))
-        (dim-n 2)
-        )
-
-      (get-array-dim-values from-array get-dimlist dim-n)
-        ))
+;; (setf **test-arr (make-array '(3 4 3)  :initial-contents `(((1 2 3)(4 5 6)(7 8 9)(10 11 12))((A B C)(D E F)(G H I)(J K L))((i j k)(l m n)(o p q)(r s t)))))
+;; (array-dimensions **test-arr) = (3 4 3)
+;;   (get-array-dim-values **test-arr '(1 2 0)  2)   = (G H I)
 
 ;;note It doesn't matter what the get-dimlist value for the dim-n item is!! It returns ALL values for that item
 ;; get-dimlist (0 0 0), dim-n 0 works returns (1 A I)  

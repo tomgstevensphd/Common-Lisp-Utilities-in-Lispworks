@@ -167,7 +167,7 @@
     (capi:destroy kbwin)
     ))
 ;;TEST
-;; (my-keybinds)
+ ;;(MY-KEYBINDS)
 ;; works, opens a help editor buffer and does not leave any other windows open
 
 #| OLD, works, but leaves a container window open
@@ -201,7 +201,7 @@
   (editor:find-file-command nil path)
   ))
 ;;TEST
-;; (my-edit-file "C:/3-TS/LISP PROJECTS TS/CogSys-Model/0-CODE-TEMPLATES.lisp") 
+;; (my-edit-file "C:/3-TS/LISP PROJECTS TS/1-LW-INIT/0-CODE-TEMPLATES.lisp") 
 ;; works: opens a new editor buffer with that name
   
 
@@ -276,3 +276,66 @@
 ;; works= NEWCOL   #(:RGB 0.5 0.3 0.2)
 ;; (my-make-rgb .5 .3  .2  .8 :sym 'newcol1)
 ;; works= NEWCOL1    #(:RGB 0.5 0.3 0.2 0.8)
+
+
+;;PPMX  (PRETTY PRINT MACRO EXPANSION)
+;;From David Touretzky, Common Lisp: A Gentle .. Kindle
+;;ddd
+(defmacro ppmx (form )
+  "U-BASIC-functions. Pretty Print Macro Expansion of form "
+  `(let* 
+      ((exp1 (macroexpand-1 ',form))
+       (exp (macroexpand exp1))
+       (*print-circle* nil)   
+       )
+    (cond
+     ((equal exp exp1)
+      (format t "~&Macro expansion:")
+      (pprint exp))
+     (t (format t "~&First step of expansion:")
+        (pprint exp1)
+        (format t "~%~%Final expansion:")
+        (pprint exp)))
+    (format t "~%~%")
+    (values)))
+;;TEST
+#| (defmacro lengthy-incf (var)
+ `(setf ,var (+ ,var 1)))|#
+;; (PPMX (lengthy-incf a))
+;;works=
+#|CL-USER 43 > (ppmx (lengthy-incf a))
+First step of expansion:
+(SETF A (+ A 1))
+Final expansion:
+(LET* ((#:|Store-Var-409352| (+ A 1))) (SETQ A #:|Store-Var-409352|))|#
+
+
+;;DEFINED IN .LISPWORKS ===========================
+;;
+#|;;MY-LW-INIT
+;;2019, 2020
+;;ddd
+(defun MY-LW-INIT (&optional projects-list  &key (default-projects-list 
+                                                  '(**CS **UCS  **SHAQ **U-ETC))  
+                             (my-keybinds-p T))
+  "Projects include **U-ETC **CS **UCS **ACTR **ART **SHAQ **SCRSAV projects-list is a LIST of projects."
+  (when (null projects-list)
+    (setf projects-list default-projects-list))
+  (my-open-buffers *open-editor-buffers*)
+  (compile-file "C:/3-TS/LISP PROJECTS TS/1-LW-INIT/0 MY-LW-INIT.lisp" :load T)
+  (my-open-buffers *open-edit-buffers-new-window :open-new-windows-p T)
+  (eval  `(my-edit-projects (quote ,projects-list)))
+  (my-keybinds)
+  )
+;; (my-lw-init (**cs))
+;;MLI
+;;2019
+;;ddd
+(defmacro  MLI (&rest projects-list)
+  "In .LISPWORKS, can just put proj syms eg. **U-ETC **CS **UCS **ACTR **ART **SHAQ **SCRSAV after mli"
+  (setf **mactest
+  `(MY-LW-INIT (quote ,projects-list))
+  ;;"C:/3-TS/LISP PROJECTS TS/0 MY-LW-INIT.lisp"
+  ))
+|#
+

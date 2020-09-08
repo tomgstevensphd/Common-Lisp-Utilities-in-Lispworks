@@ -52,7 +52,7 @@ From Screensaver2013.lisp
                       predicate predicate-args 
                       return-function return-function-args))
         )
-   (if *show-details (afout 'out (format nil "text= ~A~% height= ~A~%" text height)))
+   ;;(if *show-details (afout 'out (format nil "text= ~A~% height= ~A~%" text height)))
     (MP:LOCK-AND-CONDITION-VARIABLE-WAIT  lock condvar predicate
                                          :args predicate-args
                                          :return-function return-function
@@ -67,7 +67,7 @@ From Screensaver2013.lisp
   (with-slots (image rich-text-pane1 output-pane1)   interface ;;*photo-viewer-instance
     (let ((x)
           )  
-        (if *show-details  (afout 'out (format nil "STEP 5:IN START-CALLBACK, starting the CALCULATOR PROCESS")))
+        ;;(if *show-details  (afout 'out (format nil "STEP 5:IN START-CALLBACK, starting the CALCULATOR PROCESS")))
       ;;starting the calculator process
       ;;reset the *current-photo-info-list to default values
       (set-current-photo-info-list)

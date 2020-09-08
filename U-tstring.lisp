@@ -81,26 +81,45 @@ princ-to-string
 
 
 
+;;MY-EQUAL-PATHS
+;;2020
+;;dde
+(defun my-equal-paths (path1 path2)
+  "U-tstring, uses my-equal :clean-path-str-p T"
+  (let*
+      ((result (my-equal path1 path2 :clean-path-str-p T))
+       )
+    result
+    ))
+;;TEST
+;; (my-equal-paths "F:\\2 MAIN BU\\" "F:/2 MAIN BU/") = T
+
+
 ;;MY-EQUAL
-;;
+;;2020 modified to match substrings if only spaces diff  eg. "1MK" now = "   1MK   ")
 ;;ddd
-(defun my-equal (item1 item2)
-  "In U-tstring.lisp, items may be any combo of string, number, or symbol types.  Tests to see if are case-insensitive equal. Tests lists with multiple nesting levels."
+(defun my-equal (item1 item2 &key (remove-chars '(#\space))
+                       clean-path-str-p)
+  "In U-tstring.lisp, items may be any combo of string, number, or symbol types.  Tests to see if are case-insensitive equal. Tests lists with multiple nesting levels. NOT TEST LISTS equal."
   (let
       ((item1-str)
        (item2-str)
        (result)
        (element2)
        )     
+    (when (and clean-path-str-p (stringp item1)(stringp item2))
+      (setf result
+      (string-equal (clean-path-str item1)(clean-path-str item2))))
     (cond 
-     ;;if either is a pathname, test paths
+     ;;IF EITHER IS A PATHNAME, TEST PATHS
      ((or (pathnamep item1)(pathnamep item2))
       (cond
        ((equal item1 item2)
         (setf result T))))
+     ;;BOTH NIL
      ((and (null item1)(null item2))
       (setf result T))
-     ;;if either is a list, return nil, doesn't test lists
+     ;;IF BOTH ARE LISTS
      ((and (listp item1)(listp item2)(list-length item1)(list-length item2))
       (loop
        for element1 in item1
@@ -117,12 +136,12 @@ princ-to-string
        ;;end loop
        )
       (when result (setf result item1))
-
       ;;end listp item1 and item2
       )
-      ;;if one a list and one not cannot be equal
+      ;;IF ONE A LIST AND ONE NOT, CANNOT BE EQUAL
       ((or (listp item1)(listp item2))  NIL)       
-      (t
+      ;;for NUMBERS
+      ((or (numberp item1)(numberp item2))
        (cond
         ((or (numberp item1)(characterp item1))
          (setf item1-str (format nil "~A" item1)))
@@ -131,13 +150,34 @@ princ-to-string
         ((or (numberp item2)(characterp item2))
          (setf item2-str (format nil "~A" item2)))
         (t (setf item2-str (string item2))))
-
        ;; (afout 'out (format nil "~S = ~S" item1-str  item2-str ))
        (setf result (string-equal item1-str item2-str))
-       ))
+       )
+      ;;FOR STRINGS and if ONE is a SYMBOL
+      ((or (stringp item1)(stringp item2))
+       (when (and (stringp item1) remove-chars)
+         (setf item1 (delete-chars item1 remove-chars)))
+       (when (and (stringp item2) remove-chars)
+         (setf item2 (delete-chars item2 remove-chars)))
+       (cond
+        ((string-equal item1 item2)
+         (setf result T))
+        ((string-equal (format nil "~A" item1)(format nil "~A" item2))
+         (setf result T)))
+       )    
+      ;;TWO SYMBOLS
+      ((equal item1 item2)
+       (setf result T))
+      (T NIL))
     result
     ))
 ;;TEST
+;;2020
+;; (my-equal "F:\\2 MAIN BU\\" "F:/2 MAIN BU/" :clean-path-str-p T)
+;; works (not without :clean-path-str-p =T)
+;; (my-equal 'this "this") = T
+;; (my-equal 'this "  this    ") = T
+;;older
 ;; (my-equal 'this "this") = T
 ;; (my-equal 3 "3") = T
 ;; (my-equal 3 "4") = NIL
@@ -201,18 +241,19 @@ princ-to-string
 
 ;;MY-SUBSTITUTE-CHAR
 ;;2017
-;;ddd
+;;ddd 
 (defun my-substitute-char (new old string &key (begin 0) end)                                      
   "In U-tstring. Substitutes one char for each occurance  from begin to end. RETURNS (values new-string n-str)."
   (let
       ((n-str (length string))
        (newstr "")
        (char)
+       (n-end)
        )
     (cond
      ((null end)
       (setf n-end (- n-str 1)))
-     (t setf n-end end))
+     (t (setf n-end end)))
     (loop
      for n from begin to n-end
      do
@@ -261,14 +302,54 @@ princ-to-string
 ;;works= (#\t #\h #\i #\s #\t #\h #\a #\t)   "thisthat"   8
 
 
+(defparameter *sym-not-found "ERROR in my-make-symbol")
+
+
+
+;;MY-MAKE-SYMBOLS
+;;2020
+;;ddd
+(defun my-make-symbols (strings &key csformatp
+                                (delete-chars '(#\: #\\ #\/ #\; #\" #\comma #\.  #\tab
+                                                #\newline  #\comma #\; #\: #\\ #\? #\[ #\] #\# 
+                                                #\< #\>  #\|  #\( #\) #\} ))
+                                (string-not-equal '("" ".")) (alt-new-symbol '*sym-not-found)
+                                (replace-space-char #\-) pre post)
+  "In MyUtilities\\U-tstring.lisp, If string is string, converts to a symbol, if string is really a symbol, just returns it. ALSO  converts a string of a list to a real list of symbols. Will NOT make sym beginning with zero.
+   If ALT-NEW-SYMBOLS, sets to these if conditions not met.
+   PRE and POST add strings to begin or end of symbols.
+   CSFORMATP allows < and > in symbol"
+  (let*
+      ((symbols)
+       )
+    (when (or pre post)
+      (setf strings (modify-strings strings :pre pre :post post) ))
+    (loop
+     for str in strings
+     do
+     (let*
+         ((newsym (my-make-symbol str :delete-chars delete-chars
+                                  :string-not-equal string-not-equal
+                                  :alt-new-symbol alt-new-symbol :csformatp csformatp))
+          )
+       (setf symbols (append symbols (list newsym)))
+       ))
+    symbols
+    ;;end let,my-make-symbols
+    ))
+;;TEST
+;; (my-make-symbols '("sym1" "sym2") :pre "<" :csformatp T )
+;; works= (<SYM1 <SYM2)
+     
+     
 
 ;;MY-MAKE-SYMBOL WORKS EFFICIENTLY
 ;; Revised 2018-08 to put "-" for spaces by default.
 ;;ddd
-(defun my-make-symbol (string &key (delete-chars '(#\: #\\ #\/ #\; #\" #\comma #\.  #\tab #\newline  #\comma #\;  #\\ #\? #\[ #\] #\#  #\< #\>  #\|  #\( #\} ))
+(defun my-make-symbol (string &key (delete-chars '(#\: #\\ #\/ #\; #\" #\comma #\.  #\tab #\newline  #\comma #\; #\: #\\ #\? #\[ #\] #\#  #\< #\>  #\|  #\( #\) #\} ))
                               (string-not-equal '("" ".")) (alt-new-symbol '*sym-not-found)
-                              (replace-space-char #\-))
-   "In MyUtilities\\U-tstring.lisp, If string is string, converts to a symbol, if string is really a symbol, just returns it. ALSO  converts a string of a list to a real list of symbols. Will NOT make sym beginning with zero.
+                              (replace-space-char #\-) csformatp if-num-return-num-p)
+   "In MyUtilities\\U-tstring.lisp, If string is string, converts to a symbol, if string is really a symbol, just returns it. ALSO  converts a string of a list to a real list of symbols. Will NOT make sym beginning with zero. IF-NUM-RETURN-NUM-P
    If ALT-NEW-SYMBOLS, sets to these if conditions not met."
    (let
       ((new-symbol)
@@ -276,6 +357,8 @@ princ-to-string
        (char)
        (new-string "")
        )
+     (when csformatp
+       (setf delete-chars (delete-list-items  '( #\< #\>) delete-chars)))
      (cond
       ;;in case it's already a symbol
       ((symbolp string)
@@ -307,8 +390,9 @@ princ-to-string
          (loop
           for n from 0 to (- n-chars 1)
           do
-          (setf char (char string n)
-           new-string (format nil "~A~A" new-string char))
+          (setf char (char string n))
+          (when (or (equal char #\.) (digit-char-p char))
+            (setf new-string (format nil "~A~A" new-string char)))
             ;;end loop
             )
          (setf  new-symbol (read (make-string-input-stream new-string) NIL 'EOF))
@@ -317,14 +401,22 @@ princ-to-string
       ;;end (stringp string)
       )
       (t (setf new-symbol alt-new-symbol)))
+     ;;IF-NUM-RETURN-NUM-P 
+     (when (and (numberp string) if-num-return-num-p)
+       (setf new-symbol string))
     new-symbol
     ;;end  let, my-make-symbol
      ))
 ;;TEST
+;; (my-make-symbol 77 :IF-NUM-RETURN-NUM-P T) = 77
 ;;  (my-make-symbol "test space 2") = TEST-SPACE-2
 ;;  (my-make-symbol "0123456") = 123456  (not  0123456 as should be)
+;;  (my-make-symbol "12:34;5.6") = 12345.6
+;; also (+ 3.3 (my-make-symbol "12:34;5.6")) => 12348.899
 ;; (my-make-symbol "123456") also = 123456
 ;;works
+;; (my-make-symbol 'CS2-1-1-99)
+
 ;; (my-make-symbol "this:that") = THISTHAT
 ;; (my-make-symbol "this.that") = THISTHAT
 ;;(my-make-symbol "this.that":delete-chars nil) = THIS.THAT
@@ -349,11 +441,53 @@ princ-to-string
 ;;2018 
 ;;ddd
 (defun my-make<symbol (str)
-  "U-lists.  Allows symbols with < and >. Otherwise like my-make-symbol"
+  "U-tstring.  Allows symbols with < and >. Otherwise like my-make-symbol"
   (let ((newsym (my-make-symbol str  :delete-chars '(#\: #\\ #\/ #\; #\" #\, #\. #\Tab #\Newline #\, #\; #\\ #\? #\[ #\] #\#  #\| #\( #\})))
         )
     newsym
     ))
+
+
+;;MAKE-STRING&SYMBOL
+;;2020
+;;ddd
+(defun make-string&symbol (item &key prefix postfix
+                                (delete-chars '(#\: #\\ #\/ #\; #\" #\, #\. #\Tab #\Newline
+                                                  #\, #\; #\\ #\? #\[ #\] #\#  #\| #\( #\})))
+  "U-tstring  RETURNS: (values newstr newsym ). ITEM can be string or symbol.
+  If pre or post already begin or end, will NOT add."
+  (let*
+      ((newstr (cond
+                ((stringp item) item)
+                (t (format nil "~A" item))))
+       (newsym)
+       (len-prefix (length prefix))
+       (len-postfix (length postfix))
+       (len-item (length newstr))
+       )
+    (when prefix
+      (unless (equal (subseq newstr 0 len-prefix) prefix)
+      (setf newstr (format nil "~A~A" prefix newstr))))
+    (when postfix
+      (unless (equal (subseq newstr (- len-item len-postfix)) postfix)
+        (setf newstr (format nil "~A~A" newstr postfix))))
+    ;;make symbol
+      (setf newsym (my-make-cs-symbol newstr :delete-chars delete-chars))
+    (values newstr newsym )
+    ;;end let, make-string&symbol
+    ))
+;;TEST
+;; (make-string&symbol 'testsymxx :prefix "<")
+;; works= "<TESTSYMXX"   <TESTSYMXX
+;; (make-string&symbol "testsymxx2" :prefix "<")
+;; works= "<testsymxx2"   <TESTSYMXX2
+;; (make-string&symbol 'testsymxx :prefix "<" :postfix ">")
+;; works= "<TESTSYMXX>" <TESTSYMXX>
+;; IF ALREADY PRESENT
+;; ;; (make-string&symbol '<testsymxx> :prefix "<" :postfix ">")
+;; WORKS [not add new pre & post] = "<TESTSYMXX>"  <TESTSYMXX>
+
+
 
 
 ;;GET-SET-SYMBOL-VALUE
@@ -366,6 +500,7 @@ princ-to-string
       ((old-value)
        (testsym)
        (return-sym-str)
+       (symbol-str (format nil "~A" symbol))
        )
    (cond
     ((and (symbolp symbol) (boundp symbol))
@@ -405,13 +540,13 @@ princ-to-string
     ;;end let, get-set-symbol-value
     ))
 ;;TEST
-;; (get-set-symbol-value "testgetsetsymX"  :new-value (list :BIPATHS (list "old-value" "new-value")) :sym-prefix "*pre-" :sym-end "-end")
-;; works= *PRE-TESTGETSETSYMX-END (:BIPATHS ("old-value" "new-value"))   "testgetsetsym"   NIL
+;; (get-set-symbol-value "testgetsetsymX"  :new-value (list :BIPATH (list "old-value" "new-value")) :sym-prefix "*pre-" :sym-end "-end")
+;; works= *PRE-TESTGETSETSYMX-END (:BIPATH ("old-value" "new-value"))   "testgetsetsym"   NIL
 ;;also CL-USER 101 > *PRE-TESTGETSETSYMX-END
-;;works= (:BIPATHS ("old-value" "new-value"))
+;;works= (:BIPATH ("old-value" "new-value"))
 ;; sym for "testgetsetsym" is UNBOUND, but *PRE-TESTGETSETSYMX-END bound
 ;; (get-set-symbol-value "testgetsetsym" :new-value "new-value2" :sym-prefix "*pre-" :sym-end "-end" :replace-old-value-p T)
-;; works= *PRE-TESTGETSETSYM-ENDX  "new-value2" "testgetsetsym"  (:BIPATHS ("old-value" "new-value"))
+;; works= *PRE-TESTGETSETSYM-ENDX  "new-value2" "testgetsetsym"  (:BIPATH ("old-value" "new-value"))
 
 
 
@@ -432,7 +567,24 @@ princ-to-string
      ))|#
 
 
-
+;;DELETE-SYMBOL-STR
+;;2020
+;;ddd
+(defun delete-symbol-str (delete-str sym  &key   (begin-n 0) end-n)
+  "U-tstring   RETURNS (values new-sym new-str )
+    INPUT: Can be symbol or string. N DELETE-STR can be > 1."
+  (let*
+      ((str (format nil "~A" sym))
+       (teststr (subseq str begin-n end-n))
+       (new-str (my-delete-substring delete-str teststr))
+       (new-sym (my-make-symbol new-str))
+       )  
+    (values new-sym new-str )
+    ;;end let, delete-symbol-str
+    ))
+;;TEST
+;; (delete-symbol-str "<" '<symbx)
+;; works= SYMBX  "SYMBX"
 
 
 
@@ -443,7 +595,7 @@ princ-to-string
   "In U-Tstring, appends num to a string (optionally with keys). RETURNS (values new-sym new-str"
   (let*
       ((new-str (format nil "~A~A~A~A~A" begin-str root mid-str num end-str))
-       (new-sym (my-make-symbol new-str))
+       (new-sym (my-make-symbol (make-symbol-string new-str)))
        )
     (values new-sym new-str)
     ))
@@ -584,7 +736,7 @@ princ-to-string
         (list-of-subseqs)
         (N/SEQ)
 	)
-    (setf	end-n 0
+    (setf end-n 0
                 list-of-subseqs nil)
 
     (dolist (n/seq n/seq-list)
@@ -629,33 +781,106 @@ princ-to-string
 ;;  (progn(my-divide-string 10 "or engl100 or its equivalent etc to make this longer " )(print `(,**first-pt ,**last-pt)))
 ;;WORKS FOR VARIETY OF NUMS(progn(setf **string-list nil **first-pt "" **last-pt "")(my-divide-multi-line-string **print-str 16 ))(print `(,**string-list)))
 ;;;do following to avoid probs with eval below
-(setf no-tab 'no-tab no-cr 'no-cr)
+;;(setf no-tab 'no-tab no-cr 'no-cr)
 
 
 
 ;;MY-DIVIDE-MULTI-LINE-STRING
-;;
+;;2020
 ;;ddd
-(defun my-divide-multi-line-string (string length/line &rest misc)
-   "In MyUtilities\\U-tstring.lisp"
-;; (PRINT `(CURRENT-PREREQ ,string))
-   (setf *str0 string 
-	*len/ln0  length/line
-	 *misc0 misc)
- ;;(PRINT *len/ln0)
- ;;  (setf *tot-lines (+ *tot-lines 1))
-;;(print `(first- ,**first-pt  last- ,**last-pt))
-   (cond
-	((<= (length *str0) *len/ln0) 
-        (setf **string-list (append **string-list (list  *str0)  ))) 
+(defun my-divide-multi-line-string (string max-line-length 
+                                           &key divide-only-on-spaces-p (max-extra-line-length 10)
+                                           (return-string-lists-p T))
+  "U-tstring.lisp redivides string for equal lengths--deleting CR & NEWLINE--keeping all chars. DIVIDE-ONLY-ON-SPACES-P will make some lines TOO LONG. 
+Adjust MAX-EXTRA-LINE-LENGTH and max-line-length to approximate desired effect.
+NOTE: works for ONE-LINE strings as well."
+  (let*
+      ((len-str (length string))
+       (new-string "")
+       (new-strings-list)
+       (new-line "")
+       (rest-str "")
+       )
+    (loop
+     for n from 0 to (- len-str 1)
+     do
+     (let*
+         ((char (char string n))
+          )
+       (cond
+        ((and divide-only-on-spaces-p (> n (- max-line-length 3))
+              (char-equal char #\space))
+         (setf new-string (format nil "~A~%~A" new-string new-line)
+               new-strings-list (append new-strings-list (list new-line))
+               rest-str (subseq string n))
+         (return))  
+        ((and (> n max-line-length)
+              (or (null divide-only-on-spaces-p)
+                  (> n (+ max-extra-line-length max-line-length))))
+         (setf new-string (format nil "~A~%~A" new-string new-line)
+               new-strings-list (append new-strings-list (list new-line))
+               rest-str (subseq string n))
+         (return))
+        ((char-equal char #\newline)
+         (setf new-line (format nil "~A~A" new-line #\space)))
         (t
-;;note: following only works bec no-tab & no-cr were set to themselves
-;;(append '(a b c) xx) (setf xx '(d e))
-        (eval (append `(my-divide-string *len/ln0  *str0)  *misc0))
-	(append-list '**string-list  **first-pt) 
-       (eval (append `(my-divide-multi-line-string **last-pt *len/ln0) *misc0))
-        ))
-  **string-list)
+         (setf new-line (format nil "~A~A" new-line char))))
+       ;;end let,loop
+       ))
+    ;;(break "1")
+    (cond
+     ((> (length rest-str) 0)
+      (multiple-value-bind (new-string1 new-strings-list1) ;; rest-str1)
+          (my-divide-multi-line-string rest-str max-line-length 
+                                       :divide-only-on-spaces-p divide-only-on-spaces-p)
+        (setf new-string (format nil "~A~%~A" new-string new-string1)
+                             new-strings-list (append new-strings-list new-strings-list1))))
+     ((> (length new-line) 0)
+      (setf new-string (format nil "~A~%~A" new-string new-line)
+            new-strings-list (append new-strings-list (list new-string))))
+     (T nil))
+    (values new-string new-strings-list)
+    ;;end let, my-divide-multi-line-string
+    ))
+;;TEST
+#|  (my-divide-multi-line-string 
+  "This is a test string that is going to be redivided into
+parts that are
+different than the ones that make it up originally
+the lines will be different than this. They will
+make up similar length lines." 30 :divide-only-on-spaces-p T)
+"
+This is a test string that is
+
+ going to be redivided into parts
+
+ that are different than the
+
+ ones that make it up originally the
+
+ lines will be different than
+
+ this. They will make up similar
+
+ length lines."
+("This is a test string that is" " going to be redivided into parts" " that are different than the" " ones that make it up originally the" " lines will be different than" " this. They will make up similar" "
+ length lines.")
+|#
+#|
+ (my-divide-multi-line-string "This is a test string that is going to be redivided into
+parts that are different than the ones that make it up originally."40 :divide-only-on-spaces-p T)
+;;works=
+"This is a test string that is going to
+
+ be redivided into parts that are different
+
+ than the ones that make it up originally."
+("This is a test string that is going to" " be redivided into parts that are different" "
+ than the ones that make it up originally.")
+|#
+
+
+
 
 
 
@@ -666,10 +891,11 @@ princ-to-string
 ;;(my-constant-length-string 2 "this")
 ;;
 (defun my-constant-length-string (length string)
-  "U-tstring"
+  "U-tstring OLD: USE MY-DIVIDE-MULTI-LINE-STRING-works for one-line strings as well. "
   (let
       ((str-length (length string))
        (new-string)
+       (fill)
        ) 
 ;;(print `(str-length ,str-length))  
   (cond
@@ -698,6 +924,7 @@ princ-to-string
                                 (delim-nth 0) 
                                 (ignore-char-list '(#\comma #\.  #\tab #\newline  #\comma #\;  #\\
                                                             #\? #\[ #\] #\#  #\< #\>  #\|  #\( #\}     ))
+                                (strs-not-part-of-symbol '("" "." ".." ")" "("))
                                  nth-char nth-word max-length word-delim-list delete-list)
   "U-TSTRING.lisp divides list or string at delim-nth (default 1) occurance of char-delim-list, RETURNS (values all-tokens-list rest-items) The TOKENS are STRINGS of string. nth-char (default 1) divides string at nth-char or after nth-word if not already divided; max-length limits max-length of entire returned string. Chars may want to put in ignore list include #\newline #\space #\tab #\comma. delete-list actively deletes all its items from the new-word-list (default is NIL, ""; set to NIL if no deletes wanted.). Stops after 2000 words unless change function def.  If tokens-list, appends this list with tokens from string (needed in recusion). If want SYMBOLS, use RETURN-TOKEN-SYMS-P."
   (let
@@ -710,6 +937,8 @@ princ-to-string
       ;; (process-string)
      ;;  (rest-str-length)
        )
+    ;;ADDED 2019 for problem when first chars are spaces
+    (setf string (my-delete-first-spaces string))
     (cond
      ((> (length string) 0)
       (multiple-value-setq (first-token rest-string)
@@ -731,7 +960,8 @@ princ-to-string
       (when return-token-syms-p 
         (when token-syms-list 
           (setf  all-token-syms-list token-syms-list))
-        (setf first-sym (my-make-symbol first-token :string-not-equal '("" "." "..")))
+        (setf first-sym (my-make-symbol first-token :string-not-equal 
+                                        strs-not-part-of-symbol))
         (unless (stringp first-sym)
                (setf all-token-syms-list (append all-token-syms-list (list first-sym)))))
     ;;  (afout 'out (format nil "first-token= ~A rest-string= ~A~% all-tokens-list= ~A~%" first-token rest-string all-tokens-list))
@@ -752,6 +982,17 @@ princ-to-string
     (values all-tokens-list rest-string all-token-syms-list)
     ))
 ;;TEST
+;;PROBLEM 2019
+;; (DIVIDE-STRING-TO-ALL-TOKENS " Volume in drive C is OS" :IGNORE-CHAR-LIST '(#\,  #\TAB)) 
+;; RESULT = ("olume" "in" "drive" "C" "is" "OS")   ""    (*SYM-NOT-FOUND OLUME IN DRIVE C IS OS)
+;; IF NO SPACE BEFORE FIRST WORKS
+;; (DIVIDE-STRING-TO-ALL-TOKENS "Volume in drive C is OS" :IGNORE-CHAR-LIST '(#\,  #\TAB)) = ("Volume" "in" "drive" "C" "is" "OS")   ""   (VOLUME IN DRIVE C IS OS)
+
+;; (DIVIDE-STRING-TO-ALL-TOKENS   ") :dir \"CogSys-Model\")" )
+;; works = (")" ":dir" "\"CogSys-Model\")")   ""    (*SYM-NOT-FOUND DIR COGSYS-MODEL)
+
+
+
 ;;  (divide-string-to-all-tokens    "              51 File(s)      4,826,878 bytes")
 ;; works= ("51" "File(s)" "4826878" "bytes")  ""  (51 FILE 4826878 BYTES)
 ;;  (divide-string-to-all-tokens "This is a test of xxxxxxx")
@@ -793,7 +1034,7 @@ princ-to-string
 delete-list actively deletes all its items from the new-word-list (default is NIL, ""; set to NIL if no deletes wanted.). RETURNS (values first-pt last-pt new-word-list). Stops after 2000 words unless change function def."
   (let
       ((str-length (length string))
-       (cur-char 0 )
+       (cur-char-num 0 )
        (delim-n 0)
        (char-delimiter-found-p)
        (word-delimiter-found-p)       
@@ -941,6 +1182,45 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
 
 
+;;MAKE-SYMBOL-STRING
+;;2020
+;;ddd
+;;NAME
+;;2020
+;;ddd
+(defun make-symbol-string (string  &key (not-incl-chars '(#\comma
+                                                          #\tab #\newline #\space
+                                                          #\comma #\;  #\\ #\? #\[ #\] #\# #\( #\) #\} ))
+                                   (prefix ""))
+  "U-tstring. RETURNS: String as input to my-make-symbol.  RETURNS string if doesn't include any of  not-incl-chars OR NIL"
+  (let*
+      ((new-string prefix)
+       (xtra-chars)
+       (len-string (length string))
+       )
+    (loop
+     for  n from 0 to (- len-string 1)
+     do
+     (let*
+         ((char (char string n) )
+          )
+       (cond
+        ((not (member char not-incl-chars :test 'char-equal))
+         (setf new-string (format nil "~A~A" new-string char)))
+        (t (setf xtra-chars (append xtra-chars (list char)))))
+     ;;end let,loop
+     ))
+    (values new-string xtra-chars)
+    ;;end let, make-symbol-string
+    ))
+;;TEST
+;; (make-symbol-string "this)")
+;; works= "this"  (#\))
+
+
+
+
+
 ;;DIVIDE-LISTS-OF-STRINGS-TO-TOKENS
 ;;
 ;;SSS modify version below to take all these args??
@@ -958,6 +1238,8 @@ delete-list actively deletes all its items from the new-word-list (default is NI
       ((list)
        (string)
        (new-string-list)
+       (first-pt)
+       (last-pt)
   #|     (no-initial-spaces T)
        (char-nth 1) 
        (char-delim-list '(" " #\space #\tab))
@@ -1089,24 +1371,176 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;; (my-delete-first-spaces  (my-delete-last-spaces  "  \"C:/\"  " :delete-others '(#\")) :delete-others '(#\"))   
 ;; works= "C:/"
 
+#| (string-trim "abc" "abcaakaaakabcaaa") =>  "kaaak"
+ (string-trim '(#\Space #\Tab #\Newline) " garbanzo beans
+        ") =>  "garbanzo beans"
+ (string-trim " (*)" " ( *three (silly) words* ) ")
+=>  "three (silly) words"
+
+ (string-left-trim "abc" "labcabcabc") =>  "labcabcabc"
+ (string-left-trim " (*)" " ( *three (silly) words* ) ")
+=>  "three (silly) words* ) "
+
+ (string-right-trim " (*)" " ( *three (silly) words* ) ") 
+=>  " ( *three (silly) words"|#
+
+
+;;DELETE-BEGIN-STRING
+;;2020
+;;ddd
+(defun delete-begin-string (begin-strings string &key del-chars)
+  "In U-tstring.lisp, USE CL STRING-LEFT-TRIM INSTEAD? -replaces older functions. DEL-CHARS must actually be a list of STRINGS, Works taking \\ or / off end of dirs"
+  (let
+      ((new-string) ;;(my-delete-last-spaces string :delete-strs final-strings :delete-chars del-chars ))
+       (len-str (length string))
+       )
+    (loop
+     for target-str in begin-strings
+     do
+     (let*
+         ((len-target-str (length target-str))
+          (len-dif (- len-str len-target-str))
+          (begin-str (when (>= len-dif 0) (subseq string 0 len-target-str)))
+          (result (string-equal begin-str target-str))
+          )
+       ;;(break)
+       (when result
+         (setf new-string (subseq string len-target-str ))
+         (return))
+       ;;end let,loop
+       ))
+    (unless new-string
+      (setf new-string string))
+    new-string
+  ;;let,my-delete-begin-string
+  ))
+;;TEST
+;; (delete-begin-string  '("begin.") "begin.a.bb.ccc.testcsym")
+;; works= "a.bb.ccc.testcsym"
+;; (delete-begin-string '("\\" "/") "\\subdir\\")
+;; works= "subdir\\"
+;; (delete-begin-string '("\\" "/") "/subdir/")
+;; works= "subdir/"
+;; (delete-begin-string '("<") "THIS")
+
+
+
+
 
 ;;DELETE-FINAL-STRING
-;;2019
+;;2020
 ;;ddd
-(defun delete-final-string (final-strings string)
-  "In U-tstring.lisp, replaces older function, uses my-delete-last-spaces"
+(defun delete-final-string (final-strings string &key del-chars)
+  "U-tstring.lisp, USE CL STRING-RIGHT-TRIM INSTEAD? replaces older functions. DEL-CHARS must actually be a list of STRINGS, Works taking \\ or / off end of dirs"
   (let
-      ((new-string (my-delete-last-spaces string :delete-strs final-strings
-                                          :delete-chars nil ))
+      ((new-string) ;;(my-delete-last-spaces string :delete-strs final-strings :delete-chars del-chars ))
+       (len-str (length string))
        )
+    (loop
+     for target-str in final-strings
+     do
+     (let*
+         ((len-target-str (length target-str))
+          (len-dif (- len-str len-target-str))
+          (end-str (when (>= len-dif 0) (subseq string len-dif)))
+          (result (string-equal end-str target-str))
+          )
+        (when result
+         (setf new-string (subseq string 0 len-dif))
+         (return))
+        
+       ;;end let,loop
+       ))
+  (when (null new-string)  ;;2020, was returning nil, no del-chars matched
+    (setf new-string string))
     new-string
   ;;let,my-delete-final-string
   ))
 ;;TEST
+;; (delete-final-string  '(".testcsym")   "a.bb.ccc.testcsym")
+;; works= "a.bb.ccc"
 ;; (delete-final-string '("\\" "/") "\\subdir\\")
 ;; works= "\\subdir"
 ;; (delete-final-string '("\\" "/") "\\subdir/")
 ;; works= "\\subdir"
+;; (delete-final-string '("\\" "/") "\\subdir")
+
+
+
+;;DELETE-FINAL-STRINGS
+;;2019
+;;ddd
+(defun delete-final-strings (final-strings strings &key del-chars)
+  "In U-tstring.lisp, replaces older function, uses my-delete-last-spaces. Deletes final string in all members of a list."
+  (let
+      ((new-strings)
+       )
+    (loop
+     for string in strings
+     do
+  (let
+      ((new-string (my-delete-last-spaces string :delete-strs final-strings
+                                          :delete-chars del-chars ))
+       )
+    (setf new-strings (append new-strings (list new-string)))
+    ;;end let,loop
+    ))
+    new-strings
+  ;;let,my-delete-final-strings
+  ))
+;;TEST
+;; (delete-final-strings '("\\" "/") '("\\subdir\\" "G:/"))
+;; works= ("\\subdir" "G:")
+
+
+;;ENSURE-FINAL-STRING
+;;2019
+;;ddd
+(defun ensure-final-string (string &key (delete-strings '("/" "\\"))
+                                   (final-str "/"))
+  "In U-tstring.lisp, makes sure a final string from final-strings) is at end. RETURNS. IF NOT, adds replacement-str (values new-string orig-end-ok)"
+  (let
+      ((new-string)
+       (str-base (delete-final-string delete-strings string))
+#|       (len-str (length string))
+       (n-last)
+       (orig-end-ok)|#
+       )
+    (setf new-string (format nil "~A~A" str-base final-str))
+    
+    #|(loop
+     for finalstr in final-strings
+     do
+     (when finalstr
+       (let*
+           ((lenf (length finalstr))          
+            ;;(n (- len 1))
+            (endstr (subseq string (- len-str lenf)))
+            )
+         (setf orig-end-ok (string-equal endstr finalstr))
+         ;;end let,when
+         ))          
+     (when orig-end-ok
+       (return))
+     ;;end loop
+     )|#
+    #|(cond
+     (orig-end-ok
+      (setf new-string string))
+     (t (setf new-string (format nil "~A~A" string replacement-str))))|#       
+    ;;(values new-string orig-end-ok)
+    new-string
+    ;;let,ensure-final-string
+    ))
+;;TEST
+;; (ensure-final-string  "\\subdir\\")
+;; works= "\\subdir/"
+;; (ensure-final-string  "\\subdir/")
+;; works= "\\subdir/"  
+;; (ensure-final-string  "\\subdir")
+;;works= "\\subdir/"  
+;;;; (ensure-final-string  "\\subdir\\" :final-str "")
+;; works = "\\subdir"
 
 
 
@@ -1129,7 +1563,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        do
       (setf cur-char (char string (- n-str n))
             cur-char-string (string cur-char))
-      (when (= n (- n-str 2)) (break "cur-str"))
+      ;;(when (= n (- n-str 2))(break "cur-str"))
       (cond
        ((or (member cur-char delete-chars :test 'char-equal)  ;;was 'equal
             (member cur-char-string delete-strs :test 'string-equal))
@@ -1141,8 +1575,10 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;; (my-delete-last-spaces  "a b c d this    ")
 ;;works = "a b c d this"
 ;; (my-delete-last-spaces  "  \"C:/\"" :delete-others '(#\")) = "  \"C:/"
-;; on results of above, use my-delete-first-spaces
+;; on orig-end-oks of above, use my-delete-first-spaces
 ;; (my-delete-first-spaces  "  \"C:/" :delete-others '(#\"))  = "C:/"
+
+
 
 
 ;;MATCH-CHAR-LIST-TO-STRING
@@ -1201,6 +1637,39 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;;  (match-char-list-to-string '(c #\1 x) "  this abcd 123 ux")
 ;;works, returns "c" "cd 123 ux" "  this ab" 
 
+
+
+;;FIND-MATCHED-STRINGS-FROM-SUBSTRINGS
+;;2020
+;;ddd
+(defun find-matched-strings-from-substrings (match-str-list strings
+                                                            &key (start 0) end case-sensitive)
+  "In U-tstring.lisp, start = 0, end = str-length by default. Seaches betw start and end. RETURNS (values  found-items other-items found-ns)  for FIRST SUBSTRING MATCHED for each.  USE find-list-item-by-substrings to search list of strings. NOTE: first-string INCLUDES THE SUBSTRING at end. FOUND-N starts at 0"
+  (let*
+      ((found-items)
+       (other-items)
+       (found-ns)
+       )
+    (loop
+     for str in strings
+     for n from 0 to 5000
+     do
+     (cond  ;;(values rest-string first-string result-string)
+            ((match-substrings match-str-list str :start start :end end
+                               :case-sensitive case-sensitive)
+             (setf found-items (append found-items (list str))
+                   found-ns (append found-ns (list n))))
+            (T (setf other-items (append other-items (list str)))))
+     ;;end ,loop
+     )
+    (values  found-items other-items found-ns)
+    ;;end let, find-matched-strings-from-substrings
+    ))
+;;TEST
+;; (find-matched-strings-from-substrings '("ef" "22") '("abcdefgh" "1111e" "123" "abc22de")) 
+;;works= ("abcdefgh" "abc22de")   ("1111e" "123") (0 3)
+;; (find-matched-strings-from-substrings '("tom") '("C:\\3-TS\\LISP PROJECTS TS\\CogSysOutputs\\1 TOM-All-CSQ-DATA-2020-03-19.lisp" ))
+;;works= ("C:\\3-TS\\LISP PROJECTS TS\\CogSysOutputs\\1 TOM-All-CSQ-DATA-2020-03-19.lisp")   NIL
 
 
 ;;MATCH-ALL-SUBSTRINGS
@@ -1337,6 +1806,12 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     (values rest-string first-string result-string)
     ))
 ;;TEST
+;; (match-substring "tom" "C:\\3-TS\\LISP PROJECTS TS\\CogSysOutputs\\1 TOM-All-CSQ-DATA-2020-03-19.lisp" )
+;; (match-substring "reverse" "LikeMe7Reverse")
+;;works "" "LikeMe7Reverse"  "Reverse"
+;; (match-substring "Reverse" "LikeMe7")
+;;works (note "" above= T, NIL here)
+;; NIL  NIL  ""
 ;; (match-substring "!"  "xx   this! that") 
 ;; = " that"  "xx   this!"  "!"
 ;;  (match-substring  "PCategory"   "PCategory intSrq6Extra = new PCategory(\"intSrq6Extra\",1, intSrq6ExtraQ, \"int\",  FrAnswerPanel.LikeUs7,questionInstancesArray, frameTitle, frameDimWidth, frameDimHeight);" :start 10)    
@@ -1460,10 +1935,6 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
 
 
-
-
-
-
 ;;FUZZY-NESTED-LIST-SEARCHER
 ;;
 ;;ddd
@@ -1479,6 +1950,8 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        (result-sym-list)
        (result-level-sym-list)
        (result-sym2)
+       (result-string-list1)
+       (result-sym-list1) 
        (result-outer-list)
        (result-level-outer-list)
        (result-outer-list1)
@@ -1626,7 +2099,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     ;;end fuzzy-list-searcher
     (values matched-string-list matched-sym-list)
     ))
-;;test
+;;TEST
 ;; (fuzzy-list-searcher "abcthisxyz" '(defmno lmthis lmxyzghi mywhat dexyzfghijk)  :auto-cutoff 0.5 :return-symbols-p t)
 ;;works, returns ("abcthisxyz" ("LMXYZGHI" "DEXYZFGHIJK")) ("abcthisxyz" (LMXYZGHI DEXYZFGHIJK))
 ;; (fuzzy-list-searcher 'abcthisxyz '(defmno lmthis  mywhat dexyzfghijk) :min-seq-length 4 :return-symbols-p t)
@@ -1634,16 +2107,64 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;;(fuzzy-list-searcher 'abcthisxyz '(defmno lmthisu  mywhat dexyzfghijk)  :min-seq-length  3 :return-symbols-p t)     
 ;; (progn (setf out nil)(fuzzy-list-searcher "lvietnam"  '(LANG "bio7lang" "English" "Spanish" "Vietnamese" "Cambodian" "Chinese" "Korean" "Portuguese" "German" "French" "Other Asian" "Other European" "Other")  :min-seq-length 4))
 
+;; ;; (fuzzy-list-searcher "Serial"  '(" this " "serially" " SERIAL " "NON-SERIAL"))
+;; result (not work) = NIL  NIL
 
 
 
+
+;;FUZZY-MATCH-IN-STRING-LIST
+;;2019
+;;ddd
+(defun fuzzy-match-in-string-list (string string-list  &key return-symbol2-p auto-cutoff 
+                                                n-matched-cutoff min-seq-length return-all-matches-p)
+  "U-tstring,   RETURNS ( first-matched-string all-matched-strings)   Where all-matched-strings is a list of lists consisting of the return list above. "
+  (let
+      ((all-matched-strings)
+       (all-matched-results)
+       (first-matched-string)
+       )
+    (loop
+     for list-str in string-list
+     do
+     (multiple-value-bind (string2-result string1  matched-seq matched-char-strings
+                                          unmatched-char-strings  matched-chars unmatched-chars 
+                                          matched-chars-n symbol2-result  )
+         (fuzzy-matcher string list-str  :return-symbol2-p  return-symbol2-p 
+                        :auto-cutoff auto-cutoff :n-matched-cutoff n-matched-cutoff 
+                        :min-seq-length min-seq-length )
+       ;;IF FOUND, RETURN OR CONTINUE
+       (when string2-result
+         (unless first-matched-string
+           (setf first-matched-string string2-result))
+         (setf  all-matched-strings (append all-matched-strings (list string2-result))
+                all-matched-results (append all-matched-results
+                                            (list (list string2-result string1  matched-seq 
+                                                        matched-char-strings
+                                                        unmatched-char-strings  matched-chars 
+                                                        unmatched-chars 
+                                                        matched-chars-n symbol2-result)))))
+     (when (and string2-result (null return-all-matches-p))
+         (return))     
+       ;;(afout 'out (format nil "END LOOP first-matched-string= ~A string2-result= ~A" first-matched-string string2-result))
+ 
+       ;;end mvb,loop
+       ))
+    (values first-matched-string all-matched-strings all-matched-results)
+    ;;end let, fuzzy-match-in-string-list
+    ))
+;;TEST
+;; (fuzzy-match-in-string-list "Serial"  '("ser" "SERIA" "serial"  "seral" "seriAL" "serially") :return-all-matches-p T)
+;; works = "serial"   ("serial" "seriAL")  (("serial" "Serial" "" NIL NIL NIL NIL 0 NIL) ("seriAL" "Serial" "" NIL NIL NIL NIL 0 NIL))  
+;; (fuzzy-match-in-string-list "serial" '("Volume" "Serial" "Number" "is" "4058-766B"))
+;; (fuzzy-matcher "serial" "Serial") = "Serial" "serial"
+;; (fuzzy-match-in-string-list "serial" '("Serial"))
 
 ;;FUZZY-MATCHER
 ;;
 ;;NOTE:  In U-lists.lisp this function is added to 
 ;;    COMPARE-NESTED-LIST-ITEMS to get fuzzy mataches of strings in lists
 ;;
-;; 
 ;;ddd
 (defun fuzzy-matcher (item1 item2 &key return-symbol2-p
                                       auto-cutoff  n-matched-cutoff   min-seq-length)
@@ -1665,6 +2186,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        (matched-chars-n 0)
        (result-string)
        (matched-p)
+       (matched-seq)
        (matched-seq-list) 
        (end-str)
        (match-str)
@@ -1802,6 +2324,15 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     (values string2-result string1 matched-seq matched-char-strings unmatched-char-strings  matched-chars unmatched-chars  matched-chars-n symbol2-result)
     ))
 ;;TEST
+;;2019
+;; (fuzzy-matcher "Serial"  "  SERIAL ")
+;;works = "Serial" "" ("S" "e" "r" "i" "a" "l") ("l") (#\S #\e #\r #\i #\a #\l) (#\l) 6 NIL
+;; (fuzzy-matcher "Serial"  "  SERI  ")
+;; results= NIL  "Serial"  ""  ("S" "e" "r" "i")  ("a" "l") 
+;; (fuzzy-matcher "Serial"  "  SERIALLY  ")
+;; results= NIL  "Serial" "" ("S" "e" "r" "i" "a" "l")  ("l")
+
+
 ;;(apply 'max '(1 2 3))
 ;;(apply 'max nil));; '(1 2 3))
 ;;ttt test 
@@ -2024,6 +2555,46 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
 
 
+;;RETURN-FIRST-LETTERS/INTEGERS
+;;NAME
+;;2020
+;;ddd
+(defun return-first-letters/integers (string-list &key (omit-nils-p T) 
+                                         letter-only-p integer-only-p)
+  "U-tstring   RETURNS (values first-letters/integers rest-strs-list) INPUT:  "
+  (let*
+      ((first-letters/integers)
+       (rest-strs-list)       
+       )
+    (loop
+     for str in string-list
+     do
+     (let*
+         ((first-let)
+          )
+     (multiple-value-bind (rest-str found-n first-found-char)
+          (find-first-letter/integer str :letter-only-p letter-only-p 
+                                            :integer-only-p integer-only-p)
+       (setf first-let (format nil "~A" first-found-char)
+             rest-strs-list (append rest-strs-list (list rest-str)))
+          )
+     (when (or first-let (null omit-nils-p))
+       (setf first-letters/integers (append first-letters/integers (list first-let))))
+     ;;end let,loop
+     ))
+    (values rest-strs-list first-letters/integers)
+    ;;end let, return-first-letters/integers
+    ))
+;;TEST
+;; (return-first-letters/integers '("F:\\" "    G:/") )
+;;works=  ("F:\\" "G:/")  ("F" "G")
+
+;; 
+;;
+
+
+
+
 ;;FIND-FIRST-LETTER/INTEGER
 ;;2019
 ;;ddd
@@ -2156,7 +2727,26 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 |#
 
 
-;;FIND-STRING-IN-STRING
+;;MY-FIND-STRING
+;;2020
+;;ddd
+(defun my-find-string (match-string string  &key end-item (trim-items 0)
+                                    trim-end-items match-all-from-end)
+  "U-tstring   RETURNS    INPUT:  "
+  (let*
+      ((result (match-substring match-string string  :end-item end-item 
+                       :trim-items trim-items   :trim-end-items  trim-end-items 
+                        :match-all-from-end match-all-from-end))
+       )
+    (values result   )
+    ;;end let, my-find-string
+    ))
+;;TEST
+;; (match-substring "this"  "what is xxthisyy next")
+
+
+
+;;FIND-STRINGS-IN-STRING
 ;;
 ;;ddd
 (defun find-strings-in-string (string)
@@ -2201,6 +2791,8 @@ delete-list actively deletes all its items from the new-word-list (default is NI
      )
      string-list
      ))
+;;TEST
+;; (
 
 ;;test SSS
 ;;  (testsis)
@@ -2243,6 +2835,10 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 	(last-char! "")
 	(current-word "")
 	(fin? 'no)
+        (old-char)
+        (cur-place)
+        (cur-char-num)
+        (len-first+word)
         )
 
   (cond
@@ -2506,7 +3102,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;;2017
 ;;ddd
 (defun delete-chars (string chars)
-  "In U-tstring"
+  "U-tstring use STRING-TRIM INSTEAD?"
   (let
       ((new-string "")
        (deleted-chars-str "")
@@ -2529,19 +3125,62 @@ delete-list actively deletes all its items from the new-word-list (default is NI
       ))
     (values new-string deleted-chars-str)
     ))
-;;here2
 ;;TEST
 ;;   ( delete-chars "this;that is: \dir a string"   '(#\/ #\\  #\: #\;))
 ;; works= "thisthat is dir a string"   " ; :"
 
+#|
+ ;;NOT NEEDED my-delete-substring WORKS FOR ALL IF DELETE-ALL-P
+;;MY-DELETE-SUBSTRINGS -- DELETE 
+;;2020
+;;ddd
+(defun my-delete-substrings (string  &key (delete-all-p t) from-end-p
+                                     (test 'my-equal) (max-deletes 100))
+  "U-tstring   RETURNS    INPUT:  "
+  (let*
+      ((new-string)
+        (rest-string string)
+        (result)
+       )
+    (loop
+     for n from 1 to max-deletes
+     do
+     (let*
+         ((x)
+          )
+      (multiple-value-bind (new-str first-string rest substring
+                                        STRING-FOUND-P)
+           (my-delete-substring substring rest-string :delete-all-p delete-all-p
+                       :from-end-p from-end-p :test test)
+         (setf new-string (format nil "~A~A" new-string first-string)
+               rest-string rest)
+    (cond
+     ((or (null result)(null rest-str)(equal resto-str ""))
+      (return))
+     (
+      )
+     (t nil))
+  
+
+     ;;end mvb,let,loop
+     )))
+
+    (values    )
+    ;;end let, my-delete-substrings
+    ))
+;;TEST
+;; (my-delete-substrings
+
+|#
+
 
 
 ;;MY-DELETE-SUBSTRING
-;;
+;;2020 added string-found-p
 ;;ddd
 ;;new version using my-equal
 (defun my-delete-substring (substring string &key (delete-all-p t) from-end-p (test 'my-equal))
-  "In U-tstring.lisp, Deletes the first substring. RETURNS (values new-string first-string rest-string substring) new-string = nil if no match."
+  "In U-tstring.lisp, Deletes the first substring. RETURNS (values new-string first-string rest-string substring STRING-FOUND-P) new-string = nil if no match."
   (if from-end-p
       (setf string (reverse string)
             substring (reverse substring)))      
@@ -2601,11 +3240,18 @@ delete-list actively deletes all its items from the new-word-list (default is NI
         (setf new-string (reverse new-string)
               first-string  (reverse rest-string)
               rest-string (reverse first-string)))
- 
     ;;end my-delete-substring
-    (values new-string first-string rest-string substring)
+    (values new-string first-string rest-string substring string-found-p)
     ))
-;;test
+;;TEST
+;; (my-delete-substring "old"  "thisoldstuff")
+;; works= "thisstuff"  "this" "stuff" "old"  T
+
+;; (my-delete-substring "-"  "-2.73")   
+;; works= "2.73"  "" "2.73" "-" T
+;; (my-delete-substring "-"  "2.73")   
+;;works= "2.73"  "" "" "-" NIL
+;; PRE 2020--no string-found-p returned -------------------------------------
 ;; (progn (setf out nil) (my-delete-substring "this"  "123this4567890"))
 ;; works "1234567890" "123"  "4567890" "this"
 ;; (progn (setf out nil) (my-delete-substring "this"  "123this4567this890"))
@@ -2649,7 +3295,6 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        (new-seq "")
        (last-matched-end-n)
        (match-n-list) ;;list of ns for matching elements
-       ;;(n1)
        )
     (cond
      ((and (setf newitem-str (string newitem)
@@ -2665,6 +3310,9 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        for i from start to end
      ;;  with n 
        do
+       (let*
+           ((n)
+            )
        ;;from-end-p?
        (cond
         (from-end-p
@@ -2737,7 +3385,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
                (t (setf  new-seq (format nil "~A~A" new-seq  seq-char-str))))
             ))
           ;;end loop and set items to strings clause
-          ))
+          )))
      (t (format t "ERROR--ONE OF THE OBJECTS==> ~A~%, ~A~%   OR ~A  IS NOT A STRING--IN QUOTES" newitem-str olditem-str sequence-str)))
          
     ;;what to return
@@ -2779,6 +3427,32 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
 
 
+;;MY-SUBSTITUTE-IN-STRINGS
+;;2019
+;;ddd
+(defun my-substitute-in-strings (new-item old-item strings &key (start 0)
+                                        match-case-p (count 0))
+  "U-tstring. Substitutes new-str for old-str each time it finds it in strings list. Uses my-stubstitue: . If count, substitutes newitem for only count occurramces of olditem in sequence. Note: number of spaces in newitem and olditem need NOT be the same.  start and end refer to orig sequence even if  from-end-p = t. NOTE: olditem CAN BE A LIST of items which can substitute new-item for. RETURNS (values new-seq match-n-list). match-n-list lists matches starting with beginning at 0."
+  (let
+      ((new-strings)
+       )
+    (loop
+     for string in strings
+     do
+     (let 
+         ((new-str (my-substitute new-item old-item string :start start :match-case-p 
+                                  match-case-p :count count))
+          )
+       (setf new-strings (append new-strings (list new-str)))
+       ;;end let,loop
+       ))
+    new-strings
+    ;;end let, my-substitute-in-strings     
+    ))
+;;TEST
+;; (my-substitute-in-strings "" "/"  '("g:/" "h:/"))  = ("g:" "h:")
+       
+
 
 ;;
 ;;CONVERTS ANY KIND OF STRING WITH ANY MIXTURE TO INITIAL CAPS-REST LOWER CASE
@@ -2804,20 +3478,31 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     (setf *newstring (string-append *newstring (string *newchar))))
    *newstring)	
 
-;;CONVERTS STRING NUMBERS TO INTEGERS
-;;from Steele p. 236  ALSO USE CL PARSE-INTEGER
+
+
+;;CONVERT-STRING-TO-INTEGER
+;;2020
 ;;ddd
 (defun convert-string-to-integer (str &optional (radix 10))
- "In U-tstring, from Steel, p236, given a digit string & optional radix, return an integer. Also use CL PARSE-INTEGER."
+  "In U-tstring, from Steel, p236, given a digit string & optional radix, return an integer uses CL PARSE-INTEGER."
+  (parse-integer str)
+  )
+;;TEST
+;;  (convert-string-to-integer "568") = 568
+;; (parse-integer "568")  = 568  3
+;;  (convert-string-to-integer "-568") = -568  4
+
+#| DOES NOT WORK
+(defun convert-string-to-integer (str &optional (radix 10))
+ "In U-tstring, from Steel, p236, given a digit string & optional radix, return an integer use CL PARSE-INTEGER."
    (do ((j 0 (+ j 1))
 	(n 0 (+ (* n radix)
 		(or (digit-char-p (char str j) radix)
 			(error "Bad radix-~D digit: ~C"
 				radix (char str j))))))
-	((= j (length str)) n)))
-;;TEST
-;;  (convert-string-to-integer "568") = 568
-;; (parse-integer "568")  = 568  3
+	((= j (length str)) n)))|#
+
+
 
 
 
@@ -3032,12 +3717,14 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
 
 
+
+
 ;;SEARCH-FOR-MEMBER
 ;;
 ;;ddd
 (defun search-for-member (sequence list &key return-first-match-p
                                    reverse-search-p use-my-equal-p)
-  "In U-Tstring, Searches sequence to see if any member of list is found as part of the sequence using CL search. List cannot contain numbers (unless strings). RETURNS (values result begin-index end-index matches). Unless return-first-match-p, returns best match and all other matches. When reverse-search-p, searches for list item as subseq of sequence. If use-my-equal-p, uses my-equal instead of string-equal for test. ALSO SEE find-best-match."
+  "In U-Tstring,  DEPRECIATED, USE MATCH-SUBSTRINGS INSTEAD. Searches sequence to see if any member of list is found as part of the sequence using CL search. List cannot contain numbers (unless strings). RETURNS (values result begin-index end-index matches). Unless return-first-match-p, returns best match and all other matches. When reverse-search-p, searches for list item as subseq of sequence. If use-my-equal-p, uses my-equal instead of string-equal for test. ALSO SEE find-best-match."
   (let
       ((result)
        (begin-index)
@@ -3112,7 +3799,7 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;;Won't search within strings:
 ;;  (search-for-member "a bb c; xxxyz; this is the end; more" '(";"))
 
-
+;; (search-for-member "C:\\3-TS\\LISP PROJECTS TS\\CogSysOutputs\\1 TOM-All-CSQ-DATA-2020-03-19.lisp" '("tom") :use-my-equal-p T)
 
 
 
@@ -3190,14 +3877,20 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     ;;end let, find-best-match
     ))
 ;;TEST
+;; problem 2019
+;; (find-best-match "Serial" '("Directory" "of" "C:\\3-TS\\LISP" "PROJECTS" "TS\\MYUTILITIES" )) = "S"   1 3 ("S" "S")  "PROJECTS"  ("PROJECTS" "TS\\MYUTILITIES")
+
+
 ;;  (find-best-match "RESET-INPUTS"  '("Input" "X" "Y" "R" "Wup" "Wdn" "Uup" "Udn" "Y-Output" "RESET" "RESET-ININPUTS" "RESET-NOUTPUTS" "RESET-COUNTER" "N-CATS" "TEMP" "TEMP2"))
 ;; RESULT= "RESET" 5 9 ("R" "RESET" "R") "RESET" ("R" "RESET" "RESET-COUNTER")
 ;;  (find-best-match "RESET-ININPUTS1"  '("Input" "X" "Y" "R" "Wup" "Wdn" "Uup" "Udn" "Y-Output" "RESET" "RESET-ININPUTS" "RESET-NOUTPUTS" "RESET-COUNTER" "N-CATS" "TEMP" "TEMP2") :reverse-find-p T)
 ;; WORKS= "RESET-ININPUTS"  14 10 ("R" "RESET" "RESET-ININPUTS") "RESET-ININPUTS" ("R" "RESET" "RESET-ININPUTS")
-;; (find-best-match 'xi-2-2 '(reset-points xi-2-2-points y-points)) 
-;; works= "XI-2-2"  6  1 ("XI-2-2") XI-2-2-POINTS (XI-2-2-POINTS)
-;; (nth-value 4 (find-best-match 'xi-2-2 '(reset-points xi-2-2-points y-points)))
-;; works= XI-2-2-POINTS
+;; (find-best-match 'xi-2-2 '(reset-points X-2-2-I-points y-points)) 
+;; works= "XI-2-2"  6  1 ("XI-2-2") X-2-2-I-points (X-2-2-I-points)
+;; (nth-value 4 (find-best-match 'xi-2-2 '(reset-points X-2-2-I-points y-points)))
+;; works= X-2-2-I-points
+
+
 
 ; CONVERT-STRING-TO-OBJECTS
 ;;
@@ -3217,7 +3910,6 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        (word-str)
        (number)
        )      
-
     (when  object-separator-list
       (dolist (sep object-separator-list)
         (setf new-string (my-substitute " " sep string)))
@@ -3273,7 +3965,6 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 
              ;;RECURSE FOR REST-STRING?
              (when (> (length rest-string) 0)
-               ;;(break)
                (multiple-value-bind (object-list1 first-object1 rest-string1 string-list1)
                    (convert-string-to-objects  rest-string
                                                :object-list object-list :string-list string-list)
@@ -3439,7 +4130,63 @@ delete-list actively deletes all its items from the new-word-list (default is NI
 ;; (length "    System.out.println (\"questionInstancesArray[0] \" questionInstancesArray[0]);")
 
 
-
+;;CONVERT-STRING-W-SEPARATORS-TO-LIST
+;;2019
+;;ddd
+(defun convert-string-w-separators-to-list (string &key (separators '("." "-"))
+                                                   delete-chars (return-symbols-p T)
+                                                    (string-not-equal (quote ("" ))) 
+                                                    (alt-new-symbol (quote *sym-not-found)) 
+                                                    (replace-space-char #\-))
+  "U-tstring   RETURNS (values string-list symbol-list) list of separated strings and/or symbols.    INPUT: string with separators eg. CS.HS.1 => (\"C\" \"S\" \"1\") or (C S 1).  Can be a single number. "
+  (let
+      ((string-list)
+       (symbol-list)
+       (len-string)  ;; (length string))
+       (symstr "")
+       )
+    (cond
+     ((numberp string)
+      (setf string-list (list (format nil "~A" string))
+            symbol-list (list string)))
+     ;;string not a number
+     (T  
+      (setf len-string (length string))
+      (loop
+       for n from 0 to (- len-string 1)
+       do
+       (let*
+           ((char  (char string n))
+            )
+         ;;(BREAK)
+         (cond
+          ((= n (- len-string 1))
+           (setf symstr (format nil "~A~A" symstr char)
+                 string-list (append string-list (list symstr)))
+           (when return-symbols-p
+             (setf symbol-list (append symbol-list 
+                                       (list (my-make-symbol symstr
+                                                             :string-not-equal string-not-equal
+                                                             :delete-chars delete-chars
+                                                             :alt-new-symbol alt-new-symbol
+                                                             :replace-space-char replace-space-char
+                                                             ))))))         
+          ((member char separators :test 'string-equal)
+           (setf string-list (append string-list (list symstr)))     
+           (when return-symbols-p
+             (setf symbol-list (append symbol-list 
+                                       (list (my-make-symbol symstr :delete-chars delete-chars)))))
+           (setf symstr ""))
+          (t (setf symstr (format nil "~A~A" symstr char))))
+         ;;end unless, loop,clause, cond
+         ))))
+    (values string-list symbol-list)
+    ;;end let, convert-string-w-separators-to-list
+    ))
+;;TEST
+;; (convert-string-w-separators-to-list "CS.HS.1.2")
+;; works= ("CS" "HS" "1" "2")   (CS HS 1 2)
+;; (convert-string-w-separators-to-list 1) = ("1")  (1)
 
 
 
@@ -3479,21 +4226,204 @@ delete-list actively deletes all its items from the new-word-list (default is NI
  
 
 
+;;CENTER-TEXT
+;;2020 revised to be more accurate
+;;ddd
+(defun center-text (string-list n-line-pix &key stream (left-margin-pix 0) left-margin-spaces
+                                 incl-rest-string-p (add-pre-lines-n 0)
+                                 n-line-chars  (default-pix/char 7.0)
+                                 (my-font-name '12-nonbold) font-size bold-p font-style  
+                                 (string-too-short-lengthen-p t)
+                                 (add-post-lines-n 0))
+  "U-tstring Centers string between left-margin-pix and end of n-line-pix and SENS TO STREAM.   RETURNS (values line-string begin-string-char-n rest-str-n). Note: margin is part of string length, but string is centered betw margin and end. Uses my-center-string to output to a stream (or not).
+  FONT: estimate-string-pix used to center--must have a pre-defined my-font-name (12-nonbold, 14-bold, ???)  OR a font-size, boldp, and font-style (default) with est-pix-char. MY-FONT-NAMES: (14-bold, 14-nonbold, 12-bold, 12-nonbold, 111-bold, 11-nonbold, 10-bold, 10-nonbold)"     
+  (let*
+      ((centered-line-strings)
+       (n-strings 0)
+       )
+    (loop
+     for string in string-list
+     do
+     (when (stringp string)
+       (incf n-strings)
+       (multiple-value-bind (line-string begin-string-char-n n-string-pix-est rest-str-n n-line-pix new-line-pix)
+           (my-center-string string :left-margin-pix left-margin-pix :n-line-pix n-line-pix
+                             :incl-rest-string-p incl-rest-string-p :my-font-name my-font-name
+                             :font-size font-size :bold-p bold-p :font-style font-style)
+         (when (> add-pre-lines-n 0)
+           (setf line-string (format nil "~V%~A" add-pre-lines-n line-string)))
+         (when (> add-post-lines-n 0)
+           (setf line-string (format nil "~A~V%" line-string add-post-lines-n )))
+         (setf centered-line-strings (append centered-line-strings (list line-string)))
+         (format stream "~A" line-string)
+         ;;end when,mvb,loop
+         )))
+    (values centered-line-strings n-strings)
+    ;;end mvb, center-text
+    ))
+;;TEST
+;; (center-text  '("center this text 1" "center the very next text" "center this") 300)
+;; works= ("          center this text 1" "       center the very next text" "              center this")  3
+
+#|"
+                            center this text                            
+"
+28 28|#
 
 
+#|OLD-DOESN'T WORK RIGHT
+(defun center-text (string line-width &key stream)
+  "Approx centers text in line of stream with width of line-width"
+  (format stream "~V<~;~A~;~;~>" line-width string)
+  )|#
+
+
+
+
+;;MY-CENTER-STRING
+;;2020
+;;ddd
+(defun my-center-string (string  &key (left-margin-pix 0) left-margin-spaces
+                                 (n-line-pix 880) n-line-chars
+                                 incl-rest-string-p   (my-font-name '12-nonbold)
+                                  font-size  bold-p  font-style (default-pix/char 7.0)
+                                  (string-too-short-lengthen-p T))
+  "U-tstring Centers string between left-margin and end of n-line-pix  RETURNS (values line-string begin-string-char-n n-string-pix-est rest-str-n n-line-pix new-line-pix).  
+  MY-FONT-NAMES: (14-bold, 14-nonbold, 12-bold, 12-nonbold, 111-bold, 11-nonbold, 10-bold, 10-nonbold)
+  Note: All calculations in pixels, when chars/spaces provided, they are CONVERTED TO PIXEL ESTIMATES BASED UPON THE FONT.
+   2. margin is part of string length, but string is centered betw margin and end."
+  (multiple-value-bind (n-string-pix-est n-str-chars pix/char-est)
+      (estimate-string-pixels string :my-font-name my-font-name 
+                              :font-size font-size :bold-p bold-p :font-style font-style
+                              :default-pix/char default-pix/char)
+    ;;If only n-line-chars given, calc n-line-pix and use it
+    (when (and (null n-line-pix) n-line-chars)
+      (setf n-line-pix (convert-to-integer (* n-line-chars pix/char-est))))
+    ;;left-margin-spaces converted
+    (when left-margin-spaces
+      (setf left-margin-pix (convert-to-integer (* left-margin-spaces pix/char-est))))
+    (when (null left-margin-spaces)
+      (setf left-margin-spaces (convert-to-integer (/ left-margin-pix pix/char-est))))
+    (let*
+        ((new-line-pix n-line-pix)
+         (line-minus-margin-pix (- n-line-pix left-margin-pix))
+         (net-line-pix  (- line-minus-margin-pix n-string-pix-est))
+         (line-string "")
+         (half-line-plus-half-string-pix (cond
+                                          ((> net-line-pix 0)
+                                           (convert-to-integer
+                                                           (/ (- line-minus-margin-pix n-string-pix-est) 2)))
+                                          (string-too-short-lengthen-p 
+                                           (setf new-line-pix (+ n-string-pix-est left-margin-pix)))
+                                          (T (setf line-string "ERROR: STRING TOO SHORT FOR LINE")
+                                             (setf new-line-pix (+ n-string-pix-est left-margin-pix)))))
+         (begin-string-pix (+ left-margin-pix half-line-plus-half-string-pix))
+         (begin-string-char-n (convert-to-integer (/ begin-string-pix pix/char-est)))
+         (fill-string (make-string (+ left-margin-spaces begin-string-char-n)
+                                   :initial-element #\space))
+         (rest-str-n 0) 
+         (rest-string "")
+         (line-string) 
+         )
+     (unless (equal line-string "ERROR: STRING TOO SHORT FOR LINE")
+      (setf  line-string  (format nil "~A~A" fill-string string ))
+      ;;incl-rest-string-p?
+      (when incl-rest-string-p 
+        (setf rest-str-n (- begin-string-char-n left-margin-spaces))
+        (when (> rest-str-n 0)
+              (setf rest-string (make-string rest-str-n  :initial-element #\space)
+              line-string (format nil "~A~A" line-string rest-string))))
+      ;;end unless
+      )
+      (values line-string begin-string-char-n n-string-pix-est rest-str-n n-line-pix new-line-pix)
+      ;;end let, mvb,my-center-string
+      )))
+;;TEST
+;; for n-line-pix TOO SHORT
+;; (my-center-string   "this is a test string" :n-line-pix 100 )
+;; works= "                                       this is a test string"  39 147 39 100 161
+;; for n-line-pix TOO SHORT
+;; (my-center-string   "this is a test string" :left-margin-pix 20 :n-line-pix 100  :incl-rest-string-p T)
+;; works= "                            this is a test string                        "  26 161 24 100 181
+;; (my-center-string   "this is a test string" :left-margin-pix 20 :n-line-pix 210 )
+;; works= "      this is a test string"  4  161  0 210 210 
+
+
+
+;;TEST-FONT-PIXELS/CHAR
+;;2020
+;;ddd
+(defun test-font-pixels/char (font-size bold-p 
+                                        &key (string1 "abcdefghijklmnopqrstuvwxyz")(string2 "abcdef"))
+  "U-tstring (MOVE?)   RETURNS (values pixels/char instr-pane-width-pixels n-chars-instr-pane-text instr-text  *instr-pane-font-size *simple-input-instr-boldp)    INPUT: Change font attributes temporarily to calc pixels per char. STRING = string1 string1 string2)"
+  (let*
+      ((frame-inst) 
+       (orig-font-size *instr-pane-font-size)
+       (orig-bold-p *simple-input-instr-boldp)
+       (instr-text (format nil "~A ~A ~A" string1 string1 string2))
+       (n-chars-instr-pane-text (length instr-text))
+       (instr-pane-width-pixels)
+       (pixels/char)
+       )
+    ;;set the instance FONT-SIZE and BOLD
+    (setf *instr-pane-font-size font-size
+          *simple-input-instr-boldp bold-p)
+     ;;make simple-text-input-frame
+    (setf frame-inst (make-instance 'simple-text-input-frame))
+
+    ;;SSS FIX GO-FRAME-BUTTON LATER
+    (with-slots (column-layout title-pane  instr-pane text-input-pane 
+                               quest-pane  go-fr-button ) 
+        frame-inst
+      (setf (capi:layout-description column-layout)
+            (list title-pane  instr-pane quest-pane
+                  text-input-pane  go-fr-button)) ;; terminate-button na-none-button ))
+    (capi:display frame-inst)
+      (capi:apply-in-pane-process instr-pane
+                                  #'(setf capi:rich-text-pane-text) 
+                                  instr-text instr-pane )
+     (setf instr-pane-width-pixels  (capi::pane-width instr-pane)
+           pixels/char (float (/ instr-pane-width-pixels n-chars-instr-pane-text)))                            
+      ;;end with slots
+      )
+      ;;reset global vars to original
+      (setf *instr-pane-font-size orig-font-size
+            *simple-input-instr-boldp orig-bold-p)
+      (values pixels/char instr-pane-width-pixels n-chars-instr-pane-text instr-text  *instr-pane-font-size *simple-input-instr-boldp)
+      ;;end let, test-font-pixels/char
+      ))
+;;TEST
+;; (setf *instr-pane-font-size 12 *simple-input-instr-boldp nil)
+;; (test-font-pixels/char  14 T :string2 "a" )
+;; works= 10.363636  570 55 "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz a" 12 NIL
+;; (test-font-pixels/char  14 NIL :string2 "abcdefg" )
+;;works= 9.344262  570  61  "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefg"  12 NIL
+;; (test-font-pixels/char  12 T :string2 "abcdefghijkl" )  ;; works= 8.636364  570 66 "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijkl" 12 NIL
+;; (test-font-pixels/char  12 NIL :string2 "abcdefghijklmnopqrst" )
+;;works= 7.7027025  570  74  "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrst"  12 NIL
+;; (test-font-pixels/char  11 T :string2 "abcdefghijklmnopqrstuv" ) 
+;; works= 7.5  570   76  "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuv"  12 NIL
+;; (test-font-pixels/char  11 NIL :string2 "abcdefghijklmnopqrstuvwxyz abcdef" ) 
+;; 6.551724  570 87 "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdef" 12 NIL
+;; (test-font-pixels/char  10 T :string2 "abcdefghijklmnopqrstuv") 
+;; NOTE: same as font-size 11 = 7.5 570 76 "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuv" 12 NIL
+;; (test-font-pixels/char  10 nil :string2 "abcdefghijklmnopqrstuvwxyz abcdef") 
+;; works= 6.551724 570  87  "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdef"  12 NIL ;;same as 11pt
 
 
 
 
 ;;FORMAT-STRING-LIST
-;;
+;;2020 modified to eval objects 
 ;;ddd
 (defun format-string-list (string-list &key stream (line-width 100)  
                                        (add-newlines 0) add-top-lines add-bottom-lines 
+                                       add-pre-to-all add-post-to-all
                                        (justify-type :left ) (left-margin-spaces 0) 
+                                       (ignore-strings '("" " " "  " "   "))
                                        (remove-pre-spaces-on-first-str-p T)
-                                       remove-pre-spaces-on-all-strs-p)
-  "In U-tstring.lisp, takes list of text and creates one formated string.ADD-NEWLINES adds add-newlines newlines between strings. RETURNS (values all-string-text  n-strings. justify-type :center, :left, :right. Should use LINE-WIDTH if justify. RETURNS the formated string.  If stream, sends string to stream first. LEFT-MARGIN-SPACES adds that many spaces to left of each line."
+                                       remove-pre-spaces-on-all-strs-p (eval-bound-symbols-p T))
+  "In U-tstring.lisp, INPUT:  list of items (can be string, symbol (if boundp & eval-bound-symbols-p, evals), list, EVALS FORMAT lists, and creates ONE formated string.ADD-NEWLINES adds add-newlines newlines between strings. RETURNS (values all-string-text  n-strings. justify-type :center, :left, :right. Should use LINE-WIDTH if justify. RETURNS the formated string.  If stream, sends string to stream first. LEFT-MARGIN-SPACES adds that many spaces to left of each line."
   (let
       ((all-strings-text "")
        (new-string)
@@ -3502,38 +4432,65 @@ delete-list actively deletes all its items from the new-word-list (default is NI
        (n 0)
        )  
     (loop
-     for string in string-list
+     for item in string-list
      do
-     (incf n)
-     ;;remove string initial spaces?
-     (when (or remove-pre-spaces-on-all-strs-p
-               (and remove-pre-spaces-on-first-str-p (= n 1)))
-       (setf string (my-delete-first-spaces string)))
+     (let*
+         ((len-str 0)
+          (string)
+          )
+       (unless (member item ignore-strings :test 'equal)
+         ;;IF EVAL ITEM FIRST
+         (cond
+          ((stringp item)
+           (setf string item))
+          ((and (symbolp item) eval-bound-symbols-p (boundp item))
+           (setf string (eval item)))
+          ((listp item)
+           (cond
+            ((equal (car item) 'format)
+             (setf string (eval item)))
+            (t (setf string item))))
+          (t (setf string (format nil "~A" item))))
+         (when (stringp string)
+           (setf len-str (length string)))
+         (incf n)
+         ;;remove string initial spaces?
+         (when (or remove-pre-spaces-on-all-strs-p
+                   (and remove-pre-spaces-on-first-str-p (= n 1)))
+           (setf string (my-delete-first-spaces string)))
+         ;;add-pre-to-all and/or add-post-to-all
+         (when add-pre-to-all
+           (setf string (format nil "~A~A" add-pre-to-all string)))
+         (when add-post-to-all
+           (setf string (format nil "~A~A"  string add-post-to-all)))
 
-     ;;1-JUSTIFY EACH LINE or not
-     (cond
-      ((equal justify-type :center)
-       (setf new-string (format nil "~V<~;~A~A~;~;~>~V%"  
-                                line-width left-margin-str string add-newlines)))
-      ((equal justify-type :left)
-       (cond
-        ((and (= n 1)(=  left-margin-spaces 0))
-         (setf new-string (format nil "~V<~A~A~;~;~>~V%" 
-                                     line-width ""  string add-newlines)))
-        (t  (setf new-string (format nil "~V<~A~A~;~;~>~V%" 
-                                     line-width left-margin-str string add-newlines))))
-       )
-      ((equal justify-type :right)
-       (setf new-string (format nil "~V<~A~A~>~V%"
-                                line-width left-margin-str string add-newlines)))
-      ;; (format nil "~V<~A~>~V%" 50  "this test string" 0)
-      (t  (setf new-string (format nil "~A~A" left-margin-str string))))
+         ;;1-JUSTIFY EACH LINE or not
+         (cond
+          ((equal justify-type :center)
+           (setf new-string
+             (car    (center-text (list string) line-width 
+                              :left-margin-pix (* left-margin-spaces 5)
+                              :add-post-lines-n  add-newlines))))
+          ((equal justify-type :left)
+           (cond
+            ((and (= n 1)(=  left-margin-spaces 0))
+             (setf new-string (format nil "~A~V%"
+                                      string add-newlines)))
+            (t  (setf new-string (format nil "~V<~A~A~;~;~>~V%" 
+                                         line-width left-margin-str string add-newlines))))
+           )
+          ((equal justify-type :right)
+           (setf new-string (format nil "~V<~A~A~>~V%"
+                                    line-width left-margin-str string add-newlines)))
+          ;; (format nil "~V<~A~>~V%" 50  "this test string" 0)
+          (t  (setf new-string (format nil "~A~A" left-margin-str string))))
+         ;;(break "after justify")
 
-     ;;add the string to a new-strings-list (justified or not)
-     (setf new-strings-list (append new-strings-list (list new-string)))
-     ;;end loop
-     )
-
+         ;;add the string to a new-strings-list (justified or not)
+         (setf new-strings-list (append new-strings-list (list new-string)))
+         ;;end let,unless,loop
+         )))
+    ;;(break "new-strings-list")
     ;;ADD LINES AT TOP OR BOTTOM
     (if add-top-lines
         (setf new-strings-list
@@ -3546,11 +4503,20 @@ delete-list actively deletes all its items from the new-word-list (default is NI
     ;;(format nil "~V%"  3 )
     (if stream
         (format stream "~{~A~}" new-strings-list))
-
     (setf  all-strings-text (format nil "~{~A~}" new-strings-list))
     ;;end format-string-list
     ))
-;;test
+;;TEST
+;; (format-string-list  (list "THIS IS THE TITLE")  :add-top-lines 0 :add-newlines 0 :justify-type :center   :line-width  (- *fr-visible-min-width 80)   :left-margin-spaces 0) ;; *title-text-left-margin-spaces)
+;; (format-string-list '("THIS IS A TITLE") :line-width 80 :justify-type :center :add-newlines 1)
+;; (format-string-list '("THIS IS A TITLE" "second-string  here") :line-width 70 :justify-type :center :add-newlines 1 :add-pre-to-all "Pre:" :add-post-to-all "POST")
+;; works=
+;;"                                                THIS IS THE TITLE"                    
+;; (setf  teststr222  "evaled symbol string")
+;;  (format-string-list '("THIS IS TEST"  teststr222 (format nil "~% rest of  ~A" 'test)))
+#|works= "THIS IS TEST                                                                      evaled symbol string
+ rest of  TEST                                                                                    " |#
+;;older
 ;;  (format-string-list (list "this one" "1 3 5 7" "final one") :line-width 1)
 ;;  works = "this one1 3 5 7final one" 3
 ;; remove initial spaces on first
@@ -3576,18 +4542,94 @@ final one"
 ;;  (format-string-list (list "this one" "1 3 5 7" "final one") :add-newlines 2 :justify-type :left)
 
 
-;;center-text
+
+
+;;ESTIMATE-STRING-PIXELS
+;;2020
+;;ALSO, COMPARE TO SEE HOW WELL FORMAT or PARAGRAPH (in rich-text-pane) CENTERS text.
+#|
+NOTE: IN MOST FRAMES, USE  :PARAGRAPH-FORMAT INSTEAD in CAPI:RICH-TEXT-PANE
+    :character-format  (list ;; :face *instr-pane-font-face   :size  *instr-pane-font-size   :color *instr-pane-font-color  :bold nil :italic nil :underline nil )
+    :PARAGRAPH-FORMAT '(:ALIGNMENT :CENTER  ;; :LEFT :RIGHT
+                         :start-indent 20  :offset-indent 20  ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs :tab-stops  '(5 10 15 20)  :numbering nil 
+                        ;;OR :bullet, :arabic, :lowercase,:uppercase, :lower-roman or :upper-roman. )
+;; STRATEGIES FOR ESTIMATING PIXELES/CHAR
+;;STRATEGY 1:  CAPI::ELEMENT-FONT-WIDTH.  One strategy would be to set line widths in NUM-CHARS which fall within a safe number of pixels for the pane. Tho should be close or centering looks funny.
+;;NOTE:   (CAPI::ELEMENT-FONT-WIDTH ELEMENT) should work AFTER creating a pane.  Could create the pane, measure with this, then use that fixed number to help with estimates made BEFORE the pane creation. (Since reuse same panes many times).
+;;STRATEGY 2: CREATE PANE of known pixel width and count max chars using alphabet, etc.  Used this strategy below with MAKE-QUESTION-FRAME 14 bold & 12 regular default font.
+  q-title was "LINKS TO OTHER NODES" in font size 14, bold, def style.
+  *temp-instr=  "abcdefghijklmnopqrstuvwxyz" in font size 12, not bold, def style.
+  *temp-instr2=  "abcdefgh"   
+  USED MAKE-QUESTION-FRAME :SINGLE-TEXT below to run test.
+  Inside frame (text area) width was 880 pixels.
+  REPLACE make-text-input-frame with following:
+        (make-text-input-frame (format nil "~A ~A ~A ~A" q-title q-title q-title q-title)
+                               (format nil "~A ~A ~A ~A ~A ~A" *temp-instr *temp-instr *temp-instr *temp-instr  *temp-instr2 *temp-instr2) 
+                               quest-text-formated text-input-box1-instrs   text-input-box2-instrs 'FRAME-CSQ    :num-input-boxes num-input-boxes   :pane1-title csq-frame-pane1-title    :pane2-title csq-frame-pane2-title )
+;;TO CALCULATE PIXELS PER CHAR:
+;;1. FOR  TITLE PANE: q-title=20chars+space x 63 + (20 - 5) = 78 TITLE PANE CHARS font 14 bold, default style 78  PER 880 PIXELS = 
+    (float 880/78) = 11.282051 PIXELS/CHAR
+;;2. FOR INSTR PANE: *temp-instr= 26+space X 4= 108 + (9 x 2)= 18 = 126 INSTR PANE CHARS font 12 NOT-bold, default style PER 880 PIXELS = 
+    (float 880/126) = 6.984127 PIXELS/CHAR|#
 ;;
+;;ESTIMATE-STRING-PIXELS (see above strategy)
+;;2020
 ;;ddd
-(defun center-text (string line-width &key stream)
-  "Approx centers text in line of stream with width of line-width"
-  (format stream "~V<~;~A~;~;~>" line-width string)
-  )
-;;(center-text "center this text" 72)
+(defun estimate-string-pixels (string &key  (font-size 12) bold-p (font-style 'default)
+                                      (my-font-name '12-nonbold) (default-pix/char 7.0) )
+  "U-tstring. Can't find exact pixels/font-char until AFTER display using CAPI::ELEMENT-FONT-WIDTH;  therefore use this to estimate pixels/font-char BEFORE creating strings (esp :center justification).  RETURNS: (values  n-string-pixels-est n-chars pixels/char-est)   INPUT: So far only have values for 14, bold, default and 12,null bold, default  (used in make-question-frame for title and instructions/questions/etc.   Defined FONT NAMES= (14-bold, 14-nonbold, 12-bold, 12-nonbold, 111-bold, 11-nonbold, 10-bold, 10-nonbold)"
+  (let*
+      ((pixels/char-est)
+       (n-chars (length string))
+       (n-string-pixels-est)
+       )
+    ;;FIND PIXELS/CHAR
+    (cond
+     ;;Title 14, bold, default
+     ((or (equal my-font-name '14-bold) 
+          (and (equal font-size 14) bold-p (equal font-style 'default)))
+            (setf pixels/char-est 11.282051)) ;;10.363636 for simple-input-frame instr-pane
+     ((or (equal my-font-name '14-nonbold) 
+          (and (equal font-size 14) (null bold-p) (equal font-style 'default)))
+            (setf pixels/char-est  9.344262 ))
+     ((or (equal my-font-name '12-bold) 
+          (and (equal font-size 12) bold-p (equal font-style 'default)))
+            (setf pixels/char-est 6.984127))
+     ((or (equal my-font-name '12-nonbold) 
+          (and (equal font-size 12) (null bold-p) (equal font-style 'default)))
+      (setf pixels/char-est 7.7027025 ))
+     ((or (equal my-font-name '11-bold) 
+          (and (equal font-size 11) bold-p (equal font-style 'default)))
+            (setf pixels/char-est 7.5))
+     ((or (equal my-font-name '11-nonbold) 
+          (and (equal font-size 11) (null bold-p) (equal font-style 'default)))
+            (setf pixels/char-est 6.551724))
+     ((or (equal my-font-name '10-bold) 
+          (and (equal font-size 10) bold-p (equal font-style 'default)))
+            (setf pixels/char-est 7.5))
+     ((or (equal my-font-name '10-nonbold) 
+          (and (equal font-size 10) (null bold-p) (equal font-style 'default)))
+            (setf pixels/char-est 6.551724)) ;;yes, same as 11 pt
+    (t nil))
+    ;;FIND N-STRING-PIXELS-EST
+    (cond
+     (pixels/char-est
+      (setf n-string-pixels-est  (convert-to-integer (* n-chars pixels/char-est))))
+     (default-pix/char
+      (setf n-string-pixels-est  (convert-to-integer (* n-chars default-pix/char))))
+      (t nil))
+
+    (values  n-string-pixels-est n-chars pixels/char-est)
+    ;;end let, estimate-string-pixels
+    ))
+;;TEST
+;; (estimate-string-pixels "this is a test string")
+;; works= 146  21  6.984127 for make-question-frame
+;;  161 21 7.7027025 for simple-input-text-frame
 
 
 
-;;check-string-number-range
+;;CHECK-STRING-NUMBER-RANGE
 ;;
 ;;ddd
 (defun check-string-number-range (num-string lo-num hi-num)
@@ -3823,6 +4865,7 @@ final one"
        (newnum-p T)  
        ;;WHERE IS THIS IN BREAK VAR LIST??
        (str-loc-n)
+       (match-n-list)
        )
     (cond
      ((not (stringp object))
@@ -4165,19 +5208,29 @@ final one"
 ;;
 ;;added 2016-04
 ;;ddd
-(defun make-condensed-sym (string &key (min-length 3) (max-length 9)
+(defun make-condensed-sym (string &key (min-length 3) (max-length 12)
                                      (extra-chars "xxxxxxxxxxxx") (if-exists-change-p T)
-                                     (set-to-value-p T)(set-to-value nil))
-  "In U-Tstring,  makes a shorter string attempting based upon  main word or words in string. RETURNS (values newsym newstr similar-sym set-to-value)  similar-sym is the first sym it tried to use."
+                                     (if-null-string-abort-p T)
+                                     (set-to-value-p T)(set-to-value nil) (word-separator "")
+                                     cond-words-p (min-word-len 3)         
+                                     (phrase-min 8) (phr-word-max 5))
+  "In U-Tstring,  makes a shorter string attempting based upon  main word or words in string. When word-separator, makes it a separator betw words.
+  When cond-words-p, condenses each word using min-word-len & phr-word-max.
+  When min-word-len, omits words too short.
+  RETURNS: (values newsym newstr similar-sym set-to-value)  similar-sym is the first sym it tried to use."
   (let
       ((newsym)
        (newstr)
        (similar-sym)
        )
     (setf newstr (make-condensed-string string :min-length min-length
-                                        :max-length max-length
-                                        :extra-chars extra-chars))
-    ;;make new symbol
+                                        :word-separator word-separator
+                                        :max-length max-length :extra-chars extra-chars
+                                        :cond-words-p cond-words-p :min-word-len min-word-len
+                                        :if-nil-return-nil-p if-null-string-abort-p
+                                        :phrase-min phrase-min :phr-word-max phr-word-max))       
+    (unless (and (null newstr) if-null-string-abort-p)
+    ;;MAKE NEW SYMBOL
     (setf newsym (my-make-symbol newstr))
     ;;if exists, change it
     (when (boundp newsym)
@@ -4186,15 +5239,13 @@ final one"
             newsym (my-make-symbol newstr))
       ;;end when
       )
-
-    ;;set to set-to-value ?
+    ;;SET TO SET-TO-VALUE ?
     (when (and set-to-value-p 
                (null (boundp newsym)))
       (set newsym set-to-value))
-
     (values newsym newstr similar-sym set-to-value)
-    ;;end let, make-condensed-sym
-    ))
+    ;;end when, let, make-condensed-sym
+    )))
 ;;TEST
 ;;  (make-condensed-sym "very funny")
 ;; (make-condensed-sym "a little old")
@@ -4207,7 +5258,18 @@ final one"
 ;;CL-USER 139 > (make-condensed-sym "very funny") = VERYFUNNY8 "  veryfunny8"  VERYFUNNY  NIL
 ;;CL-USER 140 > VERYFUNNY (THIS LIST)
 ;;end test
+;; ;;  (make-condensed-sym "smarter than my mother")
+;; works= SMARTERTHANMOTHER  "smarterthanmother" NIL NIL
+;; ALSO: SMARTERTHANMOTHER = NIL
 
+;;  (make-condensed-sym "")    :if-null-string-abort-p T) = NIL
+;;  (make-condensed-sym NIL)    :if-null-string-abort-p T) = NIL
+;;  (make-condensed-sym "" :if-null-string-abort-p NIL) 
+;; works = XXX  "xxx" NIL NIL
+;; ALSO  XXX= NIL
+;;  (make-condensed-sym NIL :if-null-string-abort-p NIL) = NIL
+;; works= XXX8  "xxx8"  XXX  NIL
+;; ALSO  XXX8= NIL
 
 
 
@@ -4215,55 +5277,116 @@ final one"
 ;;
 ;;added 2016-04
 ;;ddd
-(defun make-condensed-string (string &key (min-length 3) (max-length 11)
-                                     (extra-chars "xxxxxxxxxxxx")) 
-  "In U-Tstring,  makes a shorter string attempting based upon  main word or words in string"
-  (let
+(defun make-condensed-string (string &key (min-length 3) (max-length 14)
+                                     (min-word-len 3) (if-nil-return-nil-p T)
+                                     (extra-chars "xxxxxxxxxxxx") (word-separator "")
+                                     cond-words-p
+                                     (phrase-min 3) (phr-word-max 5))
+  "In U-Tstring,  makes a shorter string attempting based upon  main word or words in string. When word-separator, makes it a separator betw words.
+  When cond-words-p, condenses each word using min-word-len & phr-word-max.
+  When min-word-len, omits words too short.
+  When word-separator= \"\" runs words together, if NIL, leaves a space.
+  RETURNS newstr"
+  (unless (and (or (equal string "")(null string)) if-nil-return-nil-p)
+  (let*
       ((newstr "")
+      (newstr-len 0) 
        (words)
        (rest)
        (dif)
+       (str-len (length string))
+      ;; (phrase-min (car long-phrase-words-spec))
+       ;;(phr-str-max (second long-phrase-words-spec))
+       (set-max-word-p (and cond-words-p
+                            ;;not needed (< phrase-min str-len)
+                            (> str-len max-length)))
        )
     (cond
-     ((<=  (length string)  min-length)
+     ;;STRING < MIN-LENGTH
+     ((and min-length (< str-len min-length ))
+         (setf dif (- min-length str-len))
+        (setf newstr (format nil "~A~A" string (subseq extra-chars 0 dif)))
+        )
+     ;;STRING <  MAX-LENGTH, KEEP AS IS if unll word-separator
+     ((and (<=  str-len  max-length) (null word-separator))
       (setf newstr string))
-     (t
-    (multiple-value-setq (words rest)
-        (divide-string-to-all-tokens string))
-    (loop
-     for word in words
-     do
-     (cond
-      ((and (<=  (length newstr) max-length)
-            (> (length word) 2))
-       (setf newstr (format nil "~A~A" newstr word)))
-      ((>= (length newstr) max-length)
-       (return)))
-     ;;end loop
-     )
-
-     ;;Adjust lengths?
-     (cond
-      ((> (length newstr) max-length)
-       (setf newstr (subseq newstr 0 max-length)))
-      ;;if min-length nil or if > min, don't add anything
-      ((and min-length
-            (< (setf dif (- (length newstr) min-length))  0))
-       (setf newstr (format nil "~A~A" newstr (subseq extra-chars 0 (abs dif)))))
-      (t nil))
-     ;;end clause
-     )
-     (t nil))
-
-     newstr
-     ;;end let, make-condensed-string
+     ;;STRING > MAX-LENGTH SO SHORTEN BY CUTOFF OR BY SHORTER WORDS
+        ;;cond-words-p  (phrase-min 8) (phr-word-min 3)(phr-word-max 5))
+     (T
+      (multiple-value-setq (words rest)
+          (divide-string-to-all-tokens string))
+      (loop
+       for word in words
+       do
+       (let*
+           ((word-len (length word))
+            )
+         (setf  newstr-len (length newstr))
+       (cond
+        ;;string < max-length, condense by remove spacesl only
+        ((< str-len max-length) NIL)         
+        ;;newstr less= max AND word > min-word, proceed
+        ((and (<= newstr-len  max-length)
+              (>= word-len min-word-len))
+         ;;set-max-word-p AND word > nax, shorten word
+         (when (and set-max-word-p (> word-len phr-word-max))
+           (setf word (subseq word 0 phr-word-max))))
+        (t nil))
+         ;;incl word-separator or not in newstr
+         (cond
+          ((or (equal newstr "")(null word-separator))
+           (setf newstr (format nil "~A~A" newstr word)))
+          (word-separator
+           (setf newstr (format nil "~A~A~A" newstr word-separator word))
+           )
+          (t nil ))
+        (when (>= newstr-len max-length)
+         (return))
+       ;;end let,loop
+       ))
+     ;;end clause, cond
      ))
+      ;;Adjust lengths?
+      (setf newstr-len (length newstr))
+      (cond
+       ((> newstr-len max-length)
+        (setf newstr (subseq newstr 0 max-length)))
+       ;;if min-length nil or if > min, don't add anything
+       ((and min-length (< newstr-len min-length ))
+         (setf dif (- min-length newstr-len))
+        (setf newstr (format nil "~A~A" newstr (subseq extra-chars 0 dif)))
+        )
+       (t nil))
+     newstr
+     ;;end let,unless, make-condensed-string
+     )))
 ;;TEST
 ;;  (make-condensed-string "very funny") 
 ;;  (make-condensed-string "a little older")   = "littleold"
 ;;  (make-condensed-string  "smart") = "smart"
 ;;  (make-condensed-string  "b")     
-
+;;  (make-condensed-string  "b in this place now")   = "thisplacenow"
+;; ;;  (make-condensed-string "helper")
+;; ;;  
+;;2019 added features
+;;  (make-condensed-string  "go to school") = "gotoschool"
+;; (make-condensed-string  ""  :if-nil-return-nil-p NIL) = "xxx"
+;; (make-condensed-string  nil  :if-nil-return-nil-p NIL) = "xxx"
+;; (make-condensed-string  "")  :if-nil-return-nil-p T) = NIL
+;; (make-condensed-string  nil ) :if-nil-return-nil-p T) = NIL
+;; (make-condensed-string "this is a supercalaf string"  :word-separator "-" :
+;; works = "this-superc"
+;;
+;; max-length longer
+;; (make-condensed-string "this is a supercalaf string"  :word-separator "-" :cond-words-p T) = "this-super-strin"
+;; (make-condensed-string "this is a supercalaf string"  :WORD-SEPARATOR NIL :cond-words-p T)  = "thissuperstrin"
+;; (make-condensed-string "this is a supercalaf string"  :WORD-SEPARATOR NIL :cond-words-p T :MAX-LENGTH 20 :PHR-WORD-MAX 7)
+;; works= "thissupercastring"
+;; (make-condensed-string "this is a supercalaf string"  :WORD-SEPARATOR "-" :cond-words-p T :MAX-LENGTH 20 :PHR-WORD-MAX 7)
+;; works= "this-superca-string"
+;; (make-condensed-STRING "a little new") = "littlenew"
+;; STRING TOO SHORT (< min-length = 3)
+;; (make-condensed-STRING "2s") = "2sx"
 
 
 
@@ -4295,6 +5418,32 @@ final one"
 ;;CL-USER 9 > XXX2 = ""
 
 
+
+;;REMOVE-OUTSIDE-STRING-DBL-QUOTES
+;;2020
+;;ddd
+(defun remove-outside-string-dbl-quotes (string &key (begin-p T)(end-p T)
+                                                add-backslash-p  (delete-chars '(#\space)))
+  "U-tstring--uses read Eg from \"\"F:\\ \" to \"F: \"--removes \\ after F:
+  add-backslash-p to return  \"F:/\" Use CLEAN-PATH-STR too? "
+  (let*
+      ((new-str) ;;(my-delete-first-spaces (my-delete-last-spaces string :delete-others '(#\")) :delete-others '(#\")))))
+       )
+    (when end-p
+      (setf new-str (my-delete-last-spaces string :delete-others '(#\"))))
+    (when begin-p
+      (setf new-str (my-delete-first-spaces new-str  :delete-others '(#\"))))
+    (when add-backslash-p
+      (setf new-str (format nil "~A~A" new-str "/")))
+    (when delete-chars
+      (setf new-str (delete-chars new-str delete-chars)))
+    new-str
+  ;;end let, remove-outside-string-dbl-quotes
+  ))
+;;TEST
+;; (remove-outside-string-dbl-quotes " \"F:\\ \" ")
+;; works= "F:\\"
+;; note:  (clean-path-str " \"F:\\ \" " :remove-extra-quotes-p T) =  "F:/"
 
 
 
@@ -4436,10 +5585,11 @@ final one"
 
 
 ;;CONVERT-LIST-ITEMS-TO-STRING
-;;2018
+;;2018, 2019 added separator
 ;;ddd
-(defun convert-list-items-to-string (list &key (exclude-nil-items-p t))
-  "In   RETURNS    INPUT:  "
+(defun convert-list-items-to-string (list &key (exclude-nil-items-p t)
+                                          (separator " "))
+  "In   RETURNS new-string  INPUT: a list."
   (let
       ((n-items 0)
        (new-string "")
@@ -4454,7 +5604,7 @@ final one"
       ((equal item (car list))
        (incf n-items)
        (setf new-string (format nil "~A"  item)))
-      (t (setf new-string (format nil "~A ~A" new-string item))
+      (t (setf new-string (format nil "~A~A~A" new-string separator item))
                 (incf n-items)))
      ;;end let,loop
      ))
@@ -4464,9 +5614,47 @@ final one"
 ;;TEST
 ;;  (convert-list-items-to-string '(this "that" NIL  88))
 ;; works= "THIS that 88"  3
+;; 2019 ;;  (convert-list-items-to-string '(this "that" NIL  88) :separator ".")
+;; works= "THIS.that.88"  3
+;; NOT exclude NIL
 ;;  (convert-list-items-to-string '(this "that" NIL  88) :exclude-nil-items-p NIL)
 ;; works= "THIS that NIL 88" 4
+;; EXCLUDE NIL
+;;  (convert-list-items-to-string '(this "that" NIL  88)) = "THIS that 88"  3
 
+
+;;CONVERT-LIST-ITEMS-TO-STRINGS
+;;2018, 2019 added separator
+;;ddd
+(defun convert-list-items-to-strings (list &key (exclude-nil-items-p t)
+                                          (separator " "))
+  "In RETURNS list of strings.  INPUT: If not a list, makes item into list."
+  (let
+      ((string-list)
+       (n-items 0)
+       )
+    (unless (listp list)
+      (setf list (list list)))
+      (loop
+       for item in list
+       do
+       (cond
+        ((and exclude-nil-items-p (null item))
+         NIL)
+        ((stringp item)
+         (setf string-list (append string-list (list item)))
+         (incf n-items))
+        (T
+         (setf string-list (append string-list (list (format nil "~A" item))))
+         (incf n-items)))
+       ;;end loop
+       )
+     (values string-list n-items)
+    ;;end let, convert-list-items-to-strings
+    ))
+;;TEST
+;; (convert-list-items-to-strings '(a 22 (this) "what" (a b c) now))
+;; works= ("A" "22" "(THIS)" "what" "(A B C)" "NOW") 6
 
 
 
@@ -4479,6 +5667,7 @@ final one"
   (let
       ((text-outlist)
        (n-list) 
+       (text)
        )
     (cond
      ((listp textlist)
@@ -4557,6 +5746,99 @@ final one"
 ;; works= ("this list" "A")  2
 ;; ;; (process-text-list '("this list"))
 
+
+
+
+;;MODIFY-STRINGS
+;;2020
+;;ddd
+(defun modify-strings (strings  &key  pre post)
+  "U-tstring   RETURNS new-strings "
+  (let*
+      ((new-strings)
+       )
+    (loop
+     for str in strings
+     do
+       (when pre
+         (setf str (format nil "~A~A" pre str)))
+       (when post
+         (setf str  (format nil "~A~A"  str post)))
+     (setf new-strings (append new-strings (list str)))
+     ;;end let,loop
+     )
+  new-strings
+    ;;end let, modify-strings
+    ))
+;;TEST
+;; (modify-strings  '("str1" "str2") :pre "pre" :post "post")
+
+
+
+;;FORMAT-APPEND-2-STRING
+;;2020
+;;ddd
+(defun format-append-2-string (item1 item2 &key if-list-use-S-p
+                                     not-stringp1 not-stringp2 
+                              (separator " ") (nil1 "")(nil2 "")  use-all-As-p use-all-Ss-p)
+  "U-tstring  RETURNS: a string of 2 items--used ~S if string, ~A if not. If strings INSIDE of list, PRINTS NON-STRING (though caps right): "
+  (let*
+      ((textout)    
+       (stringp1 (stringp item1))
+       (stringp2 (stringp item2))
+       (nilp1 (equal item1 nil1))
+       (nilp2 (equal item2 nil2))
+       )
+  (cond
+   (use-all-As-p
+     (setf textout (format nil "~A~A~A" item1 separator item2)))
+   (use-all-Ss-p
+    (setf textout (format nil "~S-A-S" item1 separator item2)))
+   (T
+    ;;If list, process as ~S?
+    (when (and (listp item1) if-list-use-S-p)
+      (setf stringp1 T))
+    (when (and (listp item1) if-list-use-S-p)
+      (setf stringp2 T))
+    ;;over-ride other settings?
+    (when not-stringp1
+      (setf stringp1 NIL))
+    (when not-stringp2
+      (setf stringp2 NIL))
+    ;;to append a mixed string (eg long first part) to string, 
+    (cond
+     ((and nilp1 stringp2)
+      (setf textout (format nil "~S"  item2)))
+     ((and stringp1 nilp2 )
+      (setf textout (format nil "~S"  item1)))
+     ((and nilp1 (null stringp2))
+      (setf textout (format nil "~A"  item2)))
+     ((and (null stringp1) nilp2 )
+      (setf textout (format nil "~A"  item1)))
+     ((and stringp1 stringp2) 
+      (setf textout (format nil "~S~A~S" item1 separator item2)))
+     ((and (null stringp1)(null stringp2))
+      (setf textout (format nil "~A~A~A" item1 separator item2)))
+     ((and  stringp1 (null stringp2))
+      (setf textout (format nil "~S~A~A" item1 separator item2)))
+     ((and (null stringp1) stringp2)
+      (setf textout (format nil "~A~A~S" item1 separator item2)))
+     (T (setf textout (format nil "~A~A~A" item1 separator item2))))
+    ;;end T,cond
+    ))
+    textout
+    ;;end let, format-append-2-string
+    ))
+;;TEST
+;; (format-append-2-string '("this")  '(that) :if-list-use-S-p T)
+;;works= "(\"this\") (THAT)"
+;;doesn't work on strings inside lists
+;; (format-append-2-string '("this")  '(that)) = "(this) (THAT)"
+;; If string inside of list, prints non-string (though caps right):
+;; (format-append-2-string '("this")  '(that)) = "(this) (THAT)" 
+;; ==> (format-append-2-string  "this" 'that) = "\"this\" THAT"
+;; ;; (format-append-2 '("this")  '(that) :use-all-As-p T) = "(this) (THAT)"
+;; 
 
 
 
@@ -4755,7 +6037,7 @@ If x is a character, then a string containing that one character is returned.
 ;
 ;   (list "TSTRING--ADDS RIGHT MARGINS AT NEAR SPACE TOO")
 ;   (let* 
-;	 ((pre-string 
+;	 ((prestring 
 ;	    (make-string  left-margin-spaces  :initial-element #\space ))
 ;	 ;;(string-stream (make-string-input-stream string))
 ;	 (line-string)
@@ -4803,7 +6085,7 @@ If x is a character, then a string containing that one character is returned.
 ;	))
 ;
 ;
-;	(setf line-string (format nil "~A~A" pre-string line-string))
+;	(setf line-string (format nil "~A~A" prestrying line-string))
 ;
 ;;;  (print `(end-place ,end-place line-string ,line-string rest-string ,rest-string))
 ;
@@ -5617,7 +6899,7 @@ If x is a character, then a string containing that one character is returned.
 (defun make-new-dim-symbol-types (symbol-spec-lists
                                     &key make-sublists-for-each-dim-p
                                     (set-global-vars-p T)  (return-flat-lists-p T)
-                                    (nest-indicator-string "To") nested-inner-list-size)
+                                    (path-indicator-string "To") nested-inner-list-size)
  "In U-tstring.  Returns new sequences of root, begin-str,dim-element,end-str for each value of dim-element from begin-n to n-dim-elements. RETURNS (values new-symbol-type-list  new-symbols-type-list-of-lists new-symbol-type-spec-list-of-lists  new-root-list   new-symbol-type-symbol-string-list-of-lists all-new-sym-names-list).  INPUTS:  For SYMBOL-SPEC-LISTS, EACH symbol-spec-list= (ROOT all-dims-spec-list). ALL-DIMS-SPEC-LIST= (sublist1 sublist2 etc).  Each dim sublist =  (n-elements begin-n/or/cur-dim-n  dim-incr  begin-str end-str. Eg. (\"root\" '((4 1 1 \"C\" \"F\")(3 1 1 \"C\" \"F\"))).
 KEYS: If set-global-vars-p, sets global * versions of all return vars.  If return-flat-lists-p, then returns unnested lists instead of nested ones. NOTE: Nested-lists are nested by all Dim1 items together.  Use function resort-nested-lists for 2-level/2-dim nested lists with all Dim2 items in same list."
  (when set-global-vars-p
@@ -5666,16 +6948,16 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
        ;;all-dims-spec-list=  ((3 1 1"")(1 3 1  "-")(1 1 1 "-"  ) (3  1 1  "To" )(1 1 1   "-")(1 2 1 "-"))
        ;;dimspecs= (3 1 1"")  or (1 3 1  "-") or  (3  1 1  "To" )
 
-      ;;If nest-indicator-string, find nested-inner-list-size
-     (when nest-indicator-string
+      ;;If path-indicator-string, find nested-inner-list-size
+     (when path-indicator-string
        (dolist (dimspecs all-dims-spec-list)
          (incf dimspecs-n) ;;first = 1
          (cond 
           ;;if  "To" is begin-str, uses N of same dimspecs
-          ((string-equal (fourth dimspecs) nest-indicator-string)
+          ((string-equal (fourth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car dimspecs)))
           ;;if  "To" is end-str, uses N of NEXT dimspecs
-          ((string-equal (fifth dimspecs) nest-indicator-string)
+          ((string-equal (fifth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car (nth dimspecs-n dimspecs))))   ;;next list      
         (t  NIL ))  ;;was (setf nested-inner-list-size nil)))
        ;;end  dolist,when
@@ -5949,7 +7231,7 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
 #|(defun make-new-dim-symbol-types (symbol-spec-lists
                                     &key make-sublists-for-each-dim-p
                                     (set-global-vars-p T)  (return-flat-lists-p T)
-                                    (nest-indicator-string "To") nested-inner-list-size)
+                                    (path-indicator-string "To") nested-inner-list-size)
  "In U-tstring.  Returns new sequences of root, begin-str,dim-element,end-str for each value of dim-element from begin-n to n-dim-elements. RETURNS (values new-symbol-type-list  new-symbols-type-list-of-lists new-symbol-type-spec-list-of-lists  new-root-list   new-symbol-type-symbol-string-list-of-lists all-new-sym-names-list).  INPUTS:  For SYMBOL-SPEC-LISTS, EACH symbol-spec-list= (ROOT all-dims-spec-list). ALL-DIMS-SPEC-LIST= (sublist1 sublist2 etc).  Each dim sublist =  (n-elements begin-n/or/cur-dim-n  dim-incr  begin-str end-str. Eg. (\"root\" '((4 1 1 \"C\" \"F\")(3 1 1 \"C\" \"F\"))).
 KEYS: If set-global-vars-p, sets global * versions of all return vars.  If return-flat-lists-p, then returns unnested lists instead of nested ones. NOTE: Nested-lists are nested by all Dim1 items together.  Use function resort-nested-lists for 2-level/2-dim nested lists with all Dim2 items in same list."
  (when set-global-vars-p
@@ -5997,16 +7279,16 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
        ;;all-dims-spec-list=  ((3 1 1"")(1 3 1  "-")(1 1 1 "-"  ) (3  1 1  "To" )(1 1 1   "-")(1 2 1 "-"))
        ;;dimspecs= (3 1 1"")  or (1 3 1  "-") or  (3  1 1  "To" )
 
-      ;;If nest-indicator-string, find nested-inner-list-size
-     (when nest-indicator-string
+      ;;If path-indicator-string, find nested-inner-list-size
+     (when path-indicator-string
        (dolist (dimspecs all-dims-spec-list)
          (incf dimspecs-n) ;;first = 1
          (cond 
           ;;if  "To" is begin-str, uses N of same dimspecs
-          ((string-equal (fourth dimspecs) nest-indicator-string)
+          ((string-equal (fourth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car dimspecs)))
           ;;if  "To" is end-str, uses N of NEXT dimspecs
-          ((string-equal (fifth dimspecs) nest-indicator-string)
+          ((string-equal (fifth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car (nth dimspecs-n dimspecs))))   ;;next list      
         (t  NIL ))  ;;was (setf nested-inner-list-size nil)))
        ;;end  dolist,when

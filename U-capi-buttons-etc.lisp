@@ -887,7 +887,7 @@ parent-layout-name= ~A~% interface-name= ~A~%button-text-list= ~A~%  button-data
 ;;  (slot-value *mb-testinst 'selected-item-datalist)
 ;; works = ("This is a longer answer to test the width of the text answer panel" 100 1 #<CAPI:RADIO-BUTTON "1" 24AE2F5B> T)
 ;;
-(defun testvb ()
+#|(defun testvb ()
   (setf out nil)
   (capi:define-interface test-my-vertical-button-panel ()
     ;;sets the button/item data values
@@ -985,7 +985,7 @@ parent-layout-name= ~A~% interface-name= ~A~%button-text-list= ~A~%  button-data
                                  )
   (capi:display (setf *mb-testinst (make-instance 'test-my-vertical-button-panel)))  
   ;;end test function
-  )
+  )|#
 ;;TEST
 ;;*button-row-layout-1-selected-values-list
 ;;  ;;  SSS DEBUGGING WHY CALLBACK NOT SETTING THE SLOT VALUE

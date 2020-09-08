@@ -41,4 +41,4 @@
              day (nth (1- month) *month-names*) year))))
 
 ;;; Meta Shift D invokes the command
-(editor:bind-key "Insert Date" #\meta-d)
+;;causes error (editor:bind-key "Insert Date" #\meta-d)

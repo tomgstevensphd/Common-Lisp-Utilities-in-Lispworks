@@ -1,5 +1,9 @@
 ;;*********************** U-symbol-trees.lisp ***********************
 ;;
+;;THESE ARE USED PRIMARILY FOR GROSSBERG ART NETWORK MODELS
+;;
+;;THEY MAY BE USEFUL OR ADAPTED TO CS MODELS
+;;
 ;; THESE FUNCTIONS MAKE A SYMBOL TREE FOR EACH SYMBOL
 ;;
 ;; SEE U-ART, AND U-TSTRING FOR FUNCTIONS USED BY THIS FILE
@@ -908,7 +912,9 @@ TESTXI-3-3 = ("TestX" (I 3 3) NIL NIL (TESTX1-3-3 TESTX2-3-3 TESTX3-3-3))
                                          parse-dimlist1-p (parse-dimlist2-p T)
                                          subdims1-done-p subdims2-done-p
                                          all-node-tree-syms)
-       "U-ART. Makes one symbol tree from one sym-spec-list. Sets each symbol to a list (root dimlist nil subsym-list).  RETURNS  (values all-node-tree-syms path-syms-by-levels new-subsyms new-subsym-strs  subdims1-done-p subdims2-done-p parse-dimlist1-p parse-dimlist2-p ). Either makes node symbols eg XI-L-F, X9-2-3 OR path symbols eg. WUPI-L-FTOI-L-F  WUP7-3-2TO4-1-3. Sets  higher level symbols' value to subsyms. Works well on both node & path trees (uses make-path-dimsym-tree). NO LONGER USED FOR PATHS."
+       "U-ART. Makes one symbol tree from one sym-spec-list. Sets each symbol to a list (artsym dimlist nil subsym-list).  RETURNS  (values all-artsyms path-syms-by-levels new-subsyms new-subsym-strs  subdims1-done-p subdims2-done-p parse-dimlist1-p parse-dimlist2-p ). Either makes node symbols eg X.F.L.I, X9-2-3 OR path symbols eg. WUP.F.L.ITO.F.L.I  WUP7-3-2TO4-1-3. Sets  higher level symbols' value to subsyms. Works well on both node & path trees (uses make-path-dimsym-tree). NO LONGER USED FOR PATHS.
+
+OLD: Makes one symbol tree from one sym-spec-list. Sets each symbol to a list (root dimlist nil subsym-list).  RETURNS  (values all-node-tree-syms path-syms-by-levels new-subsyms new-subsym-strs  subdims1-done-p subdims2-done-p parse-dimlist1-p parse-dimlist2-p ). Either makes node symbols eg X.F.L.I, X9-2-3 OR path symbols eg. WUP.F.L.ITO.F.L.I  WUP7-3-2TO4-1-3. Sets  higher level symbols' value to subsyms. Works well on both node & path trees (uses make-path-dimsym-tree). NO LONGER USED FOR PATHS."
    (let*
        ((orig-root (car sym-spec-list))
          (dim-spec-lists (second sym-spec-list))
@@ -1483,8 +1489,8 @@ Y = ("Y" ((9 1 1) (3 1 1) (3 1 1)) Y-POINTS NIL ((YI-L-F)))
 
 
 
-
-
+;;REPLACED BY make-new-dimsymbol-types IN U-CS-ART
+;; 
 ;;MAKE-NEW-DIM-SYMBOL-TYPES
 ;; MOSTLY REPLACED BY MAKE-SYMBOL-TREES -not used in art
 ;;
@@ -1493,10 +1499,10 @@ Y = ("Y" ((9 1 1) (3 1 1) (3 1 1)) Y-POINTS NIL ((YI-L-F)))
 ;;   ON THE SYMBOLS AND SYMVALS LISTS CREATED
 ;;
 ;;ddd
-(defun make-new-dim-symbol-types (symbol-spec-lists
+#|(defun make-new-dim-symbol-types (symbol-spec-lists
                                     &key make-sublists-for-each-dim-p
                                     (set-global-vars-p T)  (return-flat-lists-p T)
-                                    (nest-indicator-string "To") nested-inner-list-size)
+                                    (path-indicator-string "To") nested-inner-list-size)
  "In U-symbol-trees.  Returns new sequences of root, begin-str,dim-element,end-str for each value of dim-element from begin-n to n-dim-elements. RETURNS (values new-symbol-type-list  new-symbols-type-list-of-lists   new-symbol-type-spec-list-of-lists  new-root-list   new-symbol-type-symbol-string-list-of-lists  all-new-sym-names-flat-list  all-new-symbols-flat-list all-new-symdim-lists-flat-list).  INPUTS:  For SYMBOL-SPEC-LISTS, EACH symbol-spec-list= (ROOT all-dims-spec-list). ALL-DIMS-SPEC-LIST= (sublist1 sublist2 etc).  Each dim sublist =  (n-elements begin-n/or/cur-dim-n  dim-incr  begin-str end-str. Eg. (\"root\" '((4 1 1 \"C\" \"F\")(3 1 1 \"C\" \"F\"))).
 KEYS: If set-global-vars-p, sets global * versions of all return vars.  If return-flat-lists-p, then returns unnested lists instead of nested ones. NOTE: Nested-lists are nested by all Dim1 items together.  Use function resort-nested-lists for 2-level/2-dim nested lists with all Dim2 items in same list."
  (when set-global-vars-p
@@ -1552,16 +1558,16 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
        ;;all-dims-spec-list=  ((3 1 1"")(1 3 1  "-")(1 1 1 "-"  ) (3  1 1  "To" )(1 1 1   "-")(1 2 1 "-"))
        ;;dimspecs= (3 1 1"")  or (1 3 1  "-") or  (3  1 1  "To" )
 
-      ;;If nest-indicator-string, find nested-inner-list-size
-     (when nest-indicator-string
+      ;;If path-indicator-string, find nested-inner-list-size
+     (when path-indicator-string
        (dolist (dimspecs all-dims-spec-list)
          (incf dimspecs-n) ;;first = 1
          (cond 
           ;;if  "To" is begin-str, uses N of same dimspecs
-          ((string-equal (fourth dimspecs) nest-indicator-string)
+          ((string-equal (fourth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car dimspecs)))
           ;;if  "To" is end-str, uses N of NEXT dimspecs
-          ((string-equal (fifth dimspecs) nest-indicator-string)
+          ((string-equal (fifth dimspecs) path-indicator-string)
            (setf nested-inner-list-size (car (nth dimspecs-n dimspecs))))   ;;next list      
         (t  NIL ))  ;;was (setf nested-inner-list-size nil)))
        ;;end  dolist,when
@@ -1654,7 +1660,7 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
             new-symbol-type-symbol-string-list-of-lists  all-new-sym-names-flat-list 
             all-new-symbols-flat-list all-new-symdim-lists-flat-list)
     ;;end let, make-new-dim-symbol-types
-    ))
+    ))|#
 ;;TEST
 ;;FOR  OLD ART3--------------------------------------------------------------
 ;; (make-new-dim-symbol-types  `(("Wup" ((3 1 1"")(1 3 1  "-")(1 1 1 "-"  ) (3  1 1  "To" )(1 1 1   "-")(1 2 1 "-")))))
@@ -1717,10 +1723,14 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
 
 ;; IS THERE A WAY TO CATCH AND THROW THESE LISTS INSTEAD OF USING GLOBAL VARS???
 
+
+;;REPLACED BY make-multi-dim-symbol-list IN U-CS-ART?
+;;
 ;;MAKE-MULTI-DIM-SEQUENCE-LIST
 ;;
 ;;ddd
-(defun make-multi-dim-sequence-list  (root all-dims-spec-list &key (recurse-flag 99)
+#|(defun make-multi-dim-sequence-list  (root all-dims-spec-list 
+                                           &key (recurse-flag 99)
                                            (unbind-global-vars-p T) (return-flat-lists-p T) 
                                            (node-separator "To") (set-root-to-flat-list-p T))
  "In U-symbol-trees. Unless make-list-p, returns a list of new sequences of root,begin-str,dim-element,end-str for each value of dim-element from begin-n to n-dim-elements. RETURNS (values  new-seq-nested-lists  new-symbol-nested-lists new-dim-list-nested-lists new-seq-flat-list new-symbol-flat-list new-symdim-flat-list).  ALL-DIMS-SPEC-LIST (sublist1 sublist2 etc).  Each dim sublist =  (n-elements begin-n/or/cur-dim-n  dim-incr  begin-str end-str. If unbind-global-vars-p, then unbinds global vars needed to return right lists. If return-flat-lists-p, then returns unnested lists instead of nested ones. NOTE: Nested-lists are nested by all Dim1 items together.  Use function resort-nested-lists for 2-level/2-dim nested lists with all Dim2 items in same list."
@@ -1804,7 +1814,7 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
    
    (values  new-seq-nested-lists  new-symbol-nested-lists new-dim-list-nested-lists new-seq-flat-list new-symbol-flat-list new-symdim-flat-list)
    ;;end when, make-multi-dim-sequence-list
-   ))
+   ))|#
 ;;TEST
 ;; (make-multi-dim-sequence-list "Wup" `((5 1 1"")(1 3 1  "-")(1 1 1 "-"  ) (3 1 1  "To" )(1 1 1   "-")(1 2 1 "-")) :return-flat-lists-p T)
 ;;ALSO WUP= (WUP1-3-1TO1-1-2 WUP1-3-1TO2-1-2 WUP1-3-1TO3-1-2 WUP2-3-1TO1-1-2 WUP2-3-1TO2-1-2 WUP2-3-1TO3-1-2 WUP3-3-1TO1-1-2 WUP3-3-1TO2-1-2 WUP3-3-1TO3-1-2 WUP4-3-1TO1-1-2 WUP4-3-1TO2-1-2 WUP4-3-1TO3-1-2 WUP5-3-1TO1-1-2 WUP5-3-1TO2-1-2 WUP5-3-1TO3-1-2)
@@ -1831,10 +1841,11 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
 ;;((("testC1FC1F" (3 1 1 "C" "F")) ("testC1FC2F" (3 2 1 "C" "F")) ("testC1FC3F" (3 3 1 "C" "F"))) (("testC2FC1F" (3 1 1 "C" "F")) ("testC2FC2F" (3 2 1 "C" "F")) ("testC2FC3F" (3 3 1 "C" "F"))) (("testC3FC1F" (3 1 1 "C" "F")) ("testC3FC2F" (3 2 1 "C" "F")) ("testC3FC3F" (3 3 1 "C" "F"))) (("testC4FC1F" (3 1 1 "C" "F")) ("testC4FC2F" (3 2 1 "C" "F")) ("testC4FC3F" (3 3 1 "C" "F"))))
 ;;
 ;;
+;; REPLACED BY make-multi-dim-symbol-list1 IN U-CS-ART?
 ;;MAKE-MULTI-DIM-SEQUENCE-LIST1
 ;;
 ;;ddd
-(defun make-multi-dim-sequence-list1  (root all-dims-spec-list &key  (recurse-flag 99)
+#|(defun make-multi-dim-sequence-list1  (root all-dims-spec-list &key  (recurse-flag 99)
                                             return-flat-lists-p)
   "In  Unless make-list-p, returns a list of new sequences of root,begin-str,dim-element,end-str for each value of dim-element (either begin-n to n-dim-elements or from the list dim-elements-list. RETURNS (values new-seq-nested-lists new-symbol-nested-lists new-dim-list-nested-lists ).  ALL-DIMS-SPEC-LIST (sublist1 sublist2 etc).  Each dim sublist =  (n-elements cur-dim-n  dim-incr  begin-str end-str)."
   (let*
@@ -1931,7 +1942,7 @@ KEYS: If set-global-vars-p, sets global * versions of all return vars.  If retur
        (values *new-seq-nested-lists   *new-symbol-nested-lists   *new-dim-list-nested-lists  *new-seq-nested-lists recurse-flag) ;;  *new-seq-flat-list)
        
        ;;end let, make-multi-dim-sequence-list
-       ))
+       ))|#
 ;;TEST
 ;;  MUST TEST ABOVE MAIN FUNCTION , make-multi-dim-sequence-list
 

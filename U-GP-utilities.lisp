@@ -1,6 +1,11 @@
 ;;************************* U-GP-utilities.lisp ***************************
 
-
+;;IMPORTANT TESTING NOTE:
+;; TO TEST ANY GRAPHICS/CAPI  FUNCS in an output pane:
+;; ===>    1. GO TO:  (CL-USER::PATHS-EXAMPLE)
+;;              2. MODIFY MY-TEST-PANE
+;;              3. LOAD/COMPILE=>H-GP-Drawing.lisp
+;;              4. RUN (CL-USER::PATHS-EXAMPLE)
 
 
 ;;GLOBAL VARS
@@ -8,6 +13,35 @@
 (defparameter *all-temp-my-draw-curve-points nil)
 
 
+
+;;MY-DRAW-LINE
+;;2020
+;;ddd
+(defun my-draw-line (pane x1 y1 x2 y2 &key (color :black) 
+                        (thickness 1.0)  dashed)
+  ;;Note: NOTE: In draw-line dash & line-end-style DO NOT WORK
+    "U-GP-utilities, adds color to gp:draw-line"
+  (gp:with-graphics-state (pane :foreground color) 
+    (gp:draw-line pane x1 y1 x2 y2 :thickness thickness :dashed dashed))
+  ;;end my-draw-line
+  )
+
+
+;;MY-DRAW-CIRCLE
+;;2020
+;;ddd
+(defun my-draw-circle (pane x y radius &key (color :black) filled
+                        (thickness 1.0)  dashed dash )
+  ;;Note: NOTE: In draw-line dash & line-end-style DO NOT WORK"
+  "U-GP-utilities, adds color to gp:draw-line.  :solid (default), :tiled,
+:opaque-stippled or :stippled"
+  (gp:with-graphics-state (pane :foreground color)
+    (gp:draw-circle pane x y radius :thickness thickness :filled filled
+                  :dashed dashed))
+  ;;end my-draw-line
+  )
+;;TEST
+;;(gp:draw-circle x y radius :thickness 1.0)
 
 
 ;;MY-DRAW-PATHS
@@ -114,7 +148,7 @@
     ;;DISPLAY INST FIRST
       (capi:display inst)
     (with-slots (output-pane-1) inst   
-      ;;SSSSSS START HERE, LEARN HOW TO USE TRANSFORM, 
+      ;;SSSSS START HERE, LEARN HOW TO USE TRANSFORM, 
       ;;  AND MAYBE MAKE A FUNCTION TO USE IT EASIER--SO NUMS MAKE SENSE
       
      ;;NO-CHANGE X & Y
@@ -164,7 +198,8 @@
 ;;2018
 ;;ddd
 (defun draw-node-path (port  x1 y1 x2 y2 
-                            &key  f-args1 f-args2 (rev-a T) ( rev-b T) (draw-rectangle-p T)(rev-rect-p T)
+                            &key  f-args1 f-args2 (rev-a T) ( rev-b T) (draw-rectangle-p T)
+                            (rev-rect-p T)
                             (info-loc 0.5)(info-type :string) (ht 15)(length 15) (color :blue)
                             (dash '(4 2 4 4))(dashed T) (thickness 2) (font-weight :normal)(font-size 7)
                             (rect-ht/line 12))
@@ -246,15 +281,16 @@
 (defun my-draw-string (pane string x y  &rest args 
                             &key transform (start 0) end block  
                             (family "Times New Roman")
-                            (weight :normal)(size 9))
-  "U-GP-utilities.lisp"
+                            (weight :normal)(size 9) (color :black))
+  "U-GP-utilities Includes color."
   (let*
       ((font (gp:find-best-font pane 
-                                 (gp:make-font-description 
-                                    :family family :weight weight  :size size)))
+                                (gp:make-font-description 
+                                 :family family :weight weight  :size size)))
        )
-    (gp:draw-string pane string x y :font font)
-    ))
+    (gp:with-graphics-state (pane :foreground color)
+      (gp:draw-string pane string x y :font font)
+      )))
 
 
 
@@ -295,7 +331,83 @@
 ;;MY-DRAW-ARROW
 ;;2018
 ;;ddd
-(defun my-draw-arrow (port x y angle  &key (len-side 7)(len-cent 6)(ab 7)(thickness 2) color
+(defun my-draw-arrow (port x1 y1 x2 y2  &key (len-side 7) (len-end 5)
+                           len-cent  (thickness 2) color dashed omit-center-line-p
+                           (multiplier 5.0))
+  "U-GP-utilities.   RETURNS    INPUT: ANGLE= angle of arrow, 0 to 360 deg, A-B= dist from a to b.  len-end is dist betw center-line and side-end."
+  ;;a= top,R line, b= bot,L line, c= center line
+  (when (not (= multiplier 1.0))
+    (setf len-side (* multiplier len-side)
+          len-cent (* multiplier len-cent)))
+  (let*
+      ((a)
+       (b)
+       (c)
+       (front-pt (list x1 y1))
+       (end-pt (list x2 y2))                 
+       (top-pts (list x1a y1a x1 y1))
+       (center-pts (list x1b y1b  x1 y1))
+       (bot-pts (list x1c y1c  x1 y1))
+       
+      ;;For a triangle with sides parallel x,y axes and hyp= xy-c
+     ;;Rangle at pt
+     #|(angle-rads (calc-angle-to-radians angle))
+       (sin-angle (sin angle-rads))
+       (cos-angle (cos angle-rads))
+       (x3-xy (* sin-angle len-cent))
+       (x3-c (* cos-angle len-cent))
+       (xc (- x x3-c  ))
+       (yc (- y x3-xy ))
+       ;;find b x,y coordinates
+       ;;half-xyangle is half of angle between 2 arrow sides
+       (sin-half-xyangle (/ (* 0.5 ab ) len-side))
+       (half-xyangle-rads (asin sin-half-xyangle))
+       (half-xyangle (calc-radians-to-angle half-xyangle-rads))
+       ;;angle-xyb= angle betw line parallel to yaxis to xy-b line
+       (angle-xyb (- angle half-xyangle))
+       (angle-xyb-rads (calc-radians-to-angle angle-xyb))
+       (sin-angle-xyb (sin angle-xyb-rads))
+       (cos-angle-xyb (cos angle-xyb-rads))
+       (xb-x (* sin-angle-xyb len-side)) 
+       (yb-y (* cos-angle-xyb len-side))
+       (xb (- x xb-x))
+       (yb (- y yb-y))
+       ;;find a x,y coords
+       ;;find 3 angles = 180degs:                  
+       ;;1-angle-b1,angle betw b-side and line parallel yaxis; 
+       (angle-b1 (- 90 angle-xyb))
+       ;; 2-angle-b2,angle betw ab and xyb; 
+       (angle-b2 (- 90 half-xyangle))
+       ;;  3-angle-b3 angle betw ab and line parallel xaxis.
+       (angle-bx2 (- 180 (+ angle-b1 angle-b2)))
+       (sin-angle-bx2 (sin angle-bx2))
+       (cos-angle-bx2 (cos angle-bx2))
+|#       (xa-xb (* cos-angle-bx2 ab))
+       (ya-yb (* sin-angle-bx2 ab))
+       (xa (- xb xa-xb))
+       (ya (+ yb ya-yb))
+       )
+
+    ;;DRAW THE LINES
+    ;;a
+    (gp:draw-line port x y xa ya :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
+    ;;b
+    (gp:draw-line port x y xb yb :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
+    ;;c
+     (gp:draw-line port x y xc yc :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
+    
+    ;;SSSSS TEST THIS FOR ONE SIDE OF ARROW, THEN FINISH
+    (values xa ya xb yb xc yc )
+    ;;end let, my-draw-arrow
+    ))
+
+
+#| OLD-DOESN'T WORK WELL
+(defun my-draw-arrow (port x y angle  &key (len-side 7)(len-cent 6)(ab 7)
+                           (thickness 2) color dashed
                            (multiplier 5.0))
   "U-GP-utilities.   RETURNS    INPUT: ANGLE= angle of arrow, 0 to 360 deg, A-B= dist from a to b."
   ;;a= top,R line, b= bot,L line, c= center line
@@ -347,19 +459,19 @@
 
     ;;DRAW THE LINES
     ;;a
-#|    (gp:draw-line port x y xa ya :foreground :red  ;;:dash dash :dashed dashed 
-                         :thickness thickness)
+    (gp:draw-line port x y xa ya :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
     ;;b
-    (gp:draw-line port x y xb yb :foreground :green  ;;:dash dash :dashed dashed 
-                         :thickness thickness)|#
+    (gp:draw-line port x y xb yb :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
     ;;c
-     (gp:draw-line port x y xc yc :foreground :black  ;;:dash dash :dashed dashed 
-                         :thickness thickness)
+     (gp:draw-line port x y xc yc :foreground color :dashed dashed 
+                         :thickness thickness) ;;  ;;:dash dash 
     
     ;;SSSSS TEST THIS FOR ONE SIDE OF ARROW, THEN FINISH
     (values xa ya xb yb xc yc )
     ;;end let, my-draw-arrow
-    ))
+    ))|#
 ;;TEST
 ;;  (my-draw-arrow port 100 100 30)
 

@@ -2,10 +2,13 @@
 
 ;;GLOBAL VARIABLES
 (defparameter  *max-open-file-lines 1000 "Max lines can open for editing from a pre-existing file using open-file-to-edit-callback")
+;;For My-select-dirs/files
+(defparameter  *temp-all-files-selected NIL "For My-select-dirs/files")
+(defparameter  *temp-all-dirs-selected NIL "For My-select-dirs/files")
 
 
 
-;;EXPLORE-DIRS-INTERFACE
+;;EXPLORE-DIRS-INTERFACERICH
 ;;
 ;;ORIGINAL--INCLUDES LIST-PANELS
 ;;ddd
@@ -35,6 +38,11 @@
     :accessor drive-symlists
     :initform NIL
     :documentation  "drive-symlists")
+   (all-drive-symlists
+    :initarg :all-drive-symlists
+    :accessor all-drive-symlists
+    :initform NIL
+    :documentation  "all-drive-symlists")
    (drive-names
     :initarg :drive-names
     :accessor drive-names
@@ -144,211 +152,246 @@
    )
   ;;EDITOR-PANES
   (:panes
-   (editor-pane-1
+   (dir-info-editor-pane
     capi:rich-text-pane
-    :visible-max-height 20
-    )
-   (name-title-pane
-    capi:title-pane
-    :title "   1. DRIVE NAME: "
-    :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
-    :visible-max-height 20
-    :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+    :visible-max-height 100
     )
    (path-title-pane
     capi:title-pane
-    :title "         >>  FULL PATH of SELECTED ITEM:  "
+    :title " >> SELECTED ITEM: 1. DIR PATH: "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
-    ) 
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (name-title-pane
+    capi:title-pane
+    :title " 2. DRIVE NAME: "
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
+    )   
    (location-title-pane
     capi:title-pane
-    :title "          3. DRIVE LOCATION:  "
+    :title " 3. DRIVE LOCATION: "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
     )
-   (host-title-pane
+   #|(host-title-pane
     capi:title-pane
-    :title "          4. DRIVE LETTER:  "
+    :title " 4. DRIVE LETTER: "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
-    )
+                                    :size 11  :weight :bold  :slant :roman)
+    )|#
    (type-title-pane
     capi:title-pane
-    :title "   5. DRIVE TYPE:  "
+    :title " 4. DRIVE TYPE:  "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (drive-size-title-pane
+    capi:title-pane
+    :title " 5. DRIVE SIZE: "
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
     )
    (brand-title-pane
     capi:title-pane
-    :title "          6. DRIVE BRAND:  "
+    :title " 6. BRAND: "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
     )
-   (size-title-pane
+   (n-dirs-title-pane
     capi:title-pane
-    :title "           7. DRIVE SIZE:  "
+    :title "7. N-DIRS:"
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (n-files-title-pane
+    capi:title-pane
+    :title "8.N-FILES:"
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (used-title-pane
+    capi:title-pane
+    :title "9.USED:"
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (free-title-pane
+    capi:title-pane
+    :title "10.FREE:"
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
     )
    (date-title-pane
     capi:title-pane
-    :title "      8. DRIVE DATA DATE:  "
+    :title "11.SCAN DATE:"
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
+    )
+   (serial-title-pane
+    capi:title-pane
+    :title "12.SERIAL-NUM:"
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 11  :weight :bold  :slant :roman)
+    :visible-max-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 11  :weight :bold  :slant :roman)
     )
    (last-leveln-pane
     capi:title-pane
-    :title "            9. LAST-LEVELN: "
-    :title "OTHER:     "
+    :title "13.LAST-LEVELN:"
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
     )
-   (misc-data-title-pane
+   (notes-title-pane
     capi:title-pane
-    :title "OTHER:     "
+    :title "14.NOTES: "
     :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
+                                          :size 11  :weight :bold  :slant :roman)
     :visible-max-height 20
     :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
+                                    :size 11  :weight :bold  :slant :roman)
     )
    (message-pane
     capi:rich-text-pane
-    :visible-max-height 40
+    :visible-max-height 30
     )
    ;; DIR-LIST-PANELS
    (dir-list-panel-1
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Host")(:title "Date")(:title "Size")(:title "Free")(:title "Location"))
+    :columns '((:title "Name")(:title "Path" :adjust :right :gap 15)(:title "Loc" :adjust :right :gap 15)(:title "Type" :adjust :right :gap 15)(:title "Brand" :adjust :right :gap 15)(:title "Date" :adjust :right :gap 15)(:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)(:title "Serial" :adjust :right :gap 15)(:title "N-Dirs" :adjust :right :gap 15)(:title "N-Files" :adjust :right :gap 15)(:title "LastLeveln" :adjust :right :gap 15))
     :items '(("")(""))
+    :callback-type '(:element :data :interface)
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
-    ;; :selection 0
-    ;;  :action-callback 'set-source-callback-1
-    ;; :external-max-width 60
+    ;; :selection 0   
     :SCROLL-IF-NOT-VISIBLE-P T
     )
    (dir-list-panel-2
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free"))
-    :items '(("")("")) ;; '(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
+    :columns '((:title "Path" :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")("")) 
+    :callback-type '(:element :data :interface)
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
-    ;;  :action-callback 'set-source-callback-2
-    :SCROLL-IF-NOT-VISIBLE-P T
+    ;; :selection 0    
+   :SCROLL-IF-NOT-VISIBLE-P T
     )
    (dir-list-panel-3
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
+    :columns '((:title "Path" :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")(""))
+    :callback-type '(:element :data :interface)
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
-    ;;   :action-callback 'set-source-callback-3
-    :SCROLL-IF-NOT-VISIBLE-P T
+    ;; :selection 0
+   :SCROLL-IF-NOT-VISIBLE-P T
     )
    (dir-list-panel-4
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free"))
-    :items '(("")("")) ;;'() ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
+    :columns '((:title "Path" :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")("")) 
+    :callback-type '(:element :data :interface)
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
-    ;;  :action-callback 'set-source-callback-4
+    ;; :selection 0   
     :SCROLL-IF-NOT-VISIBLE-P T
     )
    (dir-list-panel-5
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free"))
-    :items '(("")("")) ;;'() ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
+    :columns '((:title "Path" :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")(""))
+    :callback-type '(:element :data :interface)
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
-    ;;  :action-callback 'set-source-callback-5
-    :SCROLL-IF-NOT-VISIBLE-P T
+    ;; :selection 0    
+   :SCROLL-IF-NOT-VISIBLE-P T
     )
-   (dir-list-panel-6
+#|   (dir-list-panel-6
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    
-    :SCROLL-IF-NOT-VISIBLE-P T
+    :columns '((:title "Name")(:title "Date" :adjust :right :gap 15)(:title "Free-Size"))
+    :items '(("")(""))    
+   ;;  :SCROLL-IF-NOT-VISIBLE-P T
     ;; :selection 0
     :selection-callback 'tomex-list-panel-callback
-    :callback-type  :element
+    :callback-type '(:element :data :interface)
     ;;   :action-callback 'set-source-callback-6
-    )
+    )|#
    (file-list-panel-1
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
+    :columns '((:title "Name")(:title "Path" :adjust :right :gap 15)(:title "Loc" :adjust :right :gap 15)(:title "Type" :adjust :right :gap 15)(:title "Brand" :adjust :right :gap 15)(:title "Date" :adjust :right :gap 15)(:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)(:title "Serial" :adjust :right :gap 15)(:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")(""))
     ;; :selection 0   
     :SCROLL-IF-NOT-VISIBLE-P T
     )
    (file-list-panel-2
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
-    
-    :SCROLL-IF-NOT-VISIBLE-P T
+    :columns '((:title "Path" :adjust :right :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")("")) 
+    ;; :selection 0    
+    ;;   :SCROLL-IF-NOT-VISIBLE-P T
     )
    (file-list-panel-3
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
+    :columns '((:title "Path" :adjust :right :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")(""))
     ;; :selection 0
     )
    (file-list-panel-4
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
-    ;; :selection 0
-    
-    :SCROLL-IF-NOT-VISIBLE-P T
+    :columns '((:title "Path" :adjust :right :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")("")) 
+    ;; :selection 0   
+    ;;  :SCROLL-IF-NOT-VISIBLE-P T
     )
    (file-list-panel-5
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
+    :columns '((:title "Name" :adjust :right :gap 15)(:title "Date" :adjust :right :gap 15) (:title "Size" :adjust :right :gap 15)) 
+    :items '(("")(""))
     ;; :selection 0    
-    :SCROLL-IF-NOT-VISIBLE-P T
+   ;; :SCROLL-IF-NOT-VISIBLE-P T
     )
-   (file-list-panel-6
+#|   (file-list-panel-6
     capi:multi-column-list-panel
-    :columns '((:title "Name")(:title "Size" :adjust :right :gap 15)(:title "Date"))
-    :items '(("")("")) ;;'(("D:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 11111 "2016-11-2") ("E:\\" 2222 "2016-10-2") ( "F:\\"  33333 "2016-11-5"))
+    :columns '((:title "Path" :adjust :right :gap 15)(:title "Name")(:title "Date" :adjust :right :gap 15) (:title "Used" :adjust :right :gap 15) (:title "Free" :adjust :right :gap 15)  (:title "N-Dirs/N-Files" :adjust :right :gap 15))
+    :items '(("")(""))
     ;; :selection 0    
-    :SCROLL-IF-NOT-VISIBLE-P T
-    )
+    ;;  :SCROLL-IF-NOT-VISIBLE-P T
+   ) |#
 
    ;;OUTPUT PANE
    (output-pane-1
@@ -357,7 +400,7 @@
     )
 
    ;;BUTTON PANES
-   (rescan-config-push-button
+   #|(rescan-config-push-button
     capi:push-button
     :text "RE-LIST DRIVES"
     :callback-type :item-interface
@@ -365,7 +408,7 @@
     :max-width t
     :visible-min-height 30
     :max-height t
-    )
+    )|#
    (find-drives-push-button
     capi:push-button
     :text "Find PREVIOUS & NEW Drives"
@@ -385,10 +428,35 @@
     :visible-min-height 30
     :max-height t
     )
-;;edit-drive-file-push-button
-(edit-drive-file-push-button
+   (loc-input-pane 
+    capi:text-input-pane
+    :text "Drive LOCATION"
+    :visible-min-width 30
+    )
+   (type-input-pane 
+    capi:text-input-pane
+    :text "Drive TYPE"
+    :visible-min-width 30
+    )
+   (size-input-pane 
+    capi:text-input-pane
+    :text "Drive SIZE"
+    :visible-min-width 20
+    )
+   (brand-input-pane 
+    capi:text-input-pane
+   :text "Drive BRAND"
+    :visible-min-width 30
+    )
+   (notes-input-pane 
+    capi:text-input-pane
+    :text "NOTES: "
+    :visible-min-width 30
+    )
+  ;;edit-drive-file-push-button
+ (edit-drive-file-push-button
     capi:push-button
-    :text "Edit/View a Drive Info File"
+    :text " REPLACE following DRIVE INFO: "
     :callback-type :item-interface
     :selection-callback 'edit-drive-file-push-button-callback
     :max-width t
@@ -402,25 +470,28 @@
   (:layouts
    (column-layout-1
     capi:column-layout
-    '(editor-pane-1 :SEPARATOR path-title-pane :SEPARATOR drive-data-row-layout1 drive-data-row-layout2  misc-data-title-pane  :SEPARATOR message-pane dir-row-layout  file-row-layout output-pane-1 push-button-row-layout))
+    '(dir-info-editor-pane :SEPARATOR   drive-data-row-layout1 drive-data-row-layout2    :SEPARATOR message-pane dir-row-layout  file-row-layout  push-button-row-layout))  ;;misc-data-title-pane output-pane-1
    ;;row layouts
    (drive-data-row-layout1
     capi:row-layout 
-    '(name-title-pane location-title-pane host-title-pane)  )
+    '(path-title-pane name-title-pane location-title-pane  type-title-pane drive-size-title-pane brand-title-pane)  )
    (drive-data-row-layout2
     capi:row-layout 
-    '( type-title-pane brand-title-pane size-title-pane date-title-pane last-leveln-pane) )
+    '(n-dirs-title-pane n-files-title-pane used-title-pane free-title-pane date-title-pane serial-title-pane last-leveln-pane notes-title-pane ))
+#|   (drive-data-row-layout3
+    capi:row-layout 
+    '())|#
    (dir-row-layout
     capi:row-layout
-    '(dir-list-panel-1 dir-list-panel-2 dir-list-panel-3 dir-list-panel-4 dir-list-panel-5 dir-list-panel-6)
+    '(dir-list-panel-1 dir-list-panel-2 dir-list-panel-3 dir-list-panel-4 dir-list-panel-5) ;; dir-list-panel-6)
     )
    (file-row-layout
     capi:row-layout
-    '(file-list-panel-1 file-list-panel-2 file-list-panel-3 file-list-panel-4 file-list-panel-5 file-list-panel-6)
+    '(file-list-panel-1 file-list-panel-2 file-list-panel-3 file-list-panel-4 file-list-panel-5) ;; file-list-panel-6)
     )
    (push-button-row-layout
     capi:row-layout
-    '( rescan-config-push-button find-drives-push-button save-drive-info-push-button  edit-drive-file-push-button) 
+    '(find-drives-push-button save-drive-info-push-button  edit-drive-file-push-button loc-input-pane type-input-pane size-input-pane brand-input-pane notes-input-pane) ;;rescan-config-push-button
     :visible-min-height 30
     )
    ;;END LAYOUTS
@@ -465,8 +536,10 @@
    ;;end MENUS
    )
   (:default-initargs
+   :x 0 :y 10
    :best-height 800
-   :best-width 1360
+   :best-width 1300
+   :visible-max-width 1300
    :layout 'column-layout-1
    :title *tomex-interface-title
   :internal-border 15
@@ -550,9 +623,18 @@
     :visible-max-height 20
     :visible-max-width 120
     )
+   (path-title-pane
+    capi:title-pane
+    :title "1. Full PATH of SELECTED NEW DRIVE=> "
+    :title-font (gp:make-font-description :family "Times"
+                                          :size 12  :weight :bold  :slant :roman)
+    :visible-min-height 20
+    :font (gp:make-font-description :family "Times"
+                                    :size 12  :weight :bold  :slant :roman)
+    )
    (selected-previous-title-pane2
     capi:title-pane
-    :title "     Previous drive OLD PATH=>  "
+    :title " Previous drive OLD PATH=>  "
     :title-font (gp:make-font-description :family "Times"
                                           :size 12  :weight :bold  :slant :roman)
     :visible-min-height 20
@@ -596,8 +678,8 @@
     :items '(("")(""))
     :title "OR 1B1. May SELECT NEW DRIVE TO SCAN (below) INSTEAD:"
     :selection NIL
-    :callback-type :item-interface
-    :selection-callback 'tomex-new-drive-list-panel1-callback
+    :callback-type '( :item :data :interface)
+    :selection-callback 'tomex-SCAN-drive-list-panel1-callback
     :title-font (gp:make-font-description :family "Times"
                                           :size 12  :weight :bold  :slant :roman)
     :external-max-width 70
@@ -616,15 +698,7 @@
     :visible-max-width 500
     :SCROLL-IF-NOT-VISIBLE-P T
     )
-   (path-title-pane
-    capi:title-pane
-    :title "Full PATH of SELECTED NEW DRIVE=> "
-    :title-font (gp:make-font-description :family "Times"
-                                          :size 12  :weight :bold  :slant :roman)
-    :visible-min-height 20
-    :font (gp:make-font-description :family "Times"
-                                    :size 12  :weight :bold  :slant :roman)
-    )
+   ;;TEXT-INPUT-PANES
    (drive-sym-text-input-pane
     capi:text-input-pane
     :title " 2. TYPE NEW DRIVE NAME HERE:  "
@@ -721,7 +795,7 @@
     capi:push-button
     :text "  SAVE-RESULTS NOW "
     :callback 'save-drive-data-to-files-callback
-    :data "popup-drives"
+    :data "interface-drives"
     :callback-type :data-interface
     )
    (close-push-button
@@ -873,22 +947,27 @@
 
 
 
+
+
 ;;MY-SELECT-DIR
 ;;
 ;;ddd
-(defun my-select-dir (interface message show-text-p &key set-global-var-p  if-does-not-exist  pathname 
+(defun my-select-dir (interface message show-text-p &key set-global-var-p
+                                    if-does-not-exist  pathname continuation
                                     file-package-is-directory pane-args popup-args owner )
   "U-Files-Interface.lisp. (when set-global-var-p (setf *my-select-dir-result dir))"
   (let ((dir)
         )
     (setf dir (capi:prompt-for-directory message :if-does-not-exist if-does-not-exist
-                                         :pathname pathname :file-package-is-directory file-package-is-directory
+                                         :pathname pathname :continuation continuation
+                                         :file-package-is-directory file-package-is-directory
                                           :pane-args pane-args  :popup-args popup-args
                                           :owner owner))
    (if show-text-p (show-text (format nil "dir= ~A~%" dir) 40 t))
 
    (when set-global-var-p
      (setf *my-select-dir-result dir))
+   dir
    ;;end let, my-select-dir
     ))
 ;;TEST
@@ -898,78 +977,156 @@
 
 
 
-;;SELECT-DIR-INTERFACE
+;;SELECT-DIRS/FILES-INTERFACE
+;;2020
 ;;ddd
-(capi:define-interface select-dir-interface ()
+(capi:define-interface select-dirs/files-interface ()
   ((current-selection
     :initarg :current-selection
     :accessor current-selection
     :initform NIL
     :documentation  "Current selection in item list")
-   (selection
-    :initarg :selection
-    :accessor selection
+   (selected-dirs
+    :initarg :selected-dirs
+    :accessor selected-dirs
     :initform NIL
-    :documentation  "Final selection in item list")
-    )
+    :type :list
+    :documentation  "Selected Dirs list")
+   (n-dirs
+    :initarg :n-dirs
+    :accessor n-dirs
+    :initform NIL
+    :type :list
+    :documentation  "Selected Dirs list")
+   (selected-files
+    :initarg :selected-files
+    :accessor selected-files
+    :initform NIL
+    :type :list
+    :documentation  "Selected Dirs list")
+   (n-files
+    :initarg :n-files
+    :accessor n-files
+    :initform NIL
+    :type :list
+    :documentation  "Selected Dirs list")
+   (root-pathname
+    :initarg :root-pathname
+    :accessor root-pathname
+    :initform NIL
+    :documentation  "Root pathname for choice")
+   (message
+    :initarg :message
+    :accessor message
+    :initform "Select Dir or File"
+    :documentation  "message")
+   (select-files-p
+    :initarg :select-files-p
+    :accessor select-files-p
+    :initform NIL
+    :type :boolean
+    :documentation  "select-files-p")
+   (file-operation
+    :initarg :open-files-p
+    :accessor open-files-p
+    :initform :open
+    :documentation  ":open or :save")
+   (file-filter
+    :initarg :file-filter
+    :accessor file-filter
+    :initform NIL
+    :type 'string
+    :documentation  "file-filter")
+   ;;end VALUES
+   )
   (:panes
    (rich-text-pane-1
     capi:rich-text-pane
     :default-background :white
-    :text "Select the Directory or File"
+    :text "SELECT THE DIRECTORY or FILE:
+     ==> Double-Click on 'MORE DIRS' BUTTON to select more Dirs
+     ==> Double-Click on 'MORE FILES' BUTTON to select more Files
+     ==> Double-Click on 'CLOSE' BUTTON to CLOSE the window
+    >>DIRECTORIES saved to *TEMP-ALL-DIRS-SELECTED; 
+    >>FILES saved to *TEMP-ALL-FILES-SELECTED"
     :toolbar-title "Selector"
     :accepts-focus-p t
-    :visible-max-height 40
+    :visible-min-height 100
+    :visible-max-height 110
     :background :yellow
     :font (gp:make-font-description :size 12)
     :foreground :red)
-   (multi-column-list-panel-1
-    capi:multi-column-list-panel
-    :columns '((:title "Drive, Directory, or File NAME"
-                :adjust :left
-                :gap 5
-                :width (character 70)) 
-               (:title "Drive, Directory, or File?"
-                :adjust :left
-                :gap 5
-                :width (character 20))
-               (:title "More Information"
-                :adjust :left
-                :gap 5
-                :width (character 30)))
-               :items '(()) ;; '(("c:\\temp" "Directory" ".....") ("c::\\thisfile.txt" "File" ".....") ("Item" "Three" "....."))
-               :selection 0
-               :accepts-focus-p nil
-               :background :white
-               :font (gp:make-font-description :size 12)
-               :foreground :black
-               ;; FIX THIS LATER?  :internal-border '( t t)
-               :SCROLL-IF-NOT-VISIBLE-P t
-               
-               :visible-border t
-      ;;sss START HERE TO RETURN A VALUE FOR SELECTED FILE-DIR
-             ;;not needed  :selection-callback 'mclp-header-callback
-             ;;not needed :callback-type  :element
-               )
-   (push-button-panel-1
-    capi:push-button-panel
-    :items                 ;;was '("Select ")
-    (list (make-instance 'capi:push-button
-                         :text "Select"
-                         :callback 'select-dir-file-callback
-                         :callback-type :interface))
-    :max-width t
-    :max-height t)
+   (root-pathname-input-pane
+    capi:text-input-pane
+    :title "Root-pathname: If BLANK, use default."
+    :visible-min-width 80
+    )
+   (file-filter-input-pane
+    capi:text-input-pane
+    :title "File filter"
+    :visible-min-width 40
+    )   
+   (dir-list-pane
+    capi:list-panel
+    :items '()
+    :title "Selected Directories"
+    )
+   (file-list-pane
+    capi:list-panel
+    :items '()
+    :title "Selected Files"
+    )
+   (select-file-operation
+    capi:radio-button-panel
+    :items '("OPEN FILES" "SAVE FILES")
+    :title "  OPEN OR SAVE FILES  "
+    :callback-type :data-interface
+    :selection-callback 'open-or-save-file-callback
+    )
+   (select-more-dirs-button
+    capi:push-button
+    :text "   SELECT MORE DIRS   "
+    :data "dirs"
+    :callback-type :data-interface
+    :callback 'select-more-dirs-files-callback
+    )
+   (select-more-files-button
+    capi:push-button
+    :text "   SELECT MORE FILES   "
+    :callback-type :data-interface
+    :data "files"
+    :callback 'select-more-dirs-files-callback
+    )
+   (finished-button
+    capi:push-button
+    :text "  CLOSE THIS WINDOW "
+    :callback-type :interface
+    :callback 'close-interface-callback
+    )
+   ;;end PANES
    )
-  (:layouts
+  (:LAYOUTS
    (column-layout-1
     capi:column-layout
-    '(rich-text-pane-1 multi-column-list-panel-1 :divider push-button-panel-1)
+    '(rich-text-pane-1 :divider root&filter-input-row :divider select-file-operation
+                       :divider dir-list-pane :divider file-list-pane :divider button-row-layout)
     )
-   ;;end layouts
+   (root&filter-input-row
+    capi:row-layout
+    '(root-pathname-input-pane  file-filter-input-pane)
+    )
+   (sel-dir-files-row-layout
+    capi:row-layout
+    '(select-dir-files-button-panel)
+    )
+   (button-row-layout
+    capi:row-layout
+    '(select-more-dirs-button select-more-files-button  finished-button)
+    )
+   ;;end LAYOUTS
    )
-  (:menu-bar menu-1)
-  (:menus
+  ;;(:menu-bar '(drive-data saved-lists settings))
+  #|(:menus
    (drive-data
     "DRIVE DATA"
     ("Find ALL drive DATA"
@@ -998,30 +1155,208 @@
     :callback-type :selection-callback
     :callback 'tomex-settings-callback )
    ;;end menus
-   )
+   )|#
   (:default-initargs
-   :best-height 400
-   :best-width 800
-   :best-x 30
+   :visible-min-height 600
+   :visible-min-width 500
+   :best-x 500
    :best-y 30
    :enabled t
+   :internal-border 15
+   :display-state :never-iconic
    :layout 'column-layout-1
-   :title "Select Directory/Folder"
-   :title-font (gp:make-font-description :size 13)))
+   :title "SELECT DIRECTORY/FOLDER"
+   :title-font (gp:make-font-description :size 13)
+   :background :yellow
+   ;;end select-dirs/files-interface
+   ))
+
+
+(defun make-sel-dirs-interface ()
+  (let*
+      ((inst (make-instance 'select-dirs/files-interface))
+       )
+    
+    (capi:display inst)
+    ))
+;;TEST
+;; (make-sel-dirs-interface)
+
+
+    
+;;MY-SELECT-DIRS/FILES
+;;2020
+;;ddd
+(defun my-select-dirs/files (&key set-global-var-p select-files-p
+                                    (message "SELECT DIRECTORIES. When finished with all click on FINISHED button")
+                                    (select-dir-interface 'select-dirs/files-interface) 
+                                    if-does-not-exist  pathname continuation (max-dirsn 5)
+                                    file-package-is-directory pane-args popup-args owner )
+  "U-Files-Interface.lisp. (when set-global-var-p (setf *my-select-dir-result dir))"
+  (let*
+      ((inst (make-instance 'select-dirs/files-interface))
+       (selected-dirs)
+       (n-dirs)
+       )
+    (with-slots (dir-list-pane) inst
+      (capi:display inst)
+
+      #|(loop
+       for n from 1 to max-dirsn
+       do
+       (let*  ;;HERENOW
+           ((dir)
+            ;;(select-more-p (slot-value inst 'select-more-p))  ;;initially set to T    
+            )
+            (setf selected-dirs (slot-value inst 'selected-dirs))
+         (cond
+          ((and (> n 1) (null select-more-p))
+           ;;FINISH
+           (when set-global-var-p
+             (setf *my-select-dirs/files-result selected-dirs))
+           (return)
+           )
+          (T
+           (setf dir (capi:prompt-for-directory message :if-does-not-exist if-does-not-exist
+                                                :use-file-dialog select-files-p
+                                                :pathname pathname :continuation continuation
+                                                :file-package-is-directory file-package-is-directory
+                                                :pane-args pane-args  :popup-args popup-args
+                                                :owner owner)) ;;no (mp:get-current-process)))
+           (when dir
+             (setf selected-dirs (append selected-dirs (list dir))
+                   n-dirs n
+                   (slot-value inst 'selected-dirs) selected-dirs)
+           ;;(break "set-list-panel-items")
+             (set-list-panel-items  dir-list-pane  selected-dirs  50)
+             (slot-value inst 'select-more-p) NIL)
+             
+           (CAPI:REDISPLAY-INTERFACE INST)
+           ;;give 5 secs to hit the MORE button.
+           ;;end t,cond
+           ))
+         ;;end let,loop   ;;HERENOW
+         ))|#
+      (values selected-dirs n-dirs)
+      ;;end with,let, my-select-dirs/files
+      )))
+;;TEST
+;;   (my-select-dirs/files "TEST MESSAGE" :set-global-var-p T)
+;; works= #P"C:/3-TS/LISP PROJECTS TS/ANDYCARES/A-HELP/"
 
 
 
+
+;;OPEN-OR-SAVE-FILE-CALLBACK
+;;2020
+;;ddd
+(defun open-or-save-file-callback (data interface)
+  (let*
+      ((files-p)
+       )
+    (cond
+     ((my-equal data "OPEN FILES")
+      (setf (slot-value interface 'file-operation) :open))
+     (T (setf (slot-value interface 'file-operation) :save)))
+   ;;end let,open-or-save-file-callback
+  ))
+
+
+
+
+;;SELECT-MORE-DIRS-FILES-CALLBACK
+;;2020
+;;ddd
+(defun select-more-dirs-files-callback (data interface)
+  (with-slots (file-filter-input-pane root-pathname-input-pane) interface
+    (let*
+        ((selected-dirs (slot-value interface 'selected-dirs))
+         (selected-files (slot-value interface 'selected-files))
+         (formated-dirs-str (format-string-list selected-dirs))
+         (select-files-p (when (string-equal data "files") T))
+         (message (slot-value interface 'message))
+         (file-filter (capi:text-input-pane-text  file-filter-input-pane))
+         ;;(slot-value interface 'file-filter))
+         (file-operation (slot-value interface 'file-operation))
+         (root-pathname (capi:text-input-pane-text  root-pathname-input-pane))
+         (files)
+         (n-files)
+         (dir)
+         (n-dirs)
+         )
+      (with-slots (dir-list-pane file-list-pane) interface
+        (cond
+         (select-files-p
+          (setf files (capi:prompt-for-files message :if-does-not-exist :default
+                                              :filter file-filter :operation file-operation
+                                             :pathname root-pathname :continuation NIL
+                                             :file-package-is-directory NIL
+                                             :pane-args NIL  :popup-args NIL
+                                             :owner NIL))
+          (when files
+            (setf selected-files (append selected-files (list files))             
+                  (slot-value interface 'selected-files) selected-files
+                  n-files (list-length selected-files)
+                  (slot-value interface 'n-files) n-files)
+            (set-list-panel-items  file-list-pane  selected-files  50)
+            (setf *temp-all-files-selected selected-files))
+          )
+         (T
+          (setf dir (capi:prompt-for-directory message :if-does-not-exist NIL
+                                               :use-file-dialog NIL
+                                               :pathname root-pathname :continuation NIL
+                                               :file-package-is-directory NIL
+                                               :pane-args NIL  :popup-args NIL
+                                               :owner NIL))
+          (when dir
+            (setf selected-dirs (append selected-dirs (list dir))             
+                  (slot-value interface 'selected-dirs) selected-dirs
+                  n-dirs (list-length selected-dirs)
+                  (slot-value interface 'n-dirs) n-dirs)
+            ;;(break "set-list-panel-items")
+            (set-list-panel-items  dir-list-pane  selected-dirs  50)
+            (setf *temp-all-dirs-selected selected-dirs))
+          ;;end T,cond
+          ))
+
+        (CAPI:REDISPLAY-INTERFACE INTERFACE)
+        #|    (show-text   (format nil "DIRECTORIES:~%~A" formated-dirs-str) 100
+                "ALL SELECTED DIRECTORIES")|#
+        (values selected-dirs selected-files)
+        ;;end with,let,select-more-dirs-files-callback
+        ))))
+
+
+
+
+#|;;ALL-DIRS-SELECTED-CALLBACK
+;;2020
+;;ddd
+(defun all-dirs-selected-callback (data interface)
+  (let*
+      ((selected-dirs (slot-value interface 'selected-dirs))
+       )
+    (setf *temp-all-dirs-selected selected-dirs)
+    (CAPI:REDISPLAY-INTERFACE INTERFACE)
+#|    (show-text   (format nil "DIRECTORIES:~%~A" formated-dirs-str) 100
+                "ALL SELECTED DIRECTORIES")|#
+    selected-dirs
+    ;;end all-dirs-selected-callback
+  ))|#
+
+;;HERENOW
 
 ;;SELECT-DIR-FILE-CALLBACK
 ;;
 ;;ddd
-(defun select-dir-file-callback (interface)
+#|(defun select-dir-file-callback (data interface)
   "In U-file-interfaces, sets instance selection slot-value to '(dir dir-or-file  info), and a global variable *select-dir-file-callback-result to same."
   (let
       ((selected)
+       (select-more
        )
-    (with-slots (multi-column-list-panel-1  selection) interface
-      (setf selected (capi:choice-selected-item multi-column-list-panel-1))
+    (with-slots (select-more-p) interface
+      (when 
 
       (show-text (format nil "Interface= ~A~%SELECTION= ~A" interface selected) 30 t)
 
@@ -1032,13 +1367,7 @@
     ;;end let, select-dir-file-callback
     ))
 
-
-
-
-
-(defun set-selection-value (interface)
-  
-  )
+|#
 
 
 ;;MY-EDITOR-INTERFACE
@@ -1201,7 +1530,7 @@
   "In U-fie-interfaces"
   (let*
       ((path (capi:prompt-for-file "Select file to EDIT/VIEW"))
-       (edited-text (capi:rich-text-pane-text self))                         
+       (edited-text (capi:rich-text-pane-text interface))                         
        (io-stream)
        (line-text)
        (text)
@@ -1242,7 +1571,7 @@
                                           (title-panes  '(name-title-pane path-title-pane
                                                                           location-title-pane
                                                     host-title-pane  type-title-pane  brand-title-pane 
-                                                    size-title-pane
+                                                    drive-size-title-pane
                                                  date-title-pane last-leveln-pane  misc-data-title-pane))
                                           (rich-text-panes '(message-pane))
                                           (dir-list-panes '( dir-list-panel-2 dir-list-panel-3
@@ -1267,7 +1596,7 @@
       (set-rich-text-panes-text-in-process inst rich-text-panes :text " "))
 
     ;;CALC  PANES PAST CURRENT TO RESET
-    (cond
+    #|(cond
      (reset-later-panes-p
       (cond
        ((numberp cur-dir-pane)
@@ -1280,14 +1609,14 @@
              file-list-panes2 (nthcdr cur-n file-list-panes))
       )
      (t (setf dir-list-panes2 dir-list-panes
-              file-list-panes2 file-list-panes)))
+              file-list-panes2 file-list-panes)))|#
 
     ;;RESET THE LIST PANELS TEXT
-    (when dir-list-panes2
+#|    (when dir-list-panes2
       (set-panes-text-in-process inst dir-list-panes2 'capi:collection-items  :text NIL))
     (when file-list-panes2
       (set-panes-text-in-process inst file-list-panes2 'capi:collection-items  :text NIL))
-
+|#
     ;;not capi:collection-items
     ;;end let,reset-explore-dirs-interface-text
     ))

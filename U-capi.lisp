@@ -23,6 +23,9 @@ EXAMPLE|#
 ;;RESULT of above If yes, returns T, if no NIL, if cancel aborts.
 
 
+(defparameter   *MY-PRINT-CHOICE-LIST-MAX-STR-N 50 "Used for MY-PRINT-CHOICE-LIST-ITEMS")
+
+
 
 ;;MAKE-CALLBACK-TO-RUN-FUNCTION
 ;;2018
@@ -140,8 +143,24 @@ EXAMPLE|#
   ))|#
 
 
+;;FOR :PARAGRAPH-FORMAT  (IN capi:rich-text-pane) PANE PARAGRAPHS
+#|      (list :alignment :center  ;; :left :right
+                           ;;no effect?  :start-indent 20
+                            ;;no effect? :offset-indent 20
+                             ;;  :relative-indent 1.0  ;;relative indent for rest of paragraphs
+                             :tab-stops  '(5 10 15 20)
+                             :numbering nil 
+                             ;;OR :bullet, :arabic, :lowercase,:uppercase,
+                             :lower-roman or :upper-roman. )|#
+
+;; '(*font-italic-bold14times *font-italic-bold12times *font-italic-bold10times  *font-title-times20b *font-title-times18b  *font-title-times16b *font-title-times14b-RED *font-title-times12b *font-title-times11b *font-title-times10b *font-text-times12 *font-text-times11 *font-text-times10 *font-text-times9 *font-text-times8 *font-text-times7 *paraformat-center-tab5)
+
+
+
 (defun my-select-font ()
   "In U-capi.lisp"
+  (format T " ************>>> ALL MY DEFINED FONTS BELOW:~% ~A"
+      *my-fonts)
   (CAPI:PROMPT-FOR-FONT "Select Font" )
   )
 
@@ -158,7 +177,7 @@ EXAMPLE|#
        )
     (when color-sym
     (set color-sym new-color))
-    (values new-color new-color-sym)
+    (values new-color color-sym)
     ))
 
 ;;CENTERING PANES AND WINDOWS
@@ -172,13 +191,13 @@ EXAMPLE|#
     (multiple-value-bind (i-left i-top i-width i-height)
         (capi:top-level-interface-geometry interface)
       (declare (ignore i-left i-top))
-      Multiple-value-bind (s-left s-top s-width s-height)
+       (multiple-value-bind (s-left s-top s-width s-height)
       (capi:screen-internal-geometry (capi:element-screen interface))
       (let ((s-center-x(+ s-left (/ s-width 2)))
             (s-center-y (+ s-top (/ s-height 2))))
         (capi:set-top-level-interface-geometry interface
                                                :x (- s-center-x (/ i-width 2))
-                                               :y (- s-center-y (/ i-height 2)))))))
+                                               :y (- s-center-y (/ i-height 2))))))))
 
 
 
@@ -216,50 +235,125 @@ EXAMPLE|#
 ;;SET-RICH-TEXT-PANES-TEXT
 ;;2017
 ;;ddd
-(defun set-rich-text-panes-text (interface pane text)
+(defun set-rich-text-panes-text (interface panes textlist 
+                                           &key (use-apply-in-process-p T))
   "In U-capi, sets text in pane to reset-text. NOT in-process"   
+  (let*
+      ((text-list)
+       )
   (loop
    for pane in panes
    for n from 0 to (list-length panes)
    do
+   (let
+       ((text)
+        )
    (cond
-    (text
-     (setf text1 text))
-    (t 
-     (setf text1 (nth n textlist))))
+    ((stringp textlist)
+     (setf text textlist))
+    ((and (listp textlist)(>= (length textlist) n))
+     (setf text (nth n textlist))))
+
+   (with-slots (pane) interface
+   (cond
+    (use-apply-in-process-p
+     (my-apply-in-pane-process 'capi:rich-text-pane-text text pane interface)
+     )
+    (T
    (eval 
     `(with-slots (quote ,pane) ,interface
        (setf (capi:rich-text-pane-text ,pane) ,text)
-       )
-    ;;end  with, eval
-    ))
-  ;;end loop
+       )))) 
+    ;;end  with, let,loop
+    )))
+  ;;end let, set-rich-text-panes-text
+  ))
+
+
+
+
+
+;;MY-APPLY-IN-LIST-OF-PANES-PROCESS
+;;2020
+;;ddd
+(defun my-apply-in-list-of-panes-process (value-pane-list capi-pane-func interface
+                                              &key  (omit-nil-p T))
+  "U-capi, Sets values in capi panes using apply-in-pane-process.
+   Simplier than apply-in-pane-process"
+  (loop
+   for value-pane in value-pane-list
+   do
+   (let*
+       ((value (car value-pane))
+        (capi-pane (second value-pane))
+        )
+     (my-apply-in-pane-process capi-pane-func value capi-pane interface
+                                             :omit-nil-p omit-nil-p)
+     ;;end let,loop
+     ))
+  ;;end my-apply-in-list-of-panes-process
   )
 
+
+
+;;MY-APPLY-IN-PANE-PROCESS
+;;2020
+;;ddd
+(defun my-apply-in-pane-process (capi-pane-func value capi-pane interface
+                                              &key  (omit-nil-p T))
+  "U-capi, simplier apply-in-pane-process"
+  ;;(break "my-apply-in-pane-process")
+  (unless (and omit-nil-p (null value))
+           (eval `(capi:apply-in-pane-process ,interface
+                                      #'(setf ,capi-pane-func) ,value ,capi-pane))
+           ;;(break "after eval")
+           )
+  ;;end my-apply-in-pane-process
+  )
+
+
+;;EG of ARGS
+;; CAPI:COLLECTION-ITEMS
+;; ((".readyDLNA" "12/31/1969; 05:00 PM") ("0 LW-CUM-dated" "04/10/2020; 07:57 PM") ("1 Copy to MEDIA CENTER" "12/08/2019; 06:16 PM") ("Misc" "10/16/2019; 11:42 AM") ("Movies" "10/16/2019; 11:41 AM") ("Music" "10/16/2019; 01:59 PM") ("TV" "03/09/2020; 09:43 PM"))
+;; #<CAPI:MULTI-COLUMN-LIST-PANEL DIR-LIST-PANEL-2 [2 items] 3C2BCAF7>
+;;#<EXPLORE-DIRS-INTERFACE "TOM'S DIRECTORY EXPLORER--PREVIOUSLY SCANNED DRIVES FOUND" 3C2A6B8B>
 
 
 ;;SET-PANES-TEXT
 ;;2017
 ;;ddd
-(defun set-panes-text (interface pane capi-set-function text)
-  "In U-capi, sets text in pane to reset-text. Eg 'capi:title-pane-text.  NOT IN-PROCESS"   
+(defun set-panes-text (interface panes capi-set-function textlist
+                                 &key (use-my-apply-in-panes-process-p T))
+  "In U-capi, sets text in each pane to nth textlist OR if textlist is a string, all are set to textlist. Can be used to RESET TEXT. Eg 'capi:title-pane-text.  NOT IN-PROCESS"   
   (loop
    for pane in panes
    for n from 0 to (list-length panes)
    do
+   (let
+       ((text)
+        )
    (cond
-    (text
-     (setf text1 text))
+    ((stringp textlist)
+     (setf text textlist))
     (t 
-     (setf text1 (nth n textlist))))
-   (eval 
-    `(with-slots (quote ,pane) ,interface
-       (setf (,capi-set-function  ,pane) ,text)
+     (setf text (nth n textlist))))
+
+   (with-slots (pane ) interface
+     (cond
+      (use-my-apply-in-panes-process-p
+       (my-apply-in-pane-process capi-set-function text pane interface)
        )
-    ;;end  with, eval
-    ))
-  ;;end loop
+      (T 
+       (eval 
+        `(with-slots (quote ,pane) ,interface
+           (setf (,capi-set-function  ,pane) ,text)
+           ))))
+     ;;end with,let,loop
+     )))
+  ;;end set-panes-text
   )
+;;TEST
+;; SSSS FINISH & TEST/DEBUG
 
 
 
@@ -272,6 +366,9 @@ EXAMPLE|#
    for pane in panes
    for n from 0 to (list-length panes)
    do
+   (let
+       ((text1)
+        )
    (cond
     (text
      (setf text1 text))
@@ -284,7 +381,7 @@ EXAMPLE|#
        ;;end  with, eval
        ))
    ;;end loop
-   )
+   ))
   ;;*deftest
   ;;end set-title-panes-text-in-process
   )
@@ -304,6 +401,9 @@ EXAMPLE|#
    for pane in panes
    for n from 0 to (list-length panes)
    do
+   (let
+       ((text1)
+        )
    (cond
     (text
      (setf text1 text))
@@ -316,7 +416,7 @@ EXAMPLE|#
        ;;end  with, eval
        ))
    ;;end loop
-   )
+   ))
   ;;*deftest
   ;;end set-rich-text-panes-text-in-process
   )
@@ -331,12 +431,15 @@ EXAMPLE|#
 ;;SET-PANES-TEXT-IN-PROCESS
 ;;2017
 ;;ddd
-(defun set-panes-text-in-process (interface panes  capi-set-function &key text textlist)
+(defun set-panes-text-in-process (interface panes capi-set-function &key text textlist)
   "In U-capi, sets text in pane to text (if not nil) or nth in textlist.SETS IN PROCESS-after interface created. Eg.  'capi:rich-text-pane-text for rich-text-pane."
   (loop
    for pane in panes
    for n from 0 to (list-length panes)
    do
+   (let
+       ((text1)
+        )
    (cond
     (text
      (setf text1 text))
@@ -349,7 +452,7 @@ EXAMPLE|#
        ;;end  with, eval
        ))
    ;;end loop
-   )
+   ))
   ;;*deftest
   ;;end set-panes-text-in-process
   )
@@ -370,6 +473,64 @@ EXAMPLE|#
 
 
 
+
+(DEFUN 1MK-EDIT-LIST-PANE-ITEMS ())
+;;EDIT-LIST-PANE-ITEMS
+;;2020
+;;ddd
+(defun edit-list-pane-items (list-pane-sym list-pane interface 
+                                           &key MATCH-ELM item-n item-elm-n
+                              NEW-ITEM new-item-elm  new-pane-items 
+                              append-new-item delete-item-n 
+                              (if-new-item-replace-p T)
+                              (delete-elm-if  "DEL"))
+  "U-file&buffers-frames   RETURNS (values new-pane-items new-item1 new-item-elm1 pane-items matched-elm matched-item-elm) "
+  (let*
+      ((pane-items-array (CAPI:COLLECTION-ITEMS list-pane))
+       (pane-items (array-to-list pane-items-array))
+       (len-items (list-length pane-items))
+       (matched-elm)
+       (matched-item-elm)
+       )
+    ;;(break "pane-items")
+   ;; #<STANDARD-READER-METHOD CAPI:COLLECTION-ITEMS NIL (CAPI:COLLECTION) 216F881F>
+    ;;#<STANDARD-METHOD CAPI:CHOICE-SELECTED-ITEM NIL (CAPI:CHOICE) 20FFFA67>
+   ;;#<STANDARD-METHOD (SETF CAPI:COLLECTION-ITEMS) NIL (T CAPI:COLLECTION) 20FE424F>
+   ;;#<STANDARD-METHOD CAPI::SET-COLLECTION-ITEMS NIL (CAPI:COLLECTION T T T) 20FE566B>
+  ;;NO-ERRORS? (with-slots (list list-pane) interface
+     (multiple-value-bind (new-pane-items1 new-item1 new-item-elm1
+                                          matched-elm matched-item-elm)
+         (edit-multi-list-list pane-items :MATCH-ELM MATCH-ELM :item-n item-n
+                               :item-elm-n item-elm-n :new-item-elm new-item-elm
+                               :NEW-ITEM NEW-ITEM :new-list-items new-pane-items
+                               :append-new-item append-new-item
+                               :delete-item-n delete-item-n
+                               :if-new-item-replace-p if-new-item-replace-p
+                               :delete-elm-if  delete-elm-if)
+
+       ;;MODIFY GLOBAL VARIABLE (SAVED TO FILE AT END)
+       (setf *all-mark-info-items new-pane-items1)
+
+       ;;MODIFY THE LIST-PANE
+       (capi:apply-in-pane-process list-pane
+                                   #'(setf capi:collection-items) 
+                                  new-pane-items1 list-pane)
+       
+       (values new-pane-items1 new-item1 new-item-elm1 pane-items matched-elm 
+               matched-item-elm)
+       ;;end mvb,, let, edit-list-pane-items
+       )))
+;;TEST
+;; (edit-list-pane-items  
+
+
+
+;;CLOSE-INTERFACE-CALLBACK
+;;
+;;ddd
+(defun close-interface-callback (interface)
+  "U-capi"
+  (capi:destroy interface))
 
 
 #|
@@ -435,4 +596,95 @@ CAPI-WIN32-LIB::REPRESENTATION-PROMPT-FOR-COLOR
 CAPI-WIN32-LIB::WW-PROMPT-FOR-DIRECTORY 
 CONDITIONS::PROMPT-FOR-FUNCTION
 |#
+
+
+;;MY-PRINT-CHOICE-LIST-ITEMS
+;;2020
+;;ddd
+;; REST-STRING assumed special in SETQ
+;;;*** Warning in MY-PRINT-CHOICE-LIST-ITEMS: REST-STRING assumed special
+;;;*** Warning in MY-PRINT-CHOICE-LIST-ITEMS: RETURN-STRING assumed special in SETQ
+;;;*** Warning in MY-PRINT-CHOICE-LIST-ITEMS: RETURN-STRING assumed special
+;;;*** Warning in MY-PRINT-CHOICE-LIST-ITEMS: REST-STR is bound 
+(defun my-print-choice-list-items (string )
+  "U-capi   RETURNS substrings w/newline max-len *MY-PRINT-CHOICE-LIST-MAX-STR-N"
+  (unless (boundp '*my-print-choice-list-max-str-n)
+    (setf *my-print-choice-list-max-str-n 50))
+  (let*
+      ((n-string (length string))
+       (max-n *my-print-choice-list-max-str-n)
+       (new-string "")
+       (rest-string string)
+       (return-string)
+       )
+    (cond
+     ((> n-string max-n)
+      (setf new-string (subseq string 0 max-n)
+            rest-string (subseq string max-n)
+            return-string  (my-print-choice-list-items rest-string)
+            new-string (format nil "~A~%~A" new-string return-string )))                  
+     (T (setf new-string string)))
+    new-string
+    ;;end let, my-print-choice-list-items
+    ))
+;;TEST
+;; (my-print-choice-list-items "this is a long string that I am testing a function on right now. I will see how well it works for me at this time.")
+;;works= 
+#|"this is a long string that I am testing a function
+ on right now. I will see how well it works for me
+ at this time."|#
+
+
+
+
+;;XXX =================== DELETE FOLLOWING ==========
+
+#|(cond
+     ;;replace all pane items?
+     (new-pane-items NIL)
+     ;;append new item
+     (append-new-item
+      (setf new-pane-items (append new-pane-items (list append-new-item))))
+     ;;delete nth item
+     (delete-item-n 
+      (setf new-pane-items (delete-nth new-pane-items delete-item-n)))
+     ;;REPLACE ITEM OR ITEM-ELM
+     ((or new-item-elm new-item)
+      (loop
+       for item in pane-items
+       for n from 1 to len-items
+       do
+       (let*
+           ((x)
+            )
+         ;;MAKE THE NEW ITEM (if found)
+         (cond
+          ;;matched match-elm (substr in any elm in item) and item-elm-n
+          ((and match-elm  item-elm-n
+                (setf matched-item (find-list-item-by-substrings match-elm item)))
+           (setf matched-elm (nth item-elm-n matched-item))
+           (cond
+            (new-item
+             (setf new-item1 new-item))
+            (new-item-elm
+             (setf new-item1 (replace-nth item item-elm-n new-item-elm)))
+           )
+           (setf new-pane-items (append new-pane-items (list new-item1)))
+           )
+          ;;mathed item-n (and possibly matched elm-n)
+          ((and item-n (= n item-n))
+           (setf matched-item item)
+           (cond
+            (item-elm-n
+             (setf matched-item-elm (nth item-elm-n item)
+                   new-item1 (replace-nth item item-elm-n new-item-elm)))
+            (t (setf new-item1 new-item)))
+           (setf new-pane-items (append new-pane-items (list new-item1)))
+           )
+          ;;if no match append new-pane-items with item
+          (t (setf new-pane-items (append new-pane-items (list item)))))
+     
+         ;;end let,loop
+         ))
+      ))|#
 

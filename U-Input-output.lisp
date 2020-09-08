@@ -92,6 +92,319 @@ If direction is :input or :probe, or if if-exists is not :new-version and the ve
    )))|#
 
 
+
+;;PPRINT-LISTS
+;;2020
+;;ddd
+(defun pprint-lists (nested-list  &key (separator " ") (leveln 1)
+                                  (indent " ")(total-indent ""))
+  "U-input-output.   RETURNS    INPUT:  
+ NOTE: Puts SLASHES before double-quotes and ENCLOSES KEYWORDS in double-quotes.  TO FIX: 1. Copy output text to a new buffer; 2. SEARCH & REPLACE following: [ \"=> simple double-quote], keywords  eg.\":CSS\" to :CSS,etc."
+
+   ;;(afout  'out (format nil "BEGIN (car nested-list= ~A" (car nested-list)))
+   ;;NEW INDENT
+   (setf total-indent (format nil "~A~A" total-indent indent))
+    ;;LOOP THRU NESTED-LIST
+  (let*
+      ((pptext (cond ((= leveln 1) (format nil "~% (" ))
+                     (t (format nil "~%~A  (" total-indent))))
+       )
+   ;;(afout   'out (format nil "indent= ~A leveln= ~A" indent leveln))
+    (loop
+     for item in nested-list
+     do
+     ;;(afout   'out (format nil "item= ~A" item))
+    (cond
+     ((and item (listp item))
+      ;;(setf pptext (format nil "~A ~A" pptext " ("))
+      (multiple-value-bind (pptext1)
+          (pprint-lists item :leveln (+ leveln 1) :indent indent :total-indent total-indent)
+        (setf pptext (format nil "~A~A ~A)~%  ~A" total-indent pptext pptext1
+                             total-indent))
+      ;;end mvb listp
+      ))
+     ;;all non-list items
+     (T 
+      (cond
+         ((equal (elt pptext (- (length pptext) 1)) '#\( )
+          (cond
+           ((or (stringp item)(keywordp item))
+            (when (keywordp item) (setf item (format nil ":~A" item)))
+            (setf pptext (format nil "~A ~S" pptext item)))
+           (T (setf pptext (format nil "~A ~A" pptext item))))
+         )
+         ;;(setf pptext (format-append-2 pptext item :separator "")))
+         (T 
+          (cond
+             ((or (stringp item)(keywordp item))
+              (when (keywordp item) (setf item (format nil ":~A" item)))
+              (setf pptext (format nil "~A ~S" pptext item)))
+             (T (setf pptext (format nil "~A ~A" pptext item))))))
+      ;;end big T,cond
+      ))
+          ;;(setf pptext (format-append-2 pptext item :separator separator))))))
+    ;; format-append-2 worked better SSSS RE-DEFINE IT
+    ;;(afout   'out (format nil "pptext= ~A" pptext))
+    ;;end loop
+    )
+    (when (= leveln 1)
+      (setf pptext (format nil "~A) " pptext)))
+      ;; (when (= leveln 1)(break "LEVEL 1 END"))
+     pptext
+    ;;end let, pprint-lists
+    ))
+;;TEST
+;;with enclosed strings-NO KEYWORDS
+;; (pprint-lists  '(a "b" (1 "2" 3 (x y "z") :key 4 5 6) "c" d) )
+;; works= 
+#|" 
+ ( A \"b\"   
+    ( 1 \"2\" 3 
+     ( X Y \"z\")
+     4 5 6)
+    \"c\" D) "|#
+
+ (pprint-lists  '(:a "b" (1 "2" 3 (x y "z") :key 4 5 6) "c" d) )
+" 
+ ( \":A\" \"b\"   
+    ( 1 \"2\" 3 
+     ( X Y \"z\")
+     \":KEY\" 4 5 6)
+    \"c\" D) "
+;; With KEYWORDS -- MAKES THEM STRINGS
+;; (pprint-lists  '(:a "b" (1 "2" 3 (x y "z") :key 4 5 6) "c" d) )
+;;RESULT
+#|" 
+ ( \":A\" \"b\"   
+    ( 1 \"2\" 3 
+     ( X Y \"z\")
+     \":KEY\" 4 5 6)
+    \"c\" D) "|#
+;; (pprint-lists *CS-CAT-DB-CSYMS)
+;;no strings
+;; (pprint-lists  '(a b (1 2 3 (x y z) 4 5 6) c d) )
+;;
+#| " 
+  ( A B   
+    ( 1 2 3 
+     ( X Y Z)
+     4 5 6)
+    C D) "
+|#
+    
+
+
+;;TEST-FORMAT/WRITE-SLASHES-TO-FILE
+;;2020
+;;ddd
+(defun test-writing-slashes-to-file (testlist &key 
+                                              (pathname *pprint-lists-to-file-pathname) )
+  "U-input-output   RETURNS    INPUT:  "
+  (let*
+      ((x)
+       )
+    (with-open-file (outs pathname :direction :output :if-exists :append
+                          :if-does-not-exist :create)
+      (format outs "format-A= ~A" testlist)
+      (format outs "~% format-S= ~S" testlist)
+      (format outs "~% write=")
+      (write testlist :stream outs)
+      ;;end with
+      )
+    (values  "TEST DONE"  )
+    ;;end let, test-writing-slashes-to-file
+    ))
+;;TEST
+;; (test-writing-slashes-to-file  '(a b (1 "2" 3 ("x" y z) 4 5 "6") c "d") ) ;;  *pprint-lists-to-file-pathname)
+;; RESULT 
+#|
+[INPUT= (a b (1 "2" 3 ("x" y z) 4 5 "6") c "d") ]
+ format-A= (A B (1 2 3 (x Y Z) 4 5 6) C d)
+ format-S= (A B (1 "2" 3 ("x" Y Z) 4 5 "6") C "d")
+ write=(A B (1 "2" 3 ("x" Y Z) 4 5 "6") C "d")
+|#
+
+
+
+
+;;MY-PRINT-STRINGS-WO-SLASHES
+;;2020
+;;ddd
+(defun my-print-strings-wo-slashes (nested-list  &key  (max-n 10000) )
+  "U-input-output. Returns PROPER STRINGS W/O SLASH before DOUBLE-QUOTES (in list form = list-out)  INPUT: NESTED-LIST can be a STRING, LIST, or any object?   RETURNS: (values  list-out string-out).  STRING-OUT is a list WITH SLASHES." 
+  (let*
+      ((list-out)
+       (string-out)
+       )
+    (cond
+     ((stringp nested-list) 
+      (setf string-out nested-list))
+     (T (setf string-out (format nil "~S" nested-list))))
+    (with-input-from-string (out-string string-out )
+      (loop
+       for n from 1 to max-n
+       do
+       (let*
+           ((token (read out-string nil 'eof T))
+         )
+       (cond
+        ((equal token 'eof)
+         (return))
+        (t (setf list-out (append list-out (list token) ))))     
+       ;;end let,loop
+       ))
+    ;;end with
+    )
+    (when (listp (car list-out))
+      (setf list-out (car list-out)))
+    (values  list-out string-out)
+    ;;end let, my-print-strings-wo-slashes
+    ))
+;;TEST
+;; (my-print-strings-wo-slashes   "this \"is\" a (\"1\" 2) \"test\" string")
+;; works= (THIS "is" A ("1" 2) "test" STRING)    "this \"is\" a (\"1\" 2) \"test\" string"
+;; (my-print-strings-wo-slashes  '(a b (1 2 3 (x "y" z) 4 "5" 6) "c" d))
+;; works= (A B (1 2 3 (X "y" Z) 4 "5" 6) "c" D)        "(A B (1 2 3 (X \"y\" Z) 4 \"5\" 6) \"c\" D)"
+
+;;If have MULTI-LINE STRING
+ #|(my-print-strings-wo-slashes   "this \"is\" a 
+         (\"1\" 2) \"test\" 
+           string")|#
+;;works= (THIS "is" A ("1" 2) "test" STRING)
+#|"this \"is\" a 
+         (\"1\" 2) \"test\" 
+           string"|#
+
+
+
+
+;;WRITE-LIST-ITEMS
+;;2020  
+;;ddd
+(defun write-list-items (list &key (stream *standard-output*)  indent-n
+                              add-pre-newline-p  add-post-newline-p
+                              prestring  poststring  (return-string-p T))
+  "U-input-output  RETURNS    INPUT:  "
+  (let*
+      ((out-string " ")
+       (len-list (list-length list))
+       (indent "")
+       )
+    (when indent-n
+         (dotimes (n indent-n) 
+           (setf indent (string-append indent " "))))
+    (loop
+     for item in list
+     do
+     (afout 'out (format nil "item= ~A" item))
+       (when add-pre-newline-p
+         (format stream "~%"))
+       (when indent-n
+         (write indent :stream stream))
+       (when prestring
+         (write prestring :stream stream))
+       ;;write item
+         (write item :stream stream)
+        (when poststring
+          (write poststring :stream stream))     
+        (when add-post-newline-p
+         (format stream "~%"))
+
+        (when return-string-p
+          (when add-pre-newline-p
+            (setf out-string (format nil "~A~%" out-string)))
+          (when indent-n
+              (setf out-string (format nil "~A~A" out-string indent)))
+          (when prestring
+            (setf out-string (format nil "~A ~S" out-string prestring)))
+          ;;write item          
+          (setf out-string (format nil "~A ~S" out-string item))
+          (when poststring
+            (setf out-string (format nil "~A ~S" out-string poststring)))
+          (when add-post-newline-p
+            (setf out-string (format stream "~A~%" out-string)))
+          )
+     ;;end ,loop
+     )
+    (values out-string len-list)
+    ;;end let, write-list-items
+    ))
+;;TEST
+;; (write-list-items '(a "test" 1 2 ("c" d) more))
+;; write list= A"test"12("c" D)MORE    
+;; string= " A \"test\" 1 2 (\"c\" D) MORE"     6
+
+;; indent & newline
+;; ;; (write-list-items '(a "test" 1 2 ("c" d) more) :indent-n 4 :add-pre-newline-p T)
+;; result= 
+#|
+"    "A
+"    ""test"
+"    "1
+"    "2
+"    "("c" D)
+"    "MORE
+"
+     A
+     \"test\"
+     1
+     2
+     (\"c\" D)
+     MORE"
+6|#
+
+
+
+
+
+
+
+;;xxx ================== HELP ===========================
+#|
+;;FOR SLASHES IN STRINGS
+
+;;works ONLY for list output not string output; but can 
+;;FOR A LIST
+(MY-PRINT-STRINGS-WO-SLASHES '(this "is" a ("test") ))
+(THIS "is" A ("test"))    "(THIS \"is\" A (\"test\"))"
+;;FOR A STRING: combine my-print-strings-wo-slashes with WRITE.
+;;EG.
+1. (MY-PRINT-STRINGS-WO-SLASHES "(this \"is\" a (\"test\") )")
+;;list output = (THIS "is" A ("test")), which REMOVES SLASHES 
+;; then can use WRITE  (NOT FORMAT) to write W/O SLASHES to file or *standard-output*
+;;string-output (same as input)= "(this \"is\" a (\"test\") )"
+
+;;2. use WRITE to write to a FILE, STREAM, etc
+;; (WRITE '(THIS "is" A ("test"))) =  (THIS "is" A ("test"))
+
+;;If start with NO slashes (must be a list), [see above]
+;; (my-print-strings-wo-slashes (this \"is\" a (\"test\") )")
+;;-------------------------------------------------------------------------------------
+
+CL-USER 30 > (WRITE '(this \"is\" a (\"test\") ) :readably T)
+(THIS \"IS\" A (\"TEST\"))
+(THIS \"IS\" A (\"TEST\"))
+
+CL-USER 31 > (WRITE '(this \"is\" a (\"test\") ) :readably T)
+(THIS \"IS\" A (\"TEST\"))
+(THIS \"IS\" A (\"TEST\"))
+
+CL-USER 32 > (FORMAT nil "~A" '(this \"is\" a (\"test\") ))
+"(THIS \"IS\" A (\"TEST\"))"
+
+CL-USER 33 > (FORMAT nil "~S" '(this \"is\" a (\"test\") ))
+"(THIS \\\"IS\\\" A (\\\"TEST\\\"))"
+
+CL-USER 34 > (FORMAT nil "~A" '(this "is" a ("test") ))
+"(THIS is A (test))"
+
+CL-USER 35 > (FORMAT nil "~S" '(this "is" a ("test") ))
+"(THIS \"is\" A (\"test\"))"
+|#
+
+
+
+
 ;;MOVED TO U-FILES --very versitle and robust
 ;;WRITE-TO-FILE
 ;;2017
@@ -220,3 +533,162 @@ right-margin     *print-right-margin*  |#
 
 
 ;; (get-get-output-stream-string *test-out-string) = "" 
+
+
+
+
+;;MY-PPRINT-IN-LISTS-W/SLASHES
+;;2020
+;;ddd
+(defun my-pprint-in-lists-w/slashes (pp-string  &key  (end-strs '( "\)")  )
+                                      (startn 0) endn (max-n 2000))
+  "U-input-output   RETURNS pp-out-str.  CODE BETTER THAN W/O-SLASHES. . INPUT: any string (or object to make into a string).  END-STRS must be SINGLE ELT [or must modify function]"
+  (when (not (stringp pp-string))
+    (setf pp-string (format nil "~S" pp-string)))
+  (let*
+      ((instr (make-string-input-stream pp-string startn endn))
+       (my-pp-string "")    
+       (newline "")
+       (newline-end-p)
+       )
+    (loop
+     for line-n from 1 to max-n
+     do
+     (let*
+         ((line (read-line instr nil 'eof))
+          (len-line (cond ((stringp line)(length line))
+                          (T line)))
+          )   
+       (unless (equal line 'eof)
+         (loop
+          for n from 0 to (- len-line 1)
+          do
+          (let*
+              ((str (subseq line n (+ n 1)))
+               ;;(list-end-p (listp obj))
+               (line-end-p (member str end-strs :test 'my-equal))          
+               )
+            (cond
+             ((equal line 'eof)      
+              nil)
+             ((member str end-strs :test 'my-equal)
+              (setf newline (format nil "~A~A" newline str)
+                    my-pp-string (format nil "~A~%~A" my-pp-string newline)
+                    newline ""))
+             (t (setf newline (format nil "~A~A" newline str) )))
+            ;;end let,loop, unless
+            )))
+       ;;end let,loop
+       ))
+    (values my-pp-string)
+    ;;end let, my-pprint-in-lists-w/slashes
+    ))
+;;TEST
+;; (my-pprint-in-lists-w/slashes **new-csym-tree)
+;; works, same code as **new-csym-tree except has slashes 
+;; PP form is largely BY LISTS, so much more compact than normal pprint.
+
+
+
+;;MY-PPRINT-LISTS  -- PRINTS LOTS OF EXTRA NILS?? CHECK LATER?
+;;2020
+;;ddd
+#|(defun my-pprint-lists (nested-list  &key (end-items '(:S)))
+  "U-input-output   RETURNS pp-out-str. INPUT: any string (or object to make into a string).  END-STRS must be SINGLE ELT [or must modify function]"
+  (when (not (listp nested-list))
+    (setf nested-list (list nested-list)))
+  (let*
+      (;;(instr (make-string-input-stream pp-string startn endn))
+       (my-pp-string "")    
+       (newlines-list)
+       (newline-str "")
+       (newline)
+       (newline-end-p)
+       )
+    (loop
+     for item in nested-list
+     do
+     (let*
+         ((x)
+          )   
+       (cond
+        ((and item (listp item))
+         (multiple-value-bind (sub-my-pp-string sub-newlines-list)
+         (my-pprint-lists item)
+           ;;ACCUMULATE
+           (setf newlines-list (append1 newlines-list sub-newlines-list)
+                 my-pp-string (format nil "~A ~A" my-pp-string sub-my-pp-string))
+           ))
+       ((my-equal item (first nested-list))
+        (setf newline (append1 newline item)
+              newline-str (format nil "~A (~S" newline-str item)
+              newlines-list (append1 newlines-list newline))
+        (when (= (length nested-list) 1)
+          (setf newline-str (format nil "~A)" newline-str)))
+        (setf my-pp-string (format nil "~A~%  (~A" my-pp-string newline-str)))
+       ((my-equal item (last1 nested-list))
+        (setf newline (append1 newline item)
+              newline-str (format nil "~A ~S)" newline-str item)
+              newlines-list (append1 newlines-list newline)
+              my-pp-string (format nil "~A~%   ~A" my-pp-string newline-str)))
+        ((member item end-items :test 'my-equal)
+         (setf newline (append1 newline item)
+                 newline-str (format nil "~A ~S" newline-str item)
+                 newlines-list (append1 newlines-list newline)
+                 my-pp-string (format nil "~A~%  ~A" my-pp-string newline-str)))
+        (item (setf newline (append1 newline item)
+                 newline-str (format nil "~A ~S" newline-str item))))
+            ;;end let,loop
+            ))
+    (values my-pp-string newlines-list)
+    ;;end let, my-pprint-lists
+    ))|#
+;;TEST
+;; (my-pprint-lists **new-csym-tree)
+
+
+
+
+
+
+
+
+
+
+
+
+#|(defun clean-cs-pp-output (pp-string  &key  (end-objs '(":S")  )
+                                      (startn 0) endn (max-n 2000))
+  "U-input-output   RETURNS pp-out-str  LINE-ENDS= collect until find end. "
+  (when (not (stringp pp-string))
+    (setf pp-string (format nil "~S" pp-string)))
+  (let*
+      ((instr (make-string-input-stream pp-string startn endn))
+       (new-list)    
+       (newline-list)
+       )
+    (loop
+     for n from 1 to max-n
+     do
+     (let*
+         ((obj (read instr nil 'eof ))
+          (list-end-p (listp obj))
+          (end-p (member obj end-objs :test 'my-equal))          
+          )
+    (cond
+     ((equal obj 'eof)
+      (return))
+     (list-end-p
+      (setf new-list (append new-list (list obj))))
+     (end-p
+      (setf newline-list (append1 newline-list obj)
+       new-list (append1 new-list newline-list)
+       newline-list nil))
+     (t (setf newline-list (append1 newline-list obj))))     
+     ;;end let,loop
+     ))
+    
+
+    (values new-list )
+    ;;end let, clean-cs-pp-output
+    ))|#
